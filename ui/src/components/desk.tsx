@@ -11,7 +11,8 @@ const STATUS = {
 };
 const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 export function TicketRow(p: { name: string; time: string; subject: string; type?: string; p?: number; status?: keyof typeof STATUS; reading?: boolean; selected?: boolean; unread?: boolean; onClick?: () => void;
-  /** Slide the row out once handled (420 ms); onLeft then removes it. */ leaving?: boolean; onLeft?: () => void }) {
+  /** Slide the row out once handled (420 ms); onLeft then removes it. */ leaving?: boolean; onLeft?: () => void;
+  /** Claimed by the desk user: a small "You" mark by the time. */ mine?: boolean }) {
   const st = STATUS[p.status ?? 'todo'];
   useEffect(() => {
     if (!p.leaving) return;
@@ -20,7 +21,7 @@ export function TicketRow(p: { name: string; time: string; subject: string; type
   }, [p.leaving]);
   return (
     <button className="mb-row" data-leaving={p.leaving || undefined} aria-current={p.selected ? 'true' : 'false'} data-unread={p.unread === undefined ? undefined : String(p.unread)} onClick={p.onClick}>
-      <span className="mb-row-line"><span className="mb-row-name">{p.name}</span><span className="mono muted">{p.time}</span></span>
+      <span className="mb-row-line"><span className="mb-row-name">{p.name}</span>{p.mine && <span className="mb-row-you">You</span>}<span className="mono muted">{p.time}</span></span>
       <span className="mb-row-subj">{p.subject}</span>
       <span className="mb-row-foot">
         <span className="mb-row-status">

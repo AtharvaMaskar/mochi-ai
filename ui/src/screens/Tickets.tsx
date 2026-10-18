@@ -1,15 +1,14 @@
 // Tickets: queue → thread → Mochi's brief. ≥1180 three panes; 768–1179 brief as a sheet; <768 one pane with back.
 // The queue and threads come from the helpdesk (through the agent); the brief, guess and history from the graph.
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Segmented, Button, NeedsYou, Icon, Confidence } from '../components/ds.tsx';
-import { PanelRightOpen, PanelRightClose } from 'lucide-react';
+import { Check, PanelRightOpen, PanelRightClose } from 'lucide-react';
 import type { StoredQuery, Visual } from '@mochi/contracts';
 import { TicketRow, MochiBrief, Noticed, Disclosure, useStored } from '../components/desk.tsx';
 import { BlockView, Table, Suggestion, FixGroups, HistoryList, groupFixes, historyRows } from '../components/blocks.tsx';
 import { QueryTag, NumPill, PathReceipt, ReceiptProvider, useReceipts } from '../components/receipts.tsx';
 import { useWidth } from '../components/shell.tsx';
 import { ConversationThread } from '../components/thread.tsx';
-import { draftReply } from '../components/thread-text.ts';
 import { api, fmtClock, fmtDay, useData, type Guess, type TicketDetail } from '../data/api.ts';
 
 const VIEWS = [{ id: 'ready', label: 'Ready' }, { id: 'done', label: 'Done today' }, { id: 'all', label: 'All received' }] as const;
@@ -146,7 +145,19 @@ export function Tickets() {
   const [read, setRead] = useState<Set<string>>(new Set());
   const detail = useData(() => (sel ? api.ticket(sel) : Promise.resolve(null)), [sel]);
   const [answerError, setAnswerError] = useState<string | null>(null);
-  const t = detail.data && detail.data.id === sel ? detail.data : null;
+  // On a switch the last ticket stays, dimmed, until the next one lands: the click answers at once and nothing reflows.
+  const t = detail.data && !detail.error ? detail.data : null;
+  const stale = !!t && t.id !== sel;
+  const ticketPane = useRef<HTMLElement>(null);
+  useEffect(() => { ticketPane.current?.scrollTo({ top: 0 }); }, [t?.id]); // a new ticket opens at its top
+  const [claimed, setClaimed] = useState<Set<string>>(new Set()); // claimed here; the next reload confirms
+  const [claimError, setClaimError] = useState<string | null>(null);
+  const claim = async (id: string) => {
+    setClaimError(null);
+    try { await api.claim(id); } catch (e) { setClaimError((e as Error).message); return false; }
+    setClaimed((s) => new Set(s).add(id));
+    return true;
+  };
 
   useEffect(() => { const id = setInterval(list.reload, POLL_MS); return () => clearInterval(id); }, [list.reload]);
   useEffect(() => { if (width >= 768 && !sel && rows[0]) setSel(rows[0].id); }, [width, view, rows[0]?.id]);
@@ -170,6 +181,7 @@ export function Tickets() {
     return true;
   };
   const forName = t && writingFor(t);
+  const isClaimed = !!t && (!!t.claimed || claimed.has(t.id));
   const counts = list.data?.counts;
 
   return (
@@ -187,26 +199,28 @@ export function Tickets() {
             <TicketRow key={x.id} name={x.name} time={fmtDay(x.created_at, list.data!.sim_now) === 'Today' ? fmtClock(x.created_at) : fmtDay(x.created_at, list.data!.sim_now)}
               subject={x.subject} type={x.guess.issue ?? undefined} p={x.guess.p ?? undefined} status={x.state}
               reading={x.reading && x.state === 'todo'} selected={x.id === sel} unread={x.state === 'todo' ? !read.has(x.id) : false} onClick={() => open(x.id)}
-              leaving={leaving === x.id && view === 'ready'} onLeft={() => handled(x.id)} />
+              leaving={leaving === x.id && view === 'ready'} onLeft={() => handled(x.id)} mine={x.mine || claimed.has(x.id)} />
           )) : <div className="mb-empty"><span className="t-body">{view === 'ready' ? 'Nothing to answer right now.' : 'No tickets here yet.'}</span></div>}
       </aside>
 
-      <main className="mb-pane mb-ticket" data-show={pane === 'ticket' || undefined} aria-label="Ticket">
+      <main ref={ticketPane} className="mb-pane mb-ticket" data-show={pane === 'ticket' || undefined} data-stale={stale || undefined} aria-label="Ticket" aria-busy={stale || undefined}>
         {width < 768 && <Button className="mb-back" variant="link" size="sm" onClick={() => setPane('list')}><Icon name="back" />Tickets</Button>}
         {t ? <>
-          <div className="mb-ticket-head">
+          <div className="mb-ticket-head" key={t.id}>
             <div>
               <h1 className="t-title">{t.subject}</h1>
               <p className="t-caption muted">{t.requester.name}{forName && <>, writing for {forName}</>}
                 {t.customer_id && <> · <span className="mono">{t.customer_id}</span></>} · <span className="mono">{t.id}</span></p>
             </div>
             <div className="mb-prev-row" style={{ gap: 'var(--space-2)' }}>
+              {t.state === 'todo' && (isClaimed ? <span className="mb-claimed"><Check size={16} strokeWidth={1.5} aria-hidden="true" />Claimed by you</span>
+                : <Button size="sm" onClick={() => void claim(t.id)}>Claim</Button>)}
               {width < 1180 && <Button size="sm" onClick={() => (width < 768 ? setPane('brief') : setSheet(true))}>Open Mochi’s brief</Button>}
             </div>
           </div>
+          {claimError && <NeedsYou mood="sorry" title="I couldn’t claim this ticket" reason={claimError} />}
           <ConversationThread key={t.id} messages={t.thread} source={t.source}
-            next={t.state === 'todo' ? { to: t.requester.name, onSend: (text) => answer(t.id, text),
-              draft: draftReply({ requester: t.requester.name, customer: forName, resolution: t.guess?.resolution }) } : undefined} />
+            next={t.state === 'todo' ? { ticketId: t.id, to: t.requester.name, claimed: isClaimed, onClaim: () => claim(t.id), onSend: (text) => answer(t.id, text) } : undefined} />
           {answerError && <NeedsYou mood="sorry" title="I couldn’t send the reply" reason={answerError} />}
         </> : detail.error ? <NeedsYou mood="sorry" title="I can’t open this ticket" reason={detail.error} action="Try again" onAction={detail.reload} />
           : sel ? <div className="mb-skel" aria-label="Loading the ticket">{[92, 70, 84].map((w, i) => <i key={i} style={{ width: `${w}%` }} />)}</div>

@@ -1,4 +1,4 @@
-// Plain-text helpers for the ticket thread: fold email noise, word the gap between messages, draft the next reply.
+// Plain-text helpers for the ticket thread: fold email noise, word the gap between messages.
 
 // ponytail: line heuristics, not a parser. A sign-off only folds in the last few lines, so "Thanks for the help" mid-email stays.
 const QUOTE = /^(>|On .{4,160}wrote:\s*$|-{2,} ?(Original|Forwarded) [Mm]essage|From: )/;
@@ -30,19 +30,4 @@ export function gapWords(ms: number): string | null {
   if (h < 24) return `${h} h`;
   const d = Math.round(h / 24);
   return `${d} ${d === 1 ? 'day' : 'days'}`;
-}
-
-const first = (name: string) => name.trim().split(/\s+/)[0] ?? name;
-
-/** Mochi's draft from the fix that resolved similar tickets. No fix: no draft. */
-export function draftReply(p: { requester: string; customer?: string | null; resolution?: string | null }): string {
-  if (!p.resolution) return '';
-  const forOther = p.customer && p.customer.toLowerCase() !== p.requester.toLowerCase();
-  const fix = p.resolution.charAt(0).toLowerCase() + p.resolution.slice(1).replace(/\.\s*$/, '');
-  return [
-    `Hi ${first(p.requester)},`,
-    `Thanks for writing in. Here is what we did for ${forOther ? `${first(p.customer!)}’s account` : 'your account'}: ${fix}.`,
-    'Reply here if anything still looks wrong.',
-    'Customer Care',
-  ].join('\n\n');
 }

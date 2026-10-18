@@ -192,9 +192,11 @@ export function createSim(inbox: Inbox, o: SimOpts = {}) {
       if (seg.length === 2 && req.method === 'GET') return send(res, 200, view(t, now, include).out, rl);
       if (seg.length === 2 && req.method === 'PUT') {
         const b = await readBody(req);
-        if (!b || !Object.values(FD_STATUS).includes(b.status)) return send(res, 400, { description: 'Validation failed', errors: [{ field: 'status', code: 'invalid_value' }] }, rl);
-        t.status_history.push({ status: b.status, at: now });
-        fire({ event: 'status_changed', ticket_id: t.id });
+        const okResp = b?.responder_id === undefined || inbox.agents.some((a) => a.id === b.responder_id);
+        if (!b || (b.status === undefined && b.responder_id === undefined) || (b.status !== undefined && !Object.values(FD_STATUS).includes(b.status)) || !okResp)
+          return send(res, 400, { description: 'Validation failed', errors: [{ field: okResp ? 'status' : 'responder_id', code: 'invalid_value' }] }, rl);
+        if (b.responder_id !== undefined) t.responder_id = b.responder_id; // assign (Freshdesk: PUT responder_id)
+        if (b.status !== undefined) { t.status_history.push({ status: b.status, at: now }); fire({ event: 'status_changed', ticket_id: t.id }); }
         return send(res, 200, view(t, now, include).out, rl);
       }
       if (seg[2] === 'conversations' && req.method === 'GET') {

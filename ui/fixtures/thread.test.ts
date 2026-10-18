@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { foldNoise, gapWords, draftReply } from '../src/components/thread-text.ts';
+import { foldNoise, gapWords } from '../src/components/thread-text.ts';
 
 test('folds sign-off and Sent from my iPhone', () => {
   const r = foldNoise('Hi team,\n\nMy PIN is blocked. This started on 18 Oct.\n\nThanks,\nZara\n\nSent from my iPhone');
@@ -32,11 +32,4 @@ test('gap words', () => {
   assert.equal(gapWords(50 * 60_000), '50 min');
   assert.equal(gapWords(3 * 3_600_000), '3 h');
   assert.equal(gapWords(49 * 3_600_000), '2 days');
-});
-
-test('draft names the customer when someone writes for them', () => {
-  const d = draftReply({ requester: 'Zara Lobo', customer: 'Yash Lobo', resolution: 'Unlocked account and sent PIN reset link' });
-  assert.match(d, /^Hi Zara,/);
-  assert.match(d, /Yash’s account: unlocked account and sent PIN reset link\./);
-  assert.equal(draftReply({ requester: 'A B', resolution: null }), '');
 });

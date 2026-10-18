@@ -6,13 +6,16 @@ import type { Story, StoredQuery, ToolCard } from '@mochi/contracts';
 export type Guess = { issue: string | null; p: number | null; basis: 'graph' | 'vector' | 'none'; query_id: string | null; resolution?: string | null };
 export type DeskRow = {
   id: string; fd_id: number; name: string; created_at: number; subject: string; status: string;
-  state: 'todo' | 'done' | 'left'; reading: boolean; guess: Guess;
+  state: 'todo' | 'done' | 'left'; reading: boolean; guess: Guess; /** Assigned to the desk user. */ mine?: boolean;
 };
+/** Mochi's model draft: the text, the fix plan (plain checklist), and the KB lookup as receipt q_1. */
+export type Draft = { ticket: string; text: string; steps: string[]; kb: string | null; resolution: string | null; queries: Record<string, StoredQuery> };
+export type DraftHint = 'rewrite' | 'shorter' | 'warmer';
 export type DeskList = { view: string; order: string; sim_now: number; counts: { ready: number; done: number; all: number }; rows: DeskRow[]; queries: Record<string, StoredQuery> };
 export type Msg = { kind: 'customer' | 'reply' | 'note'; author: string; at: number; text: string; quoted?: string };
 export type TicketDetail = {
   id: string; fd_id: number; subject: string; status: string; state: DeskRow['state']; created_at: number;
-  requester: { name: string; email: string | null }; customer_id: string | null; merged_into: string | null;
+  requester: { name: string; email: string | null }; customer_id: string | null; merged_into: string | null; claimed?: boolean;
   in_memory: boolean; ingested: boolean; guess: Guess | null; guess_queries: Record<string, StoredQuery>;
   customer: ToolCard | null; thread: Msg[]; /** Freshdesk channel code: 1 email, 2 portal, 3 phone, 7 chat. */ source?: number;
 };
@@ -46,6 +49,8 @@ export const api = {
   ticket: (id: string) => call<TicketDetail>(`/api/tickets/${encodeURIComponent(id)}`),
   brief: (id: string) => call<ToolCard>(`/api/tickets/${encodeURIComponent(id)}/brief`, post()),
   answer: (id: string, requestId: string, text?: string) => call<{ status: string }>(`/api/tickets/${encodeURIComponent(id)}/answer`, post({ requestId, text })),
+  draft: (id: string, hint?: DraftHint, previous?: string) => call<Draft>(`/api/tickets/${encodeURIComponent(id)}/draft`, post({ hint, previous })),
+  claim: (id: string) => call<{ claimed: boolean }>(`/api/tickets/${encodeURIComponent(id)}/claim`, post()),
   overview: () => call<Overview>('/api/overview'),
   stories: () => call<StoryRow[]>('/api/stories'),
   story: (id: string, version?: number, asOf?: number) =>
