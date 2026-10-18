@@ -1,53 +1,75 @@
 /* Chat layout (conversations · chat · outputs rail / story panel), the Outputs rail, the empty-state cards, the
    story panel's header and motion, and the Reports nav count. Tokens only. */
 
-/* ---------- Three columns ---------- */
-.mb-split { position: relative; overflow: hidden; }
-.mb-threads { flex: 0 0 260px; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--bg-surface); border-right: 1px solid var(--border); }
-.mb-split[data-side="closed"] .mb-threads { display: none; }
-.mb-split-rail { flex: 0 0 280px; min-width: 0; min-height: 0; overflow-y: auto; background: var(--bg-surface); border-left: 1px solid var(--border); }
-.mb-split-rail:has(.mb-rail[data-collapsed]) { flex-basis: 160px; }
+/* ---------- One surface, three columns ---------- */
+/* The chat atmosphere (Backdrop, rendered inside the chat column) spans the whole screen: .mb-split is its containing
+   block, and the side columns are translucent over it with one hairline each. */
+.mb-split { position: relative; overflow: hidden; isolation: isolate; }
+.mb-split-chat:has(.mb-chat-backdrop) { position: static; isolation: auto; }
+.mb-threads, .mb-split-rail { min-width: 0; min-height: 0; display: flex; flex-direction: column; background: color-mix(in srgb, var(--bg-surface) 72%, transparent); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
+@media (prefers-reduced-transparency: reduce) { .mb-threads, .mb-split-rail { background: var(--bg-surface); -webkit-backdrop-filter: none; backdrop-filter: none; } }
+.mb-threads { flex: 0 0 clamp(260px, 16vw, 320px); border-right: 1px solid var(--border); }
+.mb-split-rail { flex: 0 0 clamp(280px, 18vw, 340px); border-left: 1px solid var(--border); overflow-y: auto; }
+.mb-threads[data-collapsed], .mb-split-rail:has(.mb-rail[data-collapsed]) { flex-basis: 48px; }
 .mb-split:has(> .mb-panel[data-settled]) > .mb-split-rail { display: none; } /* the open panel takes the rail's column once settled */
+.mb-split-chat { display: flex; flex-direction: column; }
+
+/* the shared 48px header row: same height, padding, type and hairline in all three columns */
+.mb-col-head { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); height: 48px; padding: 0 var(--space-2) 0 var(--space-4); border-bottom: 1px solid var(--border); }
+.mb-col-title { display: inline-flex; align-items: baseline; gap: var(--space-2); font-size: var(--fs-label); font-weight: var(--fw-label); color: var(--ink); white-space: nowrap; }
+.mb-strip .mb-col-head, .mb-rail[data-collapsed] .mb-col-head { justify-content: center; padding: 0; }
+.mb-strip-body { display: flex; flex-direction: column; align-items: center; gap: var(--space-1); padding-top: var(--space-2); }
+.mb-strip-count { font-size: var(--fs-data-xs); }
+.mb-chat-head { justify-content: center; padding: 0 var(--space-4); }
+.mb-chat-title { flex: 1; min-width: 0; max-width: 760px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-label); color: var(--ink-muted); }
+
+/* the reading column: one width shared exactly by the messages and the composer */
+.mb-split-chat .mb-page:has(> .mb-chat-shell) { max-width: none; padding: 0 var(--space-6) var(--space-6); }
+.mb-chat-shell > .mb-chat-list-wrap .mb-chat, .mb-chat-shell > .mb-composer { width: 100%; max-width: 760px; margin-inline: auto; }
+.mb-chat-shell .mb-chat-list { padding-inline: 0; }
+.mb-chat-shell > .mb-composer { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-surface); box-shadow: var(--shadow-seg); }
+.mb-chat-shell > .mb-composer:focus-within { border-color: var(--focus); }
+
 .mb-scrim { display: none; padding: 0; border: 0; background: color-mix(in srgb, var(--ink) 18%, transparent); }
-.mb-chat-bar { display: flex; align-items: center; }
 .mb-side-toggle, .mb-outputs-toggle { display: none !important; }
-.mb-split[data-side="closed"] .mb-side-toggle { display: inline-grid !important; }
-.mb-outputs-toggle { margin-left: auto; }
 @media (max-width: 1179px) {
-  .mb-threads { position: absolute; z-index: 25; top: 0; bottom: 0; left: 0; width: 280px; box-shadow: var(--shadow-pop); animation: mb-side-in .24s cubic-bezier(0.05, 0.7, 0.1, 1) both; }
+  /* the open list overlays; a 48px placeholder keeps the chat where the strip was */
+  .mb-threads:not([data-collapsed]) { position: absolute; z-index: 25; top: 0; bottom: 0; left: 0; width: 280px; background: var(--bg-surface); box-shadow: var(--shadow-pop); animation: mb-side-in .24s cubic-bezier(0.05, 0.7, 0.1, 1) both; }
+  .mb-split[data-side="open"] .mb-split-chat { margin-left: 48px; }
   .mb-split[data-side="open"] .mb-scrim { display: block; position: absolute; inset: 0; z-index: 24; }
 }
 @media (max-width: 767px) {
-  .mb-split-rail { display: none; position: fixed; z-index: 30; left: 0; right: 0; bottom: 0; max-height: 70dvh; border-left: 0; border-top: 1px solid var(--border-strong); border-radius: var(--radius-xl) var(--radius-xl) 0 0; box-shadow: var(--shadow-pop); animation: mb-sheet-in .32s cubic-bezier(0.05, 0.7, 0.1, 1) both; }
-  .mb-split[data-outputs] .mb-split-rail { display: block; }
+  .mb-threads[data-collapsed] { display: none; }
+  .mb-split[data-side="open"] .mb-split-chat { margin-left: 0; }
+  .mb-split-rail { display: none; position: fixed; z-index: 30; left: 0; right: 0; bottom: 0; max-height: 70dvh; border-left: 0; border-top: 1px solid var(--border-strong); border-radius: var(--radius-xl) var(--radius-xl) 0 0; background: var(--bg-surface); box-shadow: var(--shadow-pop); animation: mb-sheet-in .32s cubic-bezier(0.05, 0.7, 0.1, 1) both; }
+  .mb-split[data-outputs] .mb-split-rail { display: flex; }
   .mb-split[data-outputs] .mb-scrim { display: block; position: fixed; inset: 0; z-index: 29; }
-  .mb-outputs-toggle { display: inline-grid !important; }
+  .mb-side-toggle, .mb-outputs-toggle { display: inline-grid !important; }
+  .mb-rail-collapse { display: none; } /* the sheet closes on its scrim */
+  .mb-chat-head { padding: 0 var(--space-2); }
+  .mb-chat-title { text-align: center; }
+  .mb-split-chat .mb-page:has(> .mb-chat-shell) { padding: 0 var(--space-4) var(--space-4); }
 }
 @keyframes mb-side-in { from { transform: translateX(-100%); } to { transform: none; } }
 
-/* ---------- Conversations ---------- */
-.mb-threads-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); padding: var(--space-3); }
-.mb-threads-head .mb-btn-label { display: inline-flex; align-items: center; gap: var(--space-1\.5); }
-.mb-threads ul { list-style: none; margin: 0; padding: 0 var(--space-2) var(--space-3); overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
-.mb-thread-row { display: flex; align-items: baseline; gap: var(--space-2); width: 100%; padding: var(--space-2); border: 0; border-radius: var(--radius-sm); background: none; text-align: left; font: inherit; font-size: var(--fs-label); color: var(--ink-body); cursor: pointer; transition: background .16s, transform .2s; }
+/* ---------- Conversations and outputs: sibling lists ---------- */
+.mb-threads ul { list-style: none; margin: 0; padding: var(--space-2); overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+.mb-thread-row { display: flex; align-items: center; gap: var(--space-2); width: 100%; min-height: 36px; padding: var(--space-2); border: 0; border-radius: var(--radius-sm); background: none; text-align: left; font: inherit; font-size: var(--fs-label); color: var(--ink-body); cursor: pointer; transition: background .16s, transform .2s; }
 .mb-thread-row:hover { background: var(--bg-subtle); }
-.mb-thread-row[aria-current] { background: var(--bg-subtle); color: var(--ink); font-weight: var(--fw-label); }
+.mb-thread-row[aria-current] { background: var(--bg-subtle); color: var(--ink); }
+.mb-thread-new { color: var(--ink); font-weight: var(--fw-label); }
+.mb-thread-new svg { color: var(--ink-muted); }
 .mb-thread-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mb-thread-at { flex-shrink: 0; font-size: var(--fs-data-xs); color: var(--ink-muted); }
-.mb-threads-empty { padding: 0 var(--space-3); }
+.mb-threads-empty { padding: 0 var(--space-4); }
 
-/* ---------- Outputs rail ---------- */
-.mb-rail { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-3); }
-.mb-rail-head { display: flex; align-items: center; gap: var(--space-2); width: 100%; height: var(--control-sm); padding: 0 var(--space-2); border: 0; border-radius: var(--radius-sm); background: none; color: var(--ink); font: inherit; font-size: var(--fs-label); font-weight: var(--fw-label); cursor: pointer; transition: background .16s; }
-.mb-rail-head:hover { background: var(--bg-subtle); }
-.mb-rail-head svg { margin-left: auto; color: var(--ink-muted); transition: transform .2s ease; }
-.mb-rail[data-collapsed] .mb-rail-head svg { transform: rotate(-90deg); }
-.mb-rail-body { display: flex; flex-direction: column; gap: var(--space-4); padding-top: var(--space-2); }
+.mb-rail { display: flex; flex-direction: column; min-height: 0; }
+.mb-rail-body { display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-2); }
 .mb-rail-body > p { padding: 0 var(--space-2); }
 .mb-rail section, .mb-pickup { display: flex; flex-direction: column; gap: var(--space-1); }
 .mb-rail h3, .mb-pickup h3 { padding: 0 var(--space-2); font-size: var(--fs-caption); font-weight: var(--fw-label); color: var(--ink-muted); }
 .mb-rail ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
-.mb-rail-row, .mb-pickup-card { display: grid; grid-template-columns: 16px minmax(0, 1fr); align-items: center; gap: 2px var(--space-2); width: 100%; padding: var(--space-2); border: 0; border-radius: var(--radius-sm); background: none; text-align: left; font: inherit; color: var(--ink-body); cursor: pointer; transition: background .16s, border-color .16s, transform .2s; }
+.mb-rail-row, .mb-pickup-card { display: grid; grid-template-columns: 16px minmax(0, 1fr); align-items: center; gap: 2px var(--space-2); width: 100%; min-height: 36px; padding: var(--space-2); border: 0; border-radius: var(--radius-sm); background: none; text-align: left; font: inherit; color: var(--ink-body); cursor: pointer; transition: background .16s, border-color .16s, transform .2s; }
 .mb-rail-row svg, .mb-pickup-card svg { color: var(--ink-muted); }
 .mb-rail-row:hover { background: var(--bg-subtle); }
 .mb-rail-row:active, .mb-thread-row:active { transform: scale(.994); }
@@ -104,11 +126,10 @@ select.mb-ver-chip { cursor: pointer; }
 .mb-nav-count { display: inline-grid; place-items: center; min-width: 18px; height: 18px; margin-left: var(--space-1\.5); padding: 0 var(--space-1); border: 1px solid var(--border); border-radius: var(--radius-pill); background: var(--bg-subtle); font-size: var(--fs-data-xs); color: var(--ink-secondary); }
 
 /* ---------- Focus, reduced motion ---------- */
-.mb-icon-btn:focus-visible, .mb-rail-row:focus-visible, .mb-rail-head:focus-visible, .mb-thread-row:focus-visible, .mb-starter:focus-visible, .mb-pickup-card:focus-visible, .mb-menu-item:focus-visible, .mb-ver-chip:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.mb-icon-btn:focus-visible, .mb-rail-row:focus-visible, .mb-thread-row:focus-visible, .mb-starter:focus-visible, .mb-pickup-card:focus-visible, .mb-menu-item:focus-visible, .mb-ver-chip:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 @media (prefers-reduced-motion: reduce) {
   .mb-panel, .mb-panel[data-closing], .mb-threads, .mb-split-rail, .mb-menu, .mb-rail-row[data-fresh] { animation: none !important; }
   .mb-rail-row:active, .mb-thread-row:active { transform: none; }
-  .mb-rail-head svg { transition: none; }
 }
 /* rails scroll without a visible bar (like the transcript) */
 .mb-threads ul, .mb-split-rail { scrollbar-width: none; }

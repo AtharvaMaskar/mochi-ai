@@ -2,7 +2,7 @@
 // tools and graphs the conversation touched. Also the empty-state "Pick up where you left off" cards and the shared
 // stories list the Reports nav badge counts. All from GET /api/stories (same visibility as reading a story).
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
-import { ChevronDown, FileText, LayoutDashboard } from 'lucide-react';
+import { FileText, LayoutDashboard, PanelRightClose, PanelRightOpen } from 'lucide-react';
 import { ACTIVITY } from '@mochi/contracts';
 import { api, useData, type StoryRow } from '../../data/api.ts';
 
@@ -37,6 +37,7 @@ const KEY = 'mochi-rail-open';
 export function OutputsRail({ messages, running }: { messages: Msg[]; running: boolean }) {
   const [open, setOpen] = useState(() => { try { return localStorage.getItem(KEY) !== '0'; } catch { return true; } });
   const toggle = () => { setOpen(!open); try { localStorage.setItem(KEY, open ? '0' : '1'); } catch { /* storage blocked */ } };
+  const shown = open || matchMedia('(max-width: 767px)').matches; // on a phone the rail is a sheet: always open
   const list = useStories();
   const byId = new Map((list.data ?? []).map((s) => [s.id, s]));
   // this conversation's artifacts, newest version per id; ones that land during a run flash once
@@ -57,12 +58,19 @@ export function OutputsRail({ messages, running }: { messages: Msg[]; running: b
   for (const m of messages) for (const c of m.toolCalls ?? []) tools.set(c.function.name, (tools.get(c.function.name) ?? 0) + 1);
   const graphs = new Set(messages.filter((m) => m.activityType === ACTIVITY.card).flatMap((m) => Object.values((m.content as { queries?: Record<string, { graph: string }> }).queries ?? {}).map((q) => q.graph)));
   return (
-    <aside className="mb-rail" aria-label="Outputs" data-collapsed={!open || undefined}>
-      <button type="button" className="mb-rail-head" aria-expanded={open} onClick={toggle}>
-        <span>Outputs</span><span className="mono muted">{here.length + recent.length}</span>
-        <ChevronDown size={16} strokeWidth={1.5} aria-hidden="true" />
-      </button>
-      {open && (
+    <aside className="mb-rail" aria-label="Outputs" data-collapsed={!shown || undefined}>
+      {shown ? (
+        <div className="mb-col-head">
+          <span className="mb-col-title">Outputs <span className="mono muted">{here.length + recent.length}</span></span>
+          <button type="button" className="mb-icon-btn mb-rail-collapse" aria-label="Hide outputs" title="Hide outputs" onClick={toggle}><PanelRightClose size={16} strokeWidth={1.5} aria-hidden="true" /></button>
+        </div>
+      ) : (
+        <>
+          <div className="mb-col-head"><button type="button" className="mb-icon-btn" aria-label="Show outputs" title="Show outputs" onClick={toggle}><PanelRightOpen size={16} strokeWidth={1.5} aria-hidden="true" /></button></div>
+          <div className="mb-strip-body"><span className="mono muted mb-strip-count" title="Outputs">{here.length + recent.length}</span></div>
+        </>
+      )}
+      {shown && (
         <div className="mb-rail-body">
           {here.length > 0 && <section><h3>This conversation</h3><ul>{here.map((s) => <Row key={s.id} s={s} fresh={fresh.current.has(s.id)} />)}</ul></section>}
           {recent.length > 0 && <section><h3>Recent</h3><ul>{recent.map((s) => <Row key={s.id} s={s} />)}</ul></section>}
