@@ -16,6 +16,12 @@ function safe(s: string): string {
   return v;
 }
 
+// Pi Durable journal (MOCHI_STORAGE=falkordb, agent/storage/falkordb.ts): its own graph and names, kept out of
+// L/E so the company contract and checkCypherNames stay about company memory.
+export const JOURNAL_GRAPH = 'mochi_journal';
+export const JOURNAL_LABELS = ['Journal', 'Conversation', 'Entry', 'Task', 'Submission', 'Document', 'Revision'] as const;
+export const JOURNAL_EDGES = ['FORKED_FROM', 'IN', 'BY_TASK', 'CALLS', 'WROTE', 'OWNED_BY', 'TO', 'PLACED_AT', 'ANSWERED_BY', 'OF'] as const;
+
 export const L = {
   Customer: 'Customer', Ticket: 'Ticket', Issue: 'Issue', ProductArea: 'ProductArea', Team: 'Team',
   AgentUser: 'AgentUser', Resolution: 'Resolution', KBArticle: 'KBArticle', Release: 'Release', Plan: 'Plan',
@@ -89,9 +95,12 @@ export const SUGGESTION_STATUS = ['open', 'right', 'wrong', 'expired'] as const;
 // Database-enforced tiers (SPEC §1). Rule strings must match docker-compose.yml (acl.test.ts checks).
 export const ACL = {
   reader: { user: 'mochi_reader', passwordEnv: 'MOCHI_READER_PASSWORD',
-    rules: 'resetkeys ~mochi_company ~team_* resetchannels -@all +GRAPH.RO_QUERY +GRAPH.EXPLAIN +GRAPH.LIST +PING +INFO +CLIENT|SETINFO' },
+    rules: 'resetkeys ~mochi_company ~team_* ~mochi_journal resetchannels -@all +GRAPH.RO_QUERY +GRAPH.EXPLAIN +GRAPH.LIST +PING +INFO +CLIENT|SETINFO' },
   dream: { user: 'mochi_dream', passwordEnv: 'MOCHI_DREAM_PASSWORD',
     rules: 'resetkeys ~mochi_company ~mochi_company_prev ~algo_scratch ~team_* resetchannels -@all +GRAPH.QUERY +GRAPH.RO_QUERY +GRAPH.EXPLAIN +GRAPH.COPY +GRAPH.DELETE +GRAPH.CONSTRAINT +GRAPH.LIST +PING +INFO +CLIENT|SETINFO' },
+  // Pi Durable journal (MOCHI_STORAGE=falkordb): writes only its own graph, never a memory tier.
+  journal: { user: 'mochi_journal', passwordEnv: 'MOCHI_JOURNAL_PASSWORD',
+    rules: 'resetkeys ~mochi_journal resetchannels -@all +GRAPH.QUERY +GRAPH.RO_QUERY +GRAPH.EXPLAIN +GRAPH.LIST +PING +INFO +CLIENT|SETINFO' },
   demoUser: { user: 'user_demo', passwordEnv: 'MOCHI_DEMO_USER_PASSWORD',
     rules: 'resetkeys ~mochi_company resetchannels -@all +GRAPH.RO_QUERY +GRAPH.LIST +PING +INFO +CLIENT|SETINFO (~user_demo ~cust_* ~team_* +GRAPH.QUERY +GRAPH.RO_QUERY)' },
 } as const;

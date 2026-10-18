@@ -37,6 +37,7 @@ test('root conversation: every read tool returns a contract-valid card', async (
         fauxToolCall('customer_profile', { customerId: 'C-1' }),
         fauxToolCall('query_graph', { cypher: 'MATCH (t:Ticket) WHERE t.created_at <= $as_of RETURN t.id AS ticket ORDER BY ticket LIMIT 5', purpose: 'tickets' }),
         fauxToolCall('graph_algorithm', { algorithm: 'components', purpose: 'repeat contacts' }),
+        fauxToolCall('trace_story', { id: 'no-such-story' }),
       ], { stopReason: 'toolUse' }),
       fauxAssistantMessage('done'),
     ]);
