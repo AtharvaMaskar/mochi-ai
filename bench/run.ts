@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { validateResults, type Results } from '@mochi/contracts';
 import { readData } from './deps.ts';
-import { createLlm, CostCapError, catalogModel } from './llm.ts';
+import { createLlm, CostCapError, catalogModel, type Reply } from './llm.ts';
 import { connect } from './db.ts';
 import { names, type Ctx } from './arms/index.ts';
 import { armA } from './arms/a.ts';
@@ -37,12 +37,26 @@ const FIELDS: Record<Section, (keyof Body)[]> = {
 
 const HERE = new URL('.', import.meta.url).pathname;
 
-export type BenchOpts = { only?: Section; dry: boolean; maxUsd: number; prefix?: string; out?: string; artifacts?: string; reply?: (p: string, s: string) => string };
+/** --limit n: at most n questions per arm, round-robin over buckets; staleness replays only their events. */
+export function limited(d: Awaited<ReturnType<typeof readData>>, n: number): Awaited<ReturnType<typeof readData>> {
+  const buckets = ['single_fact', 'multi_hop', 'structural'].map((b) => d.eval.questions.filter((q) => q.bucket === b));
+  const questions = [];
+  for (let i = 0; questions.length < n && buckets.some((b) => i < b.length); i++)
+    for (const b of buckets) if (b[i] && questions.length < n) questions.push(b[i]);
+  const events = new Set(questions.flatMap((q) => (q.after_event ? [q.after_event] : [])));
+  return {
+    dataset: { ...d.dataset, contradiction_events: d.dataset.contradiction_events.filter((e) => events.has(e.id)) },
+    eval: { ...d.eval, questions },
+  };
+}
+
+export type BenchOpts = { only?: Section; dry: boolean; maxUsd: number; limit?: number; prefix?: string; out?: string; artifacts?: string; reply?: Reply };
 
 export async function bench(o: BenchOpts): Promise<Results> {
-  const out = o.out ?? (o.dry ? join(HERE, 'artifacts/results.dry.json') : join(HERE, 'results.json'));
-  if (o.dry && out === join(HERE, 'results.json')) throw new Error('--dry never overwrites bench/results.json');
-  const artifacts = o.artifacts ?? join(HERE, o.dry ? 'artifacts/dry' : 'artifacts');
+  // A --limit run is a cheap end-to-end check: its figures are never published.
+  const out = o.out ?? (o.limit ? join(HERE, 'artifacts/results.limited.json') : o.dry ? join(HERE, 'artifacts/results.dry.json') : join(HERE, 'results.json'));
+  if ((o.dry || o.limit) && out === join(HERE, 'results.json')) throw new Error('--dry / --limit never overwrites bench/results.json');
+  const artifacts = o.artifacts ?? join(HERE, o.limit ? 'artifacts/limited' : o.dry ? 'artifacts/dry' : 'artifacts');
   mkdirSync(artifacts, { recursive: true });
   const prefix = o.prefix ?? 'bench';
 
@@ -54,7 +68,8 @@ export async function bench(o: BenchOpts): Promise<Results> {
   }
 
   const llm = createLlm({ dry: o.dry, maxUsd: o.maxUsd, reply: o.reply });
-  const { dataset, eval: ev } = await readData();
+  const data = await readData();
+  const { dataset, eval: ev } = o.limit ? limited(data, o.limit) : data;
   const db = await connect();
   const ctx: Ctx = { llm, db, dataset, names: names(prefix), artifacts };
   const n = ctx.names, votes: Vote[] = [];
@@ -107,7 +122,7 @@ export async function bench(o: BenchOpts): Promise<Results> {
 }
 
 if (import.meta.main) {
-  const { values } = parseArgs({ options: { only: { type: 'string' }, dry: { type: 'boolean' }, 'max-usd': { type: 'string' } } });
+  const { values } = parseArgs({ options: { only: { type: 'string' }, dry: { type: 'boolean' }, 'max-usd': { type: 'string' }, limit: { type: 'string' } } });
   // From the repo root, `npm run bench -- --dry` reaches the inner `npm run -w bench` as npm's own
   // flags (--dry becomes --dry-run), so read them back from npm's environment.
   const npm = (k: string) => process.env[`npm_config_${k}`];
@@ -117,7 +132,9 @@ if (import.meta.main) {
   if (only && !SECTIONS.includes(only)) { console.error(`--only must be one of ${SECTIONS.join(', ')}`); process.exit(2); }
   const maxUsd = Number(values['max-usd']);
   if (!(maxUsd >= 0)) { console.error('--max-usd must be a number >= 0'); process.exit(2); }
-  bench({ only, dry: values.dry!, maxUsd }).then(() => process.exit(0), (e) => {
+  const limit = values.limit ?? npm('limit');
+  if (limit !== undefined && !(Number(limit) >= 1)) { console.error('--limit must be a number >= 1'); process.exit(2); }
+  bench({ only, dry: values.dry!, maxUsd, limit: limit === undefined ? undefined : Number(limit) }).then(() => process.exit(0), (e) => {
     console.error(e instanceof CostCapError ? `bench aborted: ${e.message}; results unchanged` : `bench failed: ${(e as Error).message}`);
     process.exit(1);
   });

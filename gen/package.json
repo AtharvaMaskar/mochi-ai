@@ -2,13 +2,14 @@
   "name": "@mochi/gen",
   "private": true,
   "type": "module",
-  "exports": { ".": "./index.ts" },
-  "main": "all-tests.ts",
+  "exports": {
+    ".": "./index.ts"
+  },
   "scripts": {
     "gen": "node generate.ts",
     "load": "node load.ts",
-    "test": "node --test",
-    "check": "tsc -p . && node --test"
+    "test": "node --test --test-timeout=120000",
+    "check": "tsc -p . && npm test"
   },
   "dependencies": {
     "@huggingface/transformers": "^4.3.1",

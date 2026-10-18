@@ -96,14 +96,14 @@ test('dream port returns null without agent/dream/', async () => {
 });
 
 test('with a dream module, two boots leave exactly one DreamTask', async () => {
-  const dream = await loadDream('./__test__/dream-double.ts');
+  const dream = await loadDream();
   assert.ok(dream?.DreamTask);
   const storage = tmpStore();
   const ids: unknown[] = [];
   for (let i = 0; i < 2; i++) {
     const t = await openTestHarness(G, TEAM, { storage, dream });
     try {
-      const live = (await t.pi.harness.inspect(ctx)).tasks.filter((x) => x.record.kind === 'test.dream-double');
+      const live = (await t.pi.harness.inspect(ctx)).tasks.filter((x) => x.record.kind === 'mochi.dream');
       assert.equal(live.length, 1);
       ids.push((await t.pi.harness.snapshot(DreamTaskDoc, ctx))?.taskId);
     } finally { await t.close(); }

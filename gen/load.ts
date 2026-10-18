@@ -36,15 +36,18 @@ function nodes(d: Dataset): { label: Label; key: string; rows: Row[] }[] {
 type EdgeSpec = { type: string; from: [Label, string]; to: [Label, string]; temporal?: boolean; rows: Row[] };
 function edges(d: Dataset): EdgeSpec[] {
   const ab = (a: unknown, b: unknown) => ({ a, b });
+  // Demo-day tickets arrive bare: the dream's LLM extraction is the only path to their Issue and Resolution.
+  const demo = d.generated_at - 86_400_000;
+  const extracted = d.tickets.filter((t) => t.created_at < demo);
   return [
     { type: 'OWNED_BY', from: ['ProductArea', 'name'], to: ['Team', 'name'], rows: d.product_areas.map((a) => ab(a.name, a.team)) },
     { type: 'MEMBER_OF', from: ['AgentUser', 'id'], to: ['Team', 'name'], rows: d.agents.map((a) => ab(a.id, a.team)) },
     { type: 'IN', from: ['Issue', 'id'], to: ['ProductArea', 'name'], rows: d.issues.map((i) => ab(i.id, i.area)) },
     { type: 'BASED_ON', from: ['Resolution', 'id'], to: ['KBArticle', 'id'], rows: d.resolutions.filter((r) => r.kb_id).map((r) => ab(r.id, r.kb_id)) },
     { type: 'RAISED', from: ['Customer', 'id'], to: ['Ticket', 'id'], rows: d.tickets.map((t) => ab(t.customer_id, t.id)) },
-    { type: 'ABOUT', from: ['Ticket', 'id'], to: ['Issue', 'id'], rows: d.tickets.filter((t) => t.issue_id).map((t) => ab(t.id, t.issue_id)) },
+    { type: 'ABOUT', from: ['Ticket', 'id'], to: ['Issue', 'id'], rows: extracted.filter((t) => t.issue_id).map((t) => ab(t.id, t.issue_id)) },
     { type: 'SOLVED', from: ['AgentUser', 'id'], to: ['Ticket', 'id'], rows: d.tickets.filter((t) => t.solved_by).map((t) => ab(t.solved_by, t.id)) },
-    { type: 'RESOLVED_BY', from: ['Ticket', 'id'], to: ['Resolution', 'id'], rows: d.tickets.filter((t) => t.resolution_id).map((t) => ab(t.id, t.resolution_id)) },
+    { type: 'RESOLVED_BY', from: ['Ticket', 'id'], to: ['Resolution', 'id'], rows: extracted.filter((t) => t.resolution_id).map((t) => ab(t.id, t.resolution_id)) },
     { type: 'FOLLOWS', from: ['Ticket', 'id'], to: ['Ticket', 'id'], rows: d.tickets.filter((t) => t.follows_ticket_id).map((t) => ab(t.id, t.follows_ticket_id)) },
     { type: 'ON_PLAN', from: ['Customer', 'id'], to: ['Plan', 'name'], temporal: true,
       rows: d.customers.flatMap((c) => c.plan_history.map((p) => ({ ...ab(c.id, p.plan), from: p.valid_from, until: untilOrForever(p.valid_until) }))) },

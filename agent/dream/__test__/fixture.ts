@@ -1,8 +1,5 @@
 // Test helper: tinyDataset() in its pre-event state plus planted mismatch rows, loaded into a
 // throwaway test_dream_* graph over the admin connection; and a faux-provider model.
-import { register } from 'node:module';
-register('./hooks.ts', import.meta.url);
-
 import { createModels } from '@earendil-works/pi-ai/models';
 import { fauxAssistantMessage, fauxProvider } from '@earendil-works/pi-ai/providers/faux';
 import { tinyDataset, untilOrForever, type Dataset } from '@mochi/contracts';

@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { tinyEval } from '@mochi/contracts';
+import { fauxToolCall } from '@earendil-works/pi-ai/providers/faux';
 import { armA } from './arms/a.ts';
 import { armB, K } from './arms/b.ts';
 import { armC, parseFiles } from './arms/c.ts';
@@ -49,11 +50,19 @@ test('C sums the usage of the pick call and the answer call', async () => {
 
 test('D prompt holds query rows and the path, not raw dataset text', async () => {
   let prompt = '';
-  const ctx = await testCtx('arm_d', (p) => { prompt = p; return '2.4.0'; });
+  let calls = 0;
+  // Round 1: the model asks for likely_cause; round 2: it answers from the tool result.
+  const ctx = await testCtx('arm_d', (p, s) => {
+    if (!s.includes('company graph')) return 'faux';
+    if (calls++ === 0) return [fauxToolCall('likely_cause', { ticketId: 'T-2' })];
+    prompt = p; return '2.4.0';
+  });
   try {
     const d = armD(ctx, { ingest: false });
     await d.prepare();
-    await d.answer({ ...q2, question: 'Which release likely caused T-2?' });
+    const a = await d.answer({ ...q2, question: 'Which release likely caused T-2?' });
+    assert.equal(a.answer, '2.4.0');
+    assert.equal(ctx.llm.byCaller.arm_d.input, a.usage.input, 'both rounds counted');
     assert.match(prompt, /path: \(Ticket /);
     assert.match(prompt, /"release":"2\.4\.0"/);
     assert.ok(!prompt.includes(ctx.dataset.tickets[0].body), 'no raw ticket body');

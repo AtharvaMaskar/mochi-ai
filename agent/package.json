@@ -11,8 +11,8 @@
     "dev": "node --env-file=../.env server.ts",
     "dream": "node --env-file=../.env scripts/dream.ts",
     "crash-demo": "node --env-file=../.env scripts/crash-demo.ts",
-    "test": "node --test",
-    "check": "tsc -p . && node --test"
+    "test": "node --test --test-timeout=120000",
+    "check": "tsc -p . && npm test"
   },
   "dependencies": {
     "@ag-ui/client": "1.0.2",

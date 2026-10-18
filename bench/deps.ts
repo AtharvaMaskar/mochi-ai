@@ -1,109 +1,65 @@
-// The one seam to other slices (design decision 2). Types mirror the interfaces in the
-// add-gen / add-agent-core / add-dream proposals. Until those merge, the bodies below are
-// stubs built on contracts' tinyDataset()/tinyEval(); at the integration sweep each STUB
-// block becomes a re-export:
-//   export { loadDataset, applyEvent, embed, EMBED_DIM } from '@mochi/gen';
-//   export * as queries from '../agent/queries/index.ts';
-//   export { runMismatchRules } from '../agent/dream/rules.ts';
-//   export { runDreamNow, type DreamReport } from '../agent/dream/index.ts';
-//   readData(): validateDataset/validateEval over data/dataset.json + data/eval.json.
-// Integration check: bench passes runDreamNow a pi-ai catalog Model. Under --dry the real dream
-// must not reach the provider with it (route it to faux, or skip the dream's LLM steps).
+// The one seam to other slices (design decision 2): real gen, agent/queries and agent/dream, re-exported with
+// bench's view of their signatures. The dream's model goes through bench's LLM wrapper (dreamModel), so its
+// tokens count against --max-usd and --dry stays on the faux provider.
+import { readFileSync } from 'node:fs';
 import type { FalkorDB } from 'falkordb';
-import type { Api, Model } from '@earendil-works/pi-ai';
-import { GRAPH, tinyDataset, tinyEval, type Dataset, type Eval, type ContradictionEvent, type ToolCard, type StoredQuery } from '@mochi/contracts';
-import * as C from './cypher.ts';
+import { validateDataset, validateEval, type Dataset, type Eval } from '@mochi/contracts';
+import * as Q from '../agent/queries/index.ts';
+import { runDreamNow as dreamNow, runMismatchRules as rules, type DreamGraphs as Graphs, type DreamModel, type DreamReport } from '../agent/dream/index.ts';
+import { CostCapError, type Llm } from './llm.ts';
 
-type Graph = ReturnType<FalkorDB['selectGraph']>;
+export { loadDataset, applyEvent, embed, EMBED_DIM } from '@mochi/gen';
+export { READ_TOOL_SPECS } from '../agent/queries/tools.ts';
+export type { DreamReport } from '../agent/dream/index.ts';
+
 export type Db = Pick<FalkorDB, 'selectGraph'>;
-export type DreamGraphs = { company: string; prev: string; scratch: string };
-export type DreamReport = {
-  usage: { step: string; input: number; output: number }[];
-  retired: number; created: number; dropped: number; suggestions: number; clusters: number;
-  batches: { id: string; size: number }[]; story_id: string | null; ms: number;
-};
+export type DreamGraphs = Partial<Graphs>;
+export type QueryResult = Q.Result;
 export type MismatchEdge = { type: 'CONTRADICTS' | 'UNDOCUMENTED'; kb_id: string | null; area: string };
-export type QueryResult = { card: ToolCard; queries: Record<string, StoredQuery> };
-type Q<A> = (db: Db, args: A, as_of: number) => Promise<QueryResult>;
-export type Queries = {
-  briefing: Q<{ ticketId: string }>; likelyCause: Q<{ ticketId: string }>; whoKnows: Q<{ issueId: string }>;
-  emergingClusters: Q<{ days: number }>; blastRadius: Q<{ version: string }>; searchSimilar: Q<{ text: string; k: number }>;
-};
 
-export const STUBBED = true;
-
-// ---- STUB: @mochi/gen ----
-export const EMBED_DIM = 384;
-const DAY = 86_400_000;
+const read = (f: string) => JSON.parse(readFileSync(new URL(`../data/${f}`, import.meta.url), 'utf8'));
 
 export async function readData(): Promise<{ dataset: Dataset; eval: Eval }> {
-  return { dataset: tinyDataset(), eval: tinyEval() };
+  const d = validateDataset(read('dataset.json'));
+  if (!d.ok) throw new Error(`data/dataset.json invalid: ${d.errors.slice(0, 3).join('; ')}`);
+  const e = validateEval(read('eval.json'), d.value);
+  if (!e.ok) throw new Error(`data/eval.json invalid: ${e.errors.slice(0, 3).join('; ')}`);
+  return { dataset: d.value, eval: e.value };
 }
 
-export async function loadDataset(dataset: Dataset, db: Db, { graph = GRAPH.company as string, fresh = false }: { graph?: string; fresh?: boolean } = {}): Promise<void> {
-  const g = db.selectGraph(graph);
-  if (fresh) await g.delete().catch(() => {});
-  const params = { d: dataset as any, now: dataset.generated_at, demo_day: dataset.generated_at - DAY };
-  for (const q of C.STUB_LOAD) await g.query(q, { params });
-}
-
-export async function applyEvent(event: ContradictionEvent, graph: Graph, at = event.at): Promise<{ retired: number }> {
-  const [q, id] = event.kind === 'plan_change' ? [C.STUB_PLAN_CHANGE, event.customer_id] : [C.STUB_ISSUE_FIXED, event.issue_id];
-  const r = await graph.query<{ retired: number }>(q, { params: { id, to: event.kind === 'plan_change' ? event.to : '', as_of: at } });
-  return { retired: r.data?.[0]?.retired ?? 0 };
-}
-
-// Deterministic fake embedding: hashed bag of words, L2-normalised.
-export async function embed(texts: string[]): Promise<number[][]> {
-  return texts.map((t) => {
-    const v = new Array(EMBED_DIM).fill(0);
-    for (const w of t.toLowerCase().match(/[a-z0-9]+/g) ?? []) {
-      let h = 0;
-      for (const ch of w) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-      v[h % EMBED_DIM] += 1;
-    }
-    const n = Math.hypot(...v) || 1;
-    return v.map((x) => x / n);
-  });
-}
-
-// ---- STUB: agent/queries ----
-async function stub(db: Db, kind: ToolCard['kind'], title: string, cypher: string, params: Record<string, unknown>, as_of: number): Promise<QueryResult> {
-  const g = db.selectGraph(GRAPH.company);
-  const r = await g.roQuery<Record<string, unknown>>(cypher, { params: { ...params, as_of } });
-  const rows = r.data ?? [];
-  const q: StoredQuery = { cypher, graph: GRAPH.company, params: { ...params, as_of }, columns: Object.keys(rows[0] ?? {}), rows, ran_at: Date.now() };
-  const ids = [...new Set(rows.flatMap((row) => Object.values(row).filter((v): v is string => typeof v === 'string' && /^[A-Z]+-\d+$/.test(v))))];
-  const path = ids.length ? { query_id: 'q_1', nodes: ids.map((id) => ({ id, label: 'Ticket', name: id })), edges: [] } : null;
-  const card: ToolCard = { kind, title, queries: { q_1: q }, path, blocks: [] };
-  return { card, queries: card.queries };
-}
-export const queries: Queries = {
-  briefing: (db, a, t) => stub(db, 'briefing', `Briefing ${a.ticketId}`, C.STUB_BRIEFING, { id: a.ticketId }, t),
-  likelyCause: (db, a, t) => stub(db, 'likely_cause', `Likely cause ${a.ticketId}`, C.STUB_LIKELY_CAUSE, { id: a.ticketId }, t),
-  whoKnows: (db, a, t) => stub(db, 'who_knows', `Who knows ${a.issueId}`, C.STUB_WHO_KNOWS, { id: a.issueId }, t),
-  emergingClusters: (db, a, t) => stub(db, 'clusters', 'Emerging clusters', C.STUB_CLUSTERS, { since: t - a.days * DAY }, t),
-  blastRadius: (db, a, t) => stub(db, 'blast_radius', `Blast radius ${a.version}`, C.STUB_BLAST, { id: a.version }, t),
-  searchSimilar: async (_db, a) => ({ card: { kind: 'similar', title: `Similar to "${a.text}"`, queries: {}, path: null, blocks: [] }, queries: {} }),
+export const queries = {
+  briefing: (db: Db, a: { ticketId: string }, t: number) => Q.briefing(db, a, t),
+  likelyCause: (db: Db, a: { ticketId: string }, t: number) => Q.likelyCause(db, a, t),
+  whoKnows: (db: Db, a: { issueId: string }, t: number) => Q.whoKnows(db, a, t),
+  emergingClusters: (db: Db, a: { days: number }, t: number) => Q.emergingClusters(db, a, t),
+  blastRadius: (db: Db, a: { version: string }, t: number) => Q.blastRadius(db, a, t),
+  searchSimilar: (db: Db, a: { text: string; k: number }, t: number) => Q.searchSimilar(db, a, t),
 };
 
-// ---- STUB: agent/dream/rules.ts ----
-export async function runMismatchRules(_db: Db, _graphs?: DreamGraphs): Promise<MismatchEdge[]> {
-  return [];
+/** The dream's {models, model}, with every call routed through bench's wrapper under `caller`. */
+export function dreamModel(llm: Llm, caller: string): DreamModel {
+  const complete = async (_m: unknown, ctx: { systemPrompt?: string; messages: { content: unknown }[] }, o?: { maxTokens?: number }) => {
+    const last = ctx.messages.at(-1)?.content;
+    const prompt = typeof last === 'string' ? last : JSON.stringify(last);
+    try {
+      const r = await llm.complete(caller, prompt, { system: ctx.systemPrompt, maxTokens: o?.maxTokens });
+      return { content: [{ type: 'text', text: r.text }], usage: { input: r.usage.input, output: r.usage.output }, stopReason: 'stop' };
+    } catch (e) {
+      if (e instanceof CostCapError) throw e;
+      // A failed call is the dream's "error" stop: extraction drops the batch, prose falls back to the template.
+      return { content: [], usage: { input: 0, output: 0 }, stopReason: 'error', errorMessage: String(e) };
+    }
+  };
+  return { models: { complete } as unknown as DreamModel['models'], model: llm.model() };
 }
 
-// ---- STUB: agent/dream ----
-// Ingests un-ingested tickets in batches, one query per batch with batch_id/batch_size (the dream's
-// stated contract), so the concurrency torn-read check has a real writer. No LLM, so usage is empty.
-export async function runDreamNow(o: { db: Db; as_of?: number; model: Model<Api>; graphs?: DreamGraphs }): Promise<DreamReport> {
-  const t0 = Date.now();
-  const g = o.db.selectGraph(o.graphs?.company ?? GRAPH.company);
-  const ids = ((await g.query<{ id: string }>(C.STUB_UNINGESTED)).data ?? []).map((r) => r.id);
-  const batches: DreamReport['batches'] = [];
-  for (let i = 0; i < ids.length; i += 20) {
-    const chunk = ids.slice(i, i + 20), batch = `stub-${t0}-${i}`;
-    await g.query(C.STUB_INGEST_BATCH, { params: { ids: chunk, now: Date.now(), batch, size: chunk.length } });
-    batches.push({ id: batch, size: chunk.length });
-  }
-  return { usage: [], retired: 0, created: 0, dropped: 0, suggestions: 0, clusters: 0, batches, story_id: null, ms: Date.now() - t0 };
+/** One dream pass on bench graphs: no team graphs are read, and events are applied only when given. */
+export function runDreamNow(o: { db: FalkorDB; llm: Llm; caller: string; graphs: DreamGraphs; as_of?: number; events?: Parameters<typeof dreamNow>[0]['events'] }): Promise<DreamReport> {
+  return dreamNow({ db: o.db, as_of: o.as_of, model: dreamModel(o.llm, o.caller), graphs: { ...o.graphs, teams: [] }, events: o.events ?? [] });
+}
+
+/** The graph's mismatch rules, as ablation findings (KB id for CONTRADICTS, area for UNDOCUMENTED). */
+export async function runMismatchRules(db: FalkorDB, graphs: DreamGraphs, as_of?: number): Promise<MismatchEdge[]> {
+  const r = await rules(db, graphs, { as_of });
+  return r.edges.map((e) => ({ type: e.type, kb_id: e.type === 'CONTRADICTS' ? e.target : null, area: e.area }));
 }

@@ -1,6 +1,6 @@
 // The one LLM wrapper (design decision 3). Every arm, the judge and the ablations call
 // complete() here, so usage sums and the --max-usd guard cannot be bypassed.
-import { createModels, type Api, type Model } from '@earendil-works/pi-ai';
+import { createModels, type Api, type AssistantMessage, type Context, type Model, type ToolCall } from '@earendil-works/pi-ai';
 import { anthropicProvider } from '@earendil-works/pi-ai/providers/anthropic';
 import { fauxProvider, fauxAssistantMessage } from '@earendil-works/pi-ai/providers/faux';
 
@@ -30,8 +30,11 @@ export function catalogModel(id: string): Model<Api> {
 export type CompleteOpts = { model?: string; system?: string; maxTokens?: number };
 export type Llm = ReturnType<typeof createLlm>;
 
+/** Scripts the faux provider under --dry: a text reply, or tool calls. */
+export type Reply = (prompt: string, system: string) => string | ToolCall[];
+
 /** `reply` scripts the faux provider under --dry (default: a fixed string). */
-export function createLlm(opts: { dry: boolean; maxUsd: number; reply?: (prompt: string, system: string) => string }) {
+export function createLlm(opts: { dry: boolean; maxUsd: number; reply?: Reply }) {
   const answerModel = env('MOCHI_MODEL');
   const judgeModel = env('MOCHI_JUDGE_MODEL');
   const models = createModels();
@@ -49,22 +52,33 @@ export function createLlm(opts: { dry: boolean; maxUsd: number; reply?: (prompt:
     if (spent > opts.maxUsd) throw new CostCapError(`cost cap: spent $${spent.toFixed(4)} > --max-usd ${opts.maxUsd}`);
   }
 
-  async function complete(caller: string, prompt: string, o: CompleteOpts = {}): Promise<{ text: string; usage: Usage }> {
+  /** One provider call on a full context (messages, tools); usage is recorded under `caller`. */
+  async function turn(caller: string, context: Context, o: { model?: string; maxTokens?: number } = {}): Promise<{ msg: AssistantMessage; usage: Usage }> {
     if (spent > opts.maxUsd) throw new CostCapError(`cost cap: spent $${spent.toFixed(4)} > --max-usd ${opts.maxUsd}`);
     const id = o.model ?? answerModel;
     const model = models.getModel('anthropic', id);
     if (!model) throw new Error(`model ${id} not available`);
-    const system = o.system ?? '';
-    faux?.appendResponses([() => fauxAssistantMessage(reply(prompt, system))]);
+    const last = context.messages.at(-1) as { content?: unknown } | undefined;
+    const prompt = typeof last?.content === 'string' ? last.content : (last?.content as { text?: string }[] ?? []).map((c) => c.text ?? '').join('');
+    faux?.appendResponses([() => {
+      const r = reply(prompt, context.systemPrompt ?? '');
+      return typeof r === 'string' ? fauxAssistantMessage(r) : fauxAssistantMessage(r, { stopReason: 'toolUse' });
+    }]);
     // temperature 0 is requested; pi-ai drops it for models whose catalog says supportsTemperature:false.
-    const msg = await models.complete(model, { systemPrompt: system, messages: [{ role: 'user', content: prompt, timestamp: Date.now() }] },
-      { temperature: 0, maxTokens: o.maxTokens ?? 4096 });
+    // Thinking off for every caller, as the dream does: pi-ai otherwise sends adaptive thinking to managed-effort
+    // models, which drops temperature 0 and can spend the whole maxTokens budget before any answer text.
+    const msg = await models.complete(model, context, { temperature: 0, maxTokens: o.maxTokens ?? 4096, thinkingEnabled: false } as { temperature: number; maxTokens: number });
     if (msg.stopReason === 'error' || msg.stopReason === 'aborted') throw new Error(`${caller}: ${msg.errorMessage ?? msg.stopReason}`);
     const usage = { input: msg.usage.input + msg.usage.cacheRead + msg.usage.cacheWrite, output: msg.usage.output, cost: msg.usage.cost.total };
     record(caller, usage);
+    return { msg, usage };
+  }
+
+  async function complete(caller: string, prompt: string, o: CompleteOpts = {}): Promise<{ text: string; usage: Usage }> {
+    const { msg, usage } = await turn(caller, { systemPrompt: o.system ?? '', messages: [{ role: 'user', content: prompt, timestamp: Date.now() }] }, o);
     const text = msg.content.flatMap((c) => (c.type === 'text' ? [c.text] : [])).join('').trim();
     return { text, usage };
   }
 
-  return { dry: opts.dry, answerModel, judgeModel, complete, record, byCaller, spent: () => spent, model: (id = answerModel) => catalogModel(id) };
+  return { dry: opts.dry, answerModel, judgeModel, complete, turn, record, byCaller, spent: () => spent, model: (id = answerModel) => catalogModel(id) };
 }

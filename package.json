@@ -17,7 +17,7 @@
     "gen": "npm run gen -w gen",
     "load": "npm run load -w gen",
     "dream": "npm run dream -w agent",
-    "bench": "npm run bench -w bench",
+    "bench": "npm run bench -w bench --",
     "dev": "npm run dev -w agent",
     "landing": "npm run dev -w landing",
     "test": "npm test --workspaces --if-present",

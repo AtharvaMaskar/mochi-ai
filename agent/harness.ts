@@ -15,7 +15,8 @@ import { openNodeSqliteStorage } from '@earendil-works/pi-durable/storage/sqlite
 import { AreaName, GRAPH, parseStory, validateCard, validateSandboxHtml, type StoredQuery, type ToolCard } from '@mochi/contracts';
 import { reader as defaultReader, writer as defaultWriter, userDb as defaultUserDb } from './db.ts';
 import type { DreamModule } from './dream-port.ts';
-import * as Q from './queries/index.ts';
+import type * as Q from './queries/index.ts';
+import { READ_TOOL_SPECS } from './queries/tools.ts';
 import { commitStory, latestDreamStory } from './stories.ts';
 import { StoryDoc } from './story-doc.ts';
 
@@ -47,7 +48,7 @@ export const DreamTaskDoc = defineDoc<{ taskId: number | null }>({
   kind: 'mochi.dream-task', version: 1, scope: 'session', initial: () => ({ taskId: null }),
 });
 
-export const READ_TOOLS = ['briefing', 'likely_cause', 'who_knows', 'emerging_clusters', 'blast_radius', 'search_similar'] as const;
+export const READ_TOOLS = READ_TOOL_SPECS.map((s) => s.name);
 
 const PREAMBLE = `You are Mochi, the support copilot for E Corp Securities (a fictional broker; all data is synthetic).
 Company memory lives in a FalkorDB graph. Answer from tool results only: briefing, likely_cause, who_knows,
@@ -111,12 +112,12 @@ export async function openHarness(cfg: HarnessConfig = {}) {
     return c?.team ? c : defaultCaller;
   };
 
-  const readTool = <A extends Record<string, unknown>>(name: (typeof READ_TOOLS)[number], description: string, parameters: ReturnType<typeof Type.Object>, run: (db: Q.Db, args: A, asOf: number) => Promise<Q.Result>) =>
+  const readTool = (spec: (typeof READ_TOOL_SPECS)[number]) =>
     defineTool({
-      name, description, parameters, replay: 'safe',
+      name: spec.name, description: spec.description, parameters: spec.parameters as ReturnType<typeof Type.Object>, replay: 'safe',
       structuredOutputSchema: Type.Unknown(),
       execute: async (args, api) => {
-        const { card: raw } = await run(await read(), args as A, Date.now());
+        const { card: raw } = await spec.run(await read(), args, Date.now(), graph, cfg.embed);
         const v = validateCard(raw);
         if (!v.ok) throw new Error(`card failed validateCard: ${v.errors.join('; ')}`);
         const card = await register(api, raw);
@@ -125,18 +126,7 @@ export async function openHarness(cfg: HarnessConfig = {}) {
     });
 
   const tools = {
-    briefing: readTool<{ ticketId: string }>('briefing', 'Brief on a ticket: customer profile and live plan, last 3 tickets, what fixed similar tickets (shared Issue, or vector fallback), with the traversal path.',
-      Type.Object({ ticketId: Type.String() }), (db, a, t) => Q.briefing(db, a, t, graph)),
-    likely_cause: readTool<{ ticketId: string }>('likely_cause', 'The release that introduced the ticket\'s issue, if that link is still live.',
-      Type.Object({ ticketId: Type.String() }), (db, a, t) => Q.likelyCause(db, a, t, graph)),
-    who_knows: readTool<{ issueId: string }>('who_knows', 'Agents ranked by how many tickets on this issue they solved.',
-      Type.Object({ issueId: Type.String() }), (db, a, t) => Q.whoKnows(db, a, t, graph)),
-    emerging_clusters: readTool<{ days?: number }>('emerging_clusters', 'Ticket clusters the dream detected, ranked by growth over the window.',
-      Type.Object({ days: Type.Optional(Type.Number()) }), (db, a, t) => Q.emergingClusters(db, { days: a.days ?? 7 }, t, graph)),
-    blast_radius: readTool<{ version: string }>('blast_radius', 'For a release: affected customers, segments and open tickets, with the Release→Issue←Ticket←Customer path.',
-      Type.Object({ version: Type.String() }), (db, a, t) => Q.blastRadius(db, a, t, graph)),
-    search_similar: readTool<{ text: string; k?: number }>('search_similar', 'Tickets nearest to a text, from the vector index.',
-      Type.Object({ text: Type.String(), k: Type.Optional(Type.Number()) }), (db, a, t) => Q.searchSimilar(db, a, t, graph, cfg.embed)),
+    ...Object.fromEntries(READ_TOOL_SPECS.map((s) => [s.name, readTool(s)])) as Record<(typeof READ_TOOL_SPECS)[number]['name'], ReturnType<typeof readTool>>,
 
     render_html: defineTool({
       name: 'render_html', replay: 'safe',
@@ -246,13 +236,14 @@ CREATE (a)-[:FEEDBACK {verdict: $verdict, at: $now}]->(s)`, { params: { ...args,
   });
 
   const dream = cfg.dream ?? null;
+  dream?.useDb?.(write); // DreamTask writes through this harness's writer
   const extension = defineExtension({
     name: 'mochi-graph',
     tools: Object.values(tools) as ToolRegistration[],
     sections: [
       section('preamble', () => PREAMBLE, { tag: false }),
       section('viz_grammar', () => VIZ_GRAMMAR),
-      dream?.morningSection ?? morningReport,
+      morningReport,
     ],
     tasks: dream?.DreamTask ? [dream.DreamTask] : [],
   });

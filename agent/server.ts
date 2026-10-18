@@ -6,7 +6,7 @@ import { BACKGROUND_CONTEXT as ctx } from '@earendil-works/chord/context';
 import { CopilotRuntime } from '@copilotkit/runtime/v2';
 import { createCopilotNodeListener } from '@copilotkit/runtime/v2/node';
 import { WebSocketServer, type WebSocket } from 'ws';
-import type { Story } from '@mochi/contracts';
+import { GRAPH, type Story } from '@mochi/contracts';
 import { PiDurableAgent, PiRunner } from './agui.ts';
 import { DREAM_NOT_INSTALLED, loadDream, type DreamModule } from './dream-port.ts';
 import { openHarness, type Pi } from './harness.ts';
@@ -19,11 +19,15 @@ export const runtimeOptions = (pi: Pi) => ({
   runner: new PiRunner(pi),
 });
 
-/** Run the dream now through the port; the dream commits its morning report through `commitStory`. */
+/** Run the dream now through the port; its morning report lands in StoryDoc through `commitStory`. */
 export async function runDream(pi: Pi, dream: DreamModule, as_of?: number) {
+  const model = pi.models.getModel(pi.model.provider as never, pi.model.modelId);
+  if (!model) throw new Error(`unknown model ${pi.model.provider}/${pi.model.modelId}`);
+  // A harness on another graph (tests) dreams there, with its own snapshot/scratch graphs and no team graphs.
+  const graphs = pi.graph === GRAPH.company ? undefined : { company: pi.graph, prev: `${pi.graph}_prev`, scratch: `${pi.graph}_scratch`, teams: [] };
   return dream.runDreamNow({
-    db: await pi.writer(), as_of, model: pi.models.getModel(pi.model.provider as never, pi.model.modelId), models: pi.models,
-    commitStory: (draft: Parameters<typeof commitStory>[1]) => commitStory(pi.harness, draft),
+    db: await pi.writer(), as_of, graphs, model: { models: pi.models, model },
+    commitStory: (story: Parameters<typeof commitStory>[1]) => commitStory(pi.harness, story),
   });
 }
 

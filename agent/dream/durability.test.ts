@@ -5,9 +5,9 @@ import { Harness, MemoryStorage, createRegistry, defineExtension } from '@earend
 import { AS_OF, fauxModel, fixture, fixtureDataset } from './__test__/fixture.ts';
 import { connect } from '../../contracts/testdb.ts';
 
-const { runDreamNow, DreamTask, morningSection, latestMorningReport } = await import('./index.ts');
-const { StoryDoc } = await import('../story-doc.ts');
-const { closeWriter } = await import('./__test__/db.ts');
+import { latestDreamStory } from '../stories.ts';
+
+const { runDreamNow, DreamTask, useDb } = await import('./index.ts');
 const H = 3_600_000;
 
 /** The fixture plus n pending tickets P-001… (demo-day volume). */
@@ -73,17 +73,18 @@ test('6.2 killed mid-ingestion and re-run: no batch extracted twice, same final 
   assert.deepEqual(await shape(crash), await shape(clean));
 });
 
-test('6.2 DreamTask: background task sleeps until next, runs, commits the story and the next run time', async (t) => {
+test('6.2 DreamTask: background task sleeps until next, runs, commits the story and the next run time', { timeout: 30_000 }, async (t) => {
   const f = await fixture('task');
-  t.after(async () => { await closeWriter(); await f.cleanup(); });
+  t.after(f.cleanup);
+  useDb(async () => f.db); // what openHarness does with its writer
   const { models, model } = fauxModel();
   const registry = createRegistry();
-  registry.install(defineExtension({ name: 'mochi-dream-test', tasks: [DreamTask], sections: [morningSection] }));
+  registry.install(defineExtension({ name: 'mochi-dream-test', tasks: [DreamTask] }));
   const harness = await Harness.open(new MemoryStorage(), { models, registry }, ctx);
-  t.after(() => harness.close(ctx));
+  let id: any;
+  t.after(async () => { if (id !== undefined) await harness.abortTask(id, ctx).catch(() => {}); await harness.close(ctx); });
   harness.resume();
   const root = await harness.root(ctx);
-  let id: any;
   await root.commit(async (tx: any) => {
     id = await tx.createTask(DreamTask, { every: 3_600_000, first: 50, graphs: f.graphs, model: { provider: model.provider, id: model.id } },
       { ownership: { kind: 'conversation' }, background: true });
@@ -91,7 +92,7 @@ test('6.2 DreamTask: background task sleeps until next, runs, commits the story 
 
   let story;
   for (let i = 0; i < 200 && !story; i++) {
-    story = latestMorningReport((await harness.snapshot(StoryDoc, ctx)) as any);
+    story = await latestDreamStory(harness);
     if (!story) await new Promise((r) => setTimeout(r, 50));
   }
   assert.ok(story, 'the task committed a morning report');
@@ -106,5 +107,4 @@ test('6.2 DreamTask: background task sleeps until next, runs, commits the story 
   assert.ok(cp.next > Date.now() + 3_500_000, 'next run an `every` later');
   const [{ ingested }] = await f.rows('MATCH (t:Ticket) WHERE t.batch_id IS NOT NULL RETURN count(t) AS ingested');
   assert.equal(ingested, 1);
-  await harness.abortTask(id, ctx);
 });

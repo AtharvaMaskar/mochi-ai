@@ -2,13 +2,13 @@
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createLlm } from './llm.ts';
+import { tinyDataset } from '@mochi/contracts';
+import { createLlm, type Reply } from './llm.ts';
 import { connect } from './db.ts';
-import { readData } from './deps.ts';
 import { names, type Ctx } from './arms/index.ts';
 
-export async function testCtx(tag: string, reply?: (prompt: string, system: string) => string): Promise<Ctx & { cleanup(): Promise<void> }> {
-  const { dataset } = await readData();
+export async function testCtx(tag: string, reply?: Reply): Promise<Ctx & { cleanup(): Promise<void> }> {
+  const dataset = tinyDataset(); // arm and run tests stay on the contract fixture; deps.test covers the seed data
   const db = await connect();
   const prefix = `test_bench_${tag}`;
   const ctx = { llm: createLlm({ dry: true, maxUsd: 5, reply }), db, dataset, names: names(prefix), artifacts: mkdtempSync(join(tmpdir(), 'bench-')) };
