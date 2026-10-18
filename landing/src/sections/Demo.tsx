@@ -18,7 +18,7 @@ const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, 
 
 export function Demo() {
   const sec = useRef<HTMLElement>(null), video = useRef<HTMLVideoElement>(null);
-  const [state, setState] = useState<'loading' | 'ready' | 'missing'>('loading'), [chapter, setChapter] = useState<string | null>(null), [ripple, setRipple] = useState(0), [chroma, setChroma] = useState(false);
+  const [state, setState] = useState<'loading' | 'ready' | 'missing'>('loading'), [chapter, setChapter] = useState<string | null>(null), [ripple, setRipple] = useState(0);
   useInView(sec);
 
   useEffect(() => {
@@ -35,14 +35,13 @@ export function Demo() {
     const v = video.current;
     if (v && state === 'ready') { v.currentTime = c.at; void v.play().catch(() => {}); }
   };
-  const hover = () => { setChroma(true); setTimeout(() => setChroma(false), 400); };
 
   return (
     <section className="demo" id="demo" data-sky="demo" ref={sec} aria-labelledby="demo-h">
       <div className="wrap demo-title"><h2 id="demo-h" className="t-display">Three minutes, no slides.</h2></div>
       <div className="demo-persp">
         <div className="demo-card">
-          <div className={`demo-screen ${chroma ? 'chroma' : ''}`} onPointerEnter={hover}>
+          <div className="demo-screen">
             <video ref={video} src="/demo.mp4" preload="metadata" controls={state === 'ready'} playsInline
               onLoadedMetadata={() => setState('ready')} onError={() => setState('missing')} aria-label="Mochi Brain demo video">
               <track kind="chapters" src="/chapters.vtt" srcLang="en" label="Chapters" default />

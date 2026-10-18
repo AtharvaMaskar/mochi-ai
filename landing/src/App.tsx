@@ -56,16 +56,6 @@ export function App() {
   return (
     <>
       <Sky />
-      <svg className="defs" aria-hidden="true">
-        {/* RGB split for the 300–400 ms "memory rewrites" shiver (aceternity.md §3.21, SVG-filter variant). */}
-        <filter id="rgb-split" colorInterpolationFilters="sRGB">
-          <feColorMatrix in="SourceGraphic" type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="r" />
-          <feOffset in="r" dx="2.5" result="r2" />
-          <feColorMatrix in="SourceGraphic" type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 1 0" result="gb" />
-          <feOffset in="gb" dx="-2.5" result="gb2" />
-          <feBlend in="r2" in2="gb2" mode="screen" />
-        </filter>
-      </svg>
       <Nav />
       <main>
         <Hero />

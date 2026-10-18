@@ -55,7 +55,6 @@ section .t-lead { color: var(--fg-2); }
 .demo-card { max-width: 1080px; margin: 0 auto; padding: var(--space-3); border-radius: 20px; background: var(--bg-surface); box-shadow: 0 9px 20px -12px color-mix(in srgb, var(--ink) 25%, transparent), 0 60px 80px -40px color-mix(in srgb, var(--ink) 25%, transparent);
   transform: rotateX(calc((1 - var(--p)) * 20deg)) scale(calc(1 + (1 - var(--p)) * .05)); transform-origin: 50% 0; }
 .demo-screen { position: relative; aspect-ratio: 16 / 9; border-radius: var(--radius-lg); overflow: hidden; background: var(--bg-subtle); }
-.demo-screen.chroma .poster { filter: url(#rgb-split); }
 .demo-screen video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .poster { position: absolute; inset: 0; display: grid; align-content: center; justify-content: center; grid-template-columns: minmax(0, 620px); gap: var(--space-4); padding: 6%; background: var(--bg-subtle); }
 .poster-head { display: flex; align-items: center; gap: var(--space-3); color: var(--ink); }
@@ -83,8 +82,12 @@ section .t-lead { color: var(--fg-2); }
 /* §5 the night */
 .night-split { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: start; margin-top: var(--space-8); min-height: 520px; }
 .night-clause { animation: rise .42s var(--ease-out) both; margin-bottom: var(--space-4); }
-.night-frag.shiver { animation: shiver .32s steps(3) 1; }
-@keyframes shiver { 0%, 100% { filter: none; transform: none; } 33% { filter: url(#rgb-split); transform: translateX(2px); } 66% { filter: url(#rgb-split); transform: translateX(-2px); } }
+/* Retire: a line is drawn through each old fact, then the fact that replaced it rises in. Closed, not deleted. */
+.memdiff li > s { position: relative; display: block; width: fit-content; max-width: 100%; text-decoration-line: none; } /* the drawn line ends where the words end */
+.memdiff s::after { content: ""; position: absolute; left: 0; right: 0; top: 55%; height: 1.5px; background: currentColor; transform: scaleX(0); transform-origin: left; animation: md-strike .45s var(--ease-out) forwards; animation-delay: calc(var(--i) * 120ms + .25s); }
+.memdiff .md-new { animation: rise .42s var(--ease-out) both; animation-delay: calc(var(--i) * 120ms + .6s); }
+@keyframes md-strike { to { transform: scaleX(1); } }
+@media (prefers-reduced-motion: reduce) { .memdiff s::after { animation: none; transform: none; } .memdiff .md-new { animation: none; } }
 .dream { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: 0 40px 80px -40px color-mix(in srgb, var(--ink) 45%, transparent); overflow: hidden; }
 .rail { display: grid; grid-template-columns: repeat(5, 1fr); border-bottom: 1px solid var(--border); background: var(--bg-subtle); }
 .step { display: grid; justify-items: center; gap: 4px; padding: var(--space-3) 0; color: var(--ink-muted); }

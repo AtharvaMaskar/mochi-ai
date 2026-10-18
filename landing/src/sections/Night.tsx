@@ -31,10 +31,6 @@ export function Night() {
     want('night', { t: skyT(v), clouds: 0.22, part: 0, meteors: stop === 2 ? 1.4 : stop === 1 || stop === 3 ? 0.12 : 0,
       labels: stop === 2 ? demo.night.retired.map((r) => r.label) : [], constellation: stop >= 1 && stop <= 3 ? 1 : 0 });
   }, [v, stop]);
-  useEffect(() => { // the memory rewrites: a 300 ms chromatic shiver on the fragment
-    if (stop !== 2 || still() || !frag.current) return;
-    const el = frag.current; el.classList.remove('shiver'); void el.offsetWidth; el.classList.add('shiver');
-  }, [stop]);
 
   return (
     <section className="night" id="night" data-sky="night" ref={sec} aria-labelledby="night-h">
