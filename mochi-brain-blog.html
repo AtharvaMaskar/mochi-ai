@@ -40,7 +40,8 @@
     --fs-label: 13px; --fw-label: 500;
     --fs-caption: 12px;
     --fs-eyebrow: 12px; --fw-eyebrow: 500;
-    --fs-data: 12px; --fs-data-xs: 11px;
+    --fs-data: 12px; --fs-data-strong: 13px; --fs-data-xs: 11px;
+    --fw-body-strong: 600; --fw-mochi-wordmark: 400;
     --agent-sky: #7FAEE6;
     --agent-ube: #A99BE0;
     --shadow-seg: 0 1px 2px rgba(16,24,40,0.12);
@@ -81,14 +82,14 @@
   .band .memo { margin-bottom: 0; }
   h1 { font-size: var(--fs-display); line-height: var(--lh-display); font-weight: var(--fw-display);
        letter-spacing: var(--ls-display); color: var(--ink); margin: 0 0 var(--space-6); }
-  .mochi { font-family: var(--font-serif); font-weight: 400; letter-spacing: -0.01em; }
+  .mochi { /* wordmark */ font-family: var(--font-serif); font-weight: var(--fw-mochi-wordmark); letter-spacing: -0.01em; }
   h2 { font-size: var(--fs-title); line-height: var(--lh-title); font-weight: var(--fw-title);
        color: var(--ink); margin: 56px 0 var(--space-3); }
   h3 { font-size: var(--fs-headline); line-height: var(--lh-headline); font-weight: var(--fw-headline);
        color: var(--ink); margin: var(--space-1) 0 var(--space-2); }
   p, ul, ol { margin: 0 0 var(--space-4); }
   li { margin: var(--space-1) 0; }
-  strong { color: var(--ink); font-weight: 600; }
+  strong { color: var(--ink); font-weight: var(--fw-body-strong); }
   a { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--border-strong); }
   a:hover { text-decoration-color: var(--ink); }
   a:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--radius-xs); }
@@ -102,7 +103,7 @@
   .want { color: var(--ink-muted); }
 
   code, pre, .id, .stamp, .pill, .num { font-family: var(--font-mono); }
-  p code, li code, td code { font-size: 0.82em; background: var(--bg-subtle); border: 1px solid var(--border);
+  p code, li code, td code { font-size: var(--fs-data); background: var(--bg-subtle); border: 1px solid var(--border);
           padding: 0.05em 0.35em; border-radius: var(--radius-xs); color: var(--ink); }
   pre { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-md);
         padding: var(--space-3) var(--space-4); overflow-x: auto; font-size: var(--fs-data); line-height: 1.6;
@@ -120,7 +121,7 @@
   .trade dt { color: var(--ink-muted); font-weight: var(--fw-label); }
   .trade dd { margin: 0; color: var(--ink-body); }
 
-  .num { font-size: 0.86em; color: var(--ink); background: var(--bg-surface); border: 1px solid var(--border);
+  .num { font-size: var(--fs-data-strong); color: var(--ink); background: var(--bg-surface); border: 1px solid var(--border);
          border-radius: var(--radius-md); padding: 0.05em 0.5em; overflow-wrap: anywhere;
          -webkit-box-decoration-break: clone; box-decoration-break: clone; }
   .num.pending { color: var(--ink-faint); border-style: dashed; border-color: var(--border-dashed); }
@@ -129,8 +130,8 @@
   figcaption { font-size: var(--fs-caption); color: var(--ink-muted); margin-top: var(--space-2); line-height: 1.5; }
   .frame { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: var(--space-3); }
   svg { display: block; width: 100%; height: auto; }
-  svg text { font-family: var(--font-sans); font-size: 11px; fill: var(--ink-muted); }
-  svg text.v, svg text.id { font-family: var(--font-mono); font-size: 10px; }
+  svg text { font-family: var(--font-sans); font-size: var(--fs-caption); fill: var(--ink-muted); }
+  svg text.v, svg text.id { font-family: var(--font-mono); font-size: var(--fs-data-xs); }
   svg text.strong { fill: var(--ink); }
   .race { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
   @media (max-width: 560px) { .race { grid-template-columns: 1fr; } .trade, .memo div { grid-template-columns: 1fr; gap: 0; } }
@@ -147,7 +148,7 @@
   th { font-size: var(--fs-eyebrow); font-weight: var(--fw-eyebrow); color: var(--ink-muted); background: var(--bg-subtle); }
   td.r, th.r { text-align: right; }
   .muted { color: var(--ink-muted); }
-  .faq dt { font-weight: 600; color: var(--ink); margin-top: var(--space-4); }
+  .faq dt { font-weight: var(--fw-body-strong); color: var(--ink); margin-top: var(--space-4); }
   .faq dd { margin: var(--space-1) 0 0; }
   footer { margin-top: 64px; border-top: 1px solid var(--border); padding-top: var(--space-4);
            font-size: var(--fs-caption); color: var(--ink-muted); }
@@ -188,7 +189,7 @@
   .bars { display: grid; gap: 6px; font-size: var(--fs-caption); line-height: 1.3; }
   .bar-row { display: grid; grid-template-columns: minmax(6.5rem, 10.5rem) minmax(0, 1fr) minmax(9rem, auto); align-items: center; gap: var(--space-3); }
   .bar-row .lab { color: var(--ink-muted); }
-  .bar-row .lab.strong { color: var(--ink); font-weight: 600; }
+  .bar-row .lab.strong { color: var(--ink); font-weight: var(--fw-body-strong); }
   .bar-group { color: var(--ink); font-weight: var(--fw-label); margin-top: var(--space-2); }
   .bar-group:first-child { margin-top: 0; }
   .track { position: relative; height: 12px; overflow: hidden; cursor: pointer; }
@@ -549,7 +550,7 @@ ORDER BY r.shipped_at DESC, r.version LIMIT 3</code></pre>
   <li>Read tools are <code>replay: "safe"</code> and re-run. Write tools are never silently repeated: the model is told the call was interrupted.</li>
   <li>The same <code>requestId</code> returns the original submission's answer. The graph never noticed.</li>
 </ol>
-<p>This is demonstrated, not benchmarked, and the ledger says so. The clip is in the demo video.</p>
+<p>This is demonstrated, not benchmarked, and the ledger says so. To see it, run <code>npm run crash-demo -w agent</code> (<code>agent/scripts/crash-demo.ts</code>).</p>
 
 <h2>The bill</h2>
 <p>Answer-model spend across every benchmarked task, summed from <code>per_task[].cost_usd_total</code>: <span class="num" data-fig="bill"></span>. Build-time assistant usage is not in this number.</p>

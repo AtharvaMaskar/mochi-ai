@@ -1,5 +1,5 @@
 // Type uniformity check: component code may only use the type scale from mochi.css.
-// Usage: node contracts/type-lint.ts <dir>...   (exit 1 on findings)
+// Usage: node contracts/type-lint.ts <dir|file>...   (exit 1 on findings; e.g. ui/src landing/src mochi-brain-blog.html)
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -32,7 +32,7 @@ function walk(dir: string): string[] {
 }
 
 if (import.meta.main) {
-  const findings = process.argv.slice(2).flatMap((d) => walk(d).flatMap((f) => lintSource(readFileSync(f, 'utf8'), f)));
+  const findings = process.argv.slice(2).flatMap((d) => (statSync(d).isFile() ? [d] : walk(d)).flatMap((f) => lintSource(readFileSync(f, 'utf8'), f)));
   for (const f of findings) console.error(f);
   if (findings.length) { console.error(`type-lint: ${findings.length} finding(s)`); process.exit(1); }
 }
