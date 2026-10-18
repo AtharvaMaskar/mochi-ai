@@ -21,6 +21,7 @@ export const L = {
   AgentUser: 'AgentUser', Resolution: 'Resolution', KBArticle: 'KBArticle', Release: 'Release', Plan: 'Plan',
   Policy: 'Policy', ObservedPattern: 'ObservedPattern', Suggestion: 'Suggestion',
   DoctrineCandidate: 'DoctrineCandidate', Cluster: 'Cluster',
+  Episode: 'Episode', // cust_* episodic memory and user_* preferences (SPEC §1 memory tiers)
 } as const;
 export type Label = keyof typeof L;
 
@@ -47,6 +48,7 @@ export const E = {
   FOR: e('Suggestion', 'Team'),
   FEEDBACK: e('AgentUser', 'Suggestion'),
   IN_CLUSTER: e('Ticket', 'Cluster'),
+  REMEMBERS: e(['Customer', 'AgentUser'], 'Episode'),
 } as const satisfies Record<string, EdgeDef>;
 export type EdgeType = keyof typeof E;
 

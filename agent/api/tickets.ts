@@ -2,6 +2,7 @@
 // history come from the graph through mochi_reader, each with the stored query that produced it.
 import { validateCard, type StoredQuery } from '@mochi/contracts';
 import { CYPHER, briefing, customerProfile, runStored, type Db } from '../queries/index.ts';
+import { appendEpisode, briefWithMemory, type MemDb } from '../memory.ts';
 import {
   FD_STATUS_NAME, agents, fdId, getTicket, graphId, isDone, isReady, listTickets, ms, sim, simNow, SimError, type FdTicket,
 } from './sim.ts';
@@ -67,6 +68,7 @@ const quoteSplit = (text: string) => {
   const i = text.search(/\n\s*(On .{4,120}wrote:|-{3,} ?Forwarded message|From: )/);
   return i > 0 ? { text: text.slice(0, i).trim(), quoted: text.slice(i).trim() } : { text: text.trim(), quoted: undefined };
 };
+const customerOf = (t: FdTicket) => t.custom_fields?.cf_client_code ?? t.requester?.unique_external_id ?? null;
 const nameOf = (email: string) => email.replace(/<.*>/, '').replace(/"/g, '').trim() || email;
 
 export async function ticketDetail(db: Db, graph: string, rawId: string) {
@@ -83,7 +85,7 @@ export async function ticketDetail(db: Db, graph: string, rawId: string) {
       at: ms(c.created_at), ...quoteSplit(c.body_text ?? ''),
     })),
   ].sort((a, b) => a.at - b.at);
-  const customerId = t.custom_fields?.cf_client_code ?? t.requester?.unique_external_id ?? null;
+  const customerId = customerOf(t);
   const as_of = Date.now();
   const [g, profile] = await Promise.all([
     guesses(db, graph, [gid], as_of),
@@ -103,31 +105,44 @@ export async function ticketDetail(db: Db, graph: string, rawId: string) {
   };
 }
 
-export async function ticketBrief(db: Db, graph: string, rawId: string) {
+export type Mem = { db: () => Promise<MemDb>; user: string; userGraph: string };
+
+export async function ticketBrief(db: Db, graph: string, rawId: string, mem?: Mem) {
   const id = fdId(rawId) ? rawId : graphId(Number(rawId));
   const { card } = await briefing(db, { ticketId: id }, Date.now(), graph);
   if (!card.queries.q_1.rows.length) throw new SimError(404, `I haven't read ${id} yet, so there is no brief.`);
   const v = validateCard(card);
   if (!v.ok) throw new Error(`brief failed validateCard: ${v.errors.join('; ')}`);
-  return card;
+  return mem ? briefWithMemory(card, await mem.db(), { user: mem.user, userGraph: mem.userGraph, session: 'desk' }) : card;
 }
 
 // Idempotent per request id: a retried POST returns the first outcome and posts nothing twice.
 // ponytail: in-process map; a restart forgets ids (the sim's status is then already resolved, so a retry is harmless).
 const answered = new Map<string, Promise<unknown>>();
-export function answerTicket(rawId: string, body: { requestId?: string; text?: string }) {
+export function answerTicket(rawId: string, body: { requestId?: string; text?: string }, mem?: Mem) {
   const id = fdId(rawId) ?? Number(rawId);
   if (!Number.isInteger(id)) throw new SimError(404, `No ticket ${rawId}.`);
   if (!body.requestId) throw new SimError(400, 'requestId is required.');
   const key = `${id}:${body.requestId}`;
   if (!answered.has(key)) {
     const p = (async () => {
-      const reply = await sim<{ id: number }>(`/api/v2/tickets/${id}/reply`, { method: 'POST', body: { body: body.text?.trim() || 'Answered from the Mochi desk.' } });
+      const answer = body.text?.trim() || 'Answered from the Mochi desk.';
+      const reply = await sim<{ id: number }>(`/api/v2/tickets/${id}/reply`, { method: 'POST', body: { body: answer } });
       await sim(`/api/v2/tickets/${id}`, { method: 'PUT', body: { status: 4 } });
+      if (mem) await rememberAnswer(mem, id, answer, key).catch((e: Error) => console.error(`[memory] answer episode ${id}: ${e.message}`));
       return { ticket: graphId(id), reply_id: reply.body.id, status: 'resolved' };
     })();
     answered.set(key, p);
     p.catch(() => answered.delete(key));
   }
   return answered.get(key)!;
+}
+
+/** The answered ticket becomes an episode in its customer's cust_* graph. */
+async function rememberAnswer(mem: Mem, id: number, answer: string, key: string) {
+  const t = await getTicket(id);
+  const customerId = customerOf(t);
+  if (!customerId) return;
+  const short = answer.length > 160 ? `${answer.slice(0, 160)}…` : answer;
+  await appendEpisode(await mem.db(), { customerId, ticketId: graphId(id), session: 'desk', id: `EP-desk-answer-${key}`, summary: `${t.subject}: answered, "${short}"` });
 }

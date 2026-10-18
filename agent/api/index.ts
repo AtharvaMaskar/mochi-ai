@@ -21,6 +21,7 @@ async function readJson(req: IncomingMessage): Promise<Record<string, unknown>> 
 export async function routeApi(req: IncomingMessage, res: ServerResponse, url: URL, pi: Pi): Promise<boolean> {
   const p = url.pathname, get = req.method === 'GET', post = req.method === 'POST';
   const db = async () => (await pi.reader()) as unknown as Db;
+  const mem = { db: pi.memDb, user: pi.defaultCaller.user, userGraph: pi.userGraph };
   const reply = async (f: () => Promise<unknown>) => {
     try { json(res, 200, await f()); } catch (e) {
       if (e instanceof SimError) json(res, e.status, { error: e.message });
@@ -37,8 +38,8 @@ export async function routeApi(req: IncomingMessage, res: ServerResponse, url: U
   if (m) {
     const id = decodeURIComponent(m[1]);
     if (get && !m[2]) return reply(async () => ticketDetail(await db(), pi.graph, id));
-    if (post && m[2] === 'brief') return reply(async () => ticketBrief(await db(), pi.graph, id));
-    if (post && m[2] === 'answer') return reply(async () => answerTicket(id, await readJson(req) as { requestId?: string; text?: string }));
+    if (post && m[2] === 'brief') return reply(async () => ticketBrief(await db(), pi.graph, id, mem));
+    if (post && m[2] === 'answer') return reply(async () => answerTicket(id, await readJson(req) as { requestId?: string; text?: string }, mem));
   }
   if (get && p === '/api/overview') return reply(async () => overview(pi, await db()));
   if (get && p === '/api/stories') return reply(async () => storyList(pi));

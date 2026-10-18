@@ -46,3 +46,7 @@ test('as-of fragments against FalkorDB', async () => {
 test('MERGED_INTO is a contract edge', () => {
   assert.deepEqual(checkCypherNames('MATCH (a:Ticket)-[:MERGED_INTO]->(b:Ticket) RETURN a'), []);
 });
+
+test('REMEMBERS Episode is a contract edge', () => {
+  assert.deepEqual(checkCypherNames('MATCH (:Customer)-[:REMEMBERS]->(e:Episode), (:AgentUser)-[:REMEMBERS]->(:Episode) RETURN e'), []);
+});
