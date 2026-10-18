@@ -4,6 +4,14 @@ import type { StoredQuery } from '@mochi/contracts';
 import { CYPHER, runStored, type Db } from '../queries/index.ts';
 import { SimError } from './sim.ts';
 
+/** @-mention autocomplete: up to 8 tickets/customers/issues, kinds interleaved so one kind never crowds out the rest. */
+export async function entitySearch(db: Db, graph: string, q: string) {
+  const r = await runStored(db, graph, CYPHER.entity.search, { q: q.trim().toLowerCase().slice(0, 64) }, Date.now());
+  const by = ['ticket', 'customer', 'issue'].map((k) => r.rows.filter((x) => x.kind === k));
+  const rows = Array.from({ length: 8 }, (_, i) => by.map((b) => b[i])).flat().filter(Boolean).slice(0, 8);
+  return { results: rows as { kind: 'ticket' | 'customer' | 'issue'; id: string; name: string }[], query: { ...r, rows } };
+}
+
 export async function entityCard(db: Db, graph: string, id: string) {
   const as_of = Date.now();
   const run = (cypher: string, params: Record<string, unknown>) => runStored(db, graph, cypher, params, as_of);

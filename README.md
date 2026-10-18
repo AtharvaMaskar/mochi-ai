@@ -467,6 +467,20 @@ OPTIONAL MATCH (a:ProductArea {name: k.area})-[:OWNED_BY]->(tm:Team)
 RETURN k.id AS kb_id, k.title AS title, k.area AS area, tm.name AS team, k.promised_tat_hours AS promised_tat_hours
 ```
 
+#### `entity.search`
+
+```cypher
+/* mochi:entity.search@v1 */
+MATCH (t:Ticket) WHERE t.created_at <= $as_of AND toLower(t.id) CONTAINS $q
+RETURN 'ticket' AS kind, t.id AS id, t.subject AS name ORDER BY t.created_at DESC, t.id LIMIT 8
+UNION ALL
+MATCH (c:Customer) WHERE c.created_at <= $as_of AND (toLower(c.id) CONTAINS $q OR toLower(c.name) CONTAINS $q)
+RETURN 'customer' AS kind, c.id AS id, c.name AS name ORDER BY c.id LIMIT 8
+UNION ALL
+MATCH (i:Issue) WHERE i.created_at <= $as_of AND toLower(i.name) CONTAINS $q
+RETURN 'issue' AS kind, i.id AS id, i.name AS name ORDER BY i.name, i.id LIMIT 8
+```
+
 #### `deskGuess`
 
 ```cypher

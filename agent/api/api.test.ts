@@ -92,6 +92,18 @@ test('entity cards: customer, ticket and KB fields come from their stored querie
   assert.ok((await miss.json()).error);
 });
 
+test('entity search: tickets by id, customers by id or name, issues by name; read-only stored query with $as_of', async () => {
+  const s1 = await (await api('/api/entity/search?q=meera')).json();
+  assert.deepEqual(s1.results, [{ kind: 'customer', id: 'C-1', name: 'Meera Iyer' }]);
+  assert.match(s1.query.cypher, /mochi:entity\.search/);
+  assert.match(s1.query.cypher, /\$as_of/);
+  const s2 = await (await api('/api/entity/search?q=T-000')).json();
+  assert.ok(s2.results.length > 0 && s2.results.length <= 8 && s2.results.every((r: { kind: string }) => r.kind === 'ticket'));
+  const s3 = await (await api('/api/entity/search?q=ORDER%20NOT')).json();
+  assert.deepEqual(s3.results.map((r: { kind: string; id: string }) => [r.kind, r.id]), [['issue', 'I-1']]);
+  assert.ok((await (await api('/api/entity/search?q=')).json()).results.length <= 8);
+});
+
 test('brief: a validateCard card with a path receipt, every stored query takes $as_of', async () => {
   const card = await (await api('/api/tickets/T-0002/brief', { method: 'POST' })).json();
   assert.ok(validateCard(card).ok);

@@ -21,6 +21,8 @@ export type TicketDetail = {
 };
 /** GET /api/entity/:id: the record's fields, each read off one of `queries`' rows. */
 export type EntityCard = { kind: 'customer' | 'ticket' | 'kb'; id: string; queries: Record<string, StoredQuery> } & Record<string, unknown>;
+/** GET /api/entity/search?q=: @-mention candidates. */
+export type Mention = { kind: 'ticket' | 'customer' | 'issue'; id: string; name: string };
 export type StoryRow = { id: string; title: string; version: number; generated_at: number; generated_by: string; topic: string; kind?: Kind; status?: string };
 export type Kind = 'story' | 'dashboard';
 /** Publishing state from the agent. `versions` are the ones this browser may read; `owner` is true for the author. */
@@ -54,6 +56,7 @@ export const api = {
   draft: (id: string, hint?: DraftHint, previous?: string) => call<Draft>(`/api/tickets/${encodeURIComponent(id)}/draft`, post({ hint, previous })),
   claim: (id: string) => call<{ claimed: boolean }>(`/api/tickets/${encodeURIComponent(id)}/claim`, post()),
   entity: (id: string) => call<EntityCard>(`/api/entity/${encodeURIComponent(id)}`),
+  search: (q: string) => call<{ results: Mention[] }>(`/api/entity/search?q=${encodeURIComponent(q)}`),
   overview: () => call<Overview>('/api/overview'),
   stories: () => call<StoryRow[]>('/api/stories'),
   story: (id: string, version?: number, asOf?: number) =>
