@@ -208,7 +208,7 @@ export function Suggestion(v: Extract<Visual, { type: 'suggestion' }> & { compac
       <div className="mb-sugg-acts">
         {done ? <span className="mb-did"><DrawnCheck />{done}</span> : v.actions.map((a, i) => {
           const [label, word] = actionLabel(a);
-          return <Button key={a} size="sm" variant={i === 0 ? 'primary' : a === 'dismiss' ? 'link' : 'secondary'} onClick={() => setDone(word)}>{label}</Button>;
+          return <Button key={a} size="sm" variant={i === 0 ? (v.compact ? 'ai' : 'primary') : a === 'dismiss' ? 'link' : 'secondary'} onClick={() => setDone(word)}>{label}</Button>;
         })}
       </div>
     </div>

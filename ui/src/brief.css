@@ -32,6 +32,55 @@
 .mb-sum-cust-text { min-width: 0; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mb-sum-cust .mono { font-size: var(--fs-data); color: var(--ink-secondary); }
 
+/* ---------- Mochi's voice: the summary card alone carries the AI treatment (Aceternity §3.4 / §3.13 / §3.16, ported) ----------
+   A 1px conic ring of agent tints masked to the border; it turns only while Mochi works (loading, writing the words out)
+   and pauses where it is, then dims to a still, faint ring. The pointer leans a brighter 20° arc toward itself. */
+@property --mb-sum-a { syntax: '<angle>'; initial-value: 0deg; inherits: true; }
+@keyframes mb-sum-turn { to { --mb-sum-a: 360deg; } }
+@keyframes mb-word { from { opacity: 0; filter: blur(6px); } }
+.mb-sum-ai { --ring: conic-gradient(from var(--mb-sum-a), color-mix(in srgb, var(--agent-sky) 40%, transparent), color-mix(in srgb, var(--agent-ube) 40%, transparent), color-mix(in srgb, var(--agent-sakura) 40%, transparent), color-mix(in srgb, var(--agent-sky) 40%, transparent));
+  position: relative; isolation: isolate; min-width: 0; border-radius: var(--radius-md);
+  animation: mb-sum-turn 6s linear infinite paused; }
+.mb-sum-ai[data-working] { animation-play-state: running; }
+.mb-sum-ai > .mb-sum { position: relative; border-color: transparent; }
+.mb-sum-ai > .mb-sum::before, .mb-sum-ai > .mb-sum::after { content: ""; position: absolute; inset: -1px; padding: 1px; border-radius: inherit; pointer-events: none;
+  -webkit-mask: linear-gradient(var(--ink) 0 0) content-box, linear-gradient(var(--ink) 0 0); -webkit-mask-composite: xor; mask-composite: exclude; }
+.mb-sum-ai > .mb-sum::before { background: var(--ring); opacity: .85; transition: opacity .6s ease; }
+.mb-sum-ai[data-working] > .mb-sum::before { opacity: 1; }
+.mb-sum-ai > .mb-sum::after { opacity: var(--glow, 0); transition: opacity .3s ease;
+  background: conic-gradient(from calc((var(--start, 0) - 20) * 1deg), transparent, var(--agent-ube) 20deg, transparent 40deg); }
+.mb-sum-halo { position: absolute; inset: 0; z-index: -1; border-radius: inherit; background: var(--ring); filter: blur(10px); opacity: .22; pointer-events: none; transition: opacity .6s ease; }
+.mb-sum-ai[data-working] .mb-sum-halo { opacity: .35; }
+.mb-sum-says { display: flex; align-items: center; gap: var(--space-1\.5); }
+.mb-word { animation: mb-word .26s ease-out both; animation-delay: calc(var(--i, 0) * var(--step, 40ms)); }
+/* The noticed aura box: a fine static grain over the aura (Noise Background, ported), under the text */
+.mb-sum .mb-noticed { position: relative; isolation: isolate; }
+.mb-sum .mb-noticed::before { content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit; pointer-events: none; opacity: .05; mix-blend-mode: soft-light;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.95' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+
+/* ---------- Card stack (ported): more than one suggestion; the top card leads, the next two peek behind; no auto-rotation ---------- */
+.mb-stack { display: grid; min-width: 0; padding-bottom: var(--space-4); }
+.mb-stack > .mb-stack-card { grid-area: 1 / 1; min-width: 0; transform-origin: bottom center; background: var(--bg-surface); border-radius: var(--radius-md);
+  transform: translateY(calc(var(--d) * 7px)) scale(calc(1 - var(--d) * .04)); opacity: calc(1 - var(--d) * .35); z-index: calc(3 - var(--d));
+  transition: transform .28s cubic-bezier(.3,1.35,.5,1), opacity .2s ease; }
+.mb-stack-card > .mb-sugg { height: 100%; box-sizing: border-box; }
+.mb-stack > .mb-stack-card[data-d="3"] { opacity: 0; pointer-events: none; }
+.mb-stack > .mb-stack-card:not([data-d="0"]) { pointer-events: none; }
+.mb-stack-nav { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-1); font-family: var(--font-mono); font-size: var(--fs-data); color: var(--ink-muted); }
+
+/* ---------- AI action button (Hover Border Gradient, ported): ink fill, a 1px agent-tint highlight on the border.
+   Still at the left side at rest; sweeps the border once a second on hover or focus, with a soft agent-tint glow. ---------- */
+@property --mb-btn-a { syntax: '<angle>'; initial-value: 270deg; inherits: false; }
+@keyframes mb-btn-sweep { from { --mb-btn-a: 270deg; } to { --mb-btn-a: 630deg; } }
+.mb-btn-ring { position: absolute; inset: 0; z-index: 1; padding: 1px; border-radius: inherit; pointer-events: none;
+  background: conic-gradient(from calc(var(--mb-btn-a) - 60deg), transparent, var(--agent-sky) 30deg, var(--agent-ube) 60deg, var(--agent-sakura) 90deg, transparent 120deg);
+  -webkit-mask: linear-gradient(var(--ink) 0 0) content-box, linear-gradient(var(--ink) 0 0); -webkit-mask-composite: xor; mask-composite: exclude; }
+.mb-btn-ai:hover .mb-btn-ring, .mb-btn-ai:focus-visible .mb-btn-ring { animation: mb-btn-sweep 1s linear infinite; }
+.mb-btn-ai:hover, .mb-btn-ai:focus-visible { box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--ink) 60%, var(--island-bg)), 0 0 12px -2px color-mix(in srgb, var(--agent-ube) 55%, transparent); }
+.mb-btn-secondary.mb-btn-ai { border-color: transparent; }
+.mb-btn-secondary.mb-btn-ai:hover, .mb-btn-secondary.mb-btn-ai:focus-visible { box-shadow: inset 0 -1.5px 0 var(--border-strong), 0 0 12px -2px color-mix(in srgb, var(--agent-ube) 55%, transparent); }
+.mb-btn-ai:disabled .mb-btn-ring { opacity: .4; }
+
 /* ---------- Suggestion: the NeedsYou surface, never agent colour ---------- */
 .mb-block.mb-sugg { border: 1px dashed var(--border-dashed); background: var(--bg-page); box-shadow: none; }
 .mb-sugg-eyebrow { font-size: var(--fs-eyebrow); font-weight: var(--fw-eyebrow); color: var(--ink-muted); min-width: 0; }
@@ -82,7 +131,9 @@
 
 @media (prefers-reduced-motion: reduce) {
   .mb-desk { transition: none; }
-  .mb-sum, .mb-disc-body, .mb-vpath > li, .mb-vpath-edge::before { animation: none !important; }
+  .mb-sum, .mb-disc-body, .mb-vpath > li, .mb-vpath-edge::before, .mb-sum-ai, .mb-word, .mb-btn-ai .mb-btn-ring { animation: none !important; }
+  .mb-sum-ai > .mb-sum::after { display: none; }
+  .mb-stack > .mb-stack-card { transition: none; }
   .mb-disc-chev { transition: none; }
 }
 
