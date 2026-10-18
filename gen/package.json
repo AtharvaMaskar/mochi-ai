@@ -2,6 +2,17 @@
   "name": "@mochi/gen",
   "private": true,
   "type": "module",
-  "scripts": { "check": "node -e 0" },
-  "dependencies": { "@mochi/contracts": "*" }
+  "exports": { ".": "./index.ts" },
+  "main": "all-tests.ts",
+  "scripts": {
+    "gen": "node generate.ts",
+    "load": "node load.ts",
+    "test": "node --test",
+    "check": "tsc -p . && node --test"
+  },
+  "dependencies": {
+    "@huggingface/transformers": "^4.3.1",
+    "@mochi/contracts": "*",
+    "falkordb": "^6.8.0"
+  }
 }
