@@ -46,10 +46,10 @@ export async function traceStory(db: Db, args: { id: string }, as_of: number, gr
       : `No journal trace for story ${args.id} (journal needs MOCHI_STORAGE=falkordb)`,
     queries: { q_1: story, q_2: sources },
     path: null, // journal labels are not company labels; the tables below are the path
-    blocks: [
+    blocks: made ? [ // no trace (or no journal graph): the title says so, and there are no rows to tabulate
       { type: 'table', query_id: 'q_1', label: 'Who wrote the story', columns: ['tool', 'call_entry', 'task', 'result_entry', 'revision_seq'] },
       { type: 'table', query_id: 'q_2', label: 'Where its stored queries came from', columns: ['tool', 'call_entry', 'task', 'result_entry', 'queries'] },
-    ],
+    ] : [],
   };
   return { card, queries: card.queries };
 }
