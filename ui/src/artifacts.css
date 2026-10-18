@@ -191,3 +191,10 @@ select.mb-ver-chip { cursor: pointer; }
 .mb-share-title { margin: 0; font-size: var(--fs-label); font-weight: var(--fw-label); color: var(--ink); }
 .mb-share .mb-seg { align-self: stretch; }
 .mb-share-word { display: inline-flex; align-items: center; gap: var(--space-1); font-size: var(--fs-caption); color: var(--ink-muted); }
+
+/* The open Outputs card docks: the reading column re-centres in the space left of it instead of sliding under it. */
+@media (min-width: 768px) {
+  .mb-split-chat .mb-chat-shell { transition: padding-right .2s cubic-bezier(.2,.8,.2,1); }
+  .mb-split-chat:has(.mb-out-card) .mb-chat-shell { padding-right: calc(340px + var(--space-4)); }
+}
+@media (min-width: 768px) and (prefers-reduced-motion: reduce) { .mb-split-chat .mb-chat-shell { transition: none; } }

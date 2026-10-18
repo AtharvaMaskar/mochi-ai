@@ -489,3 +489,7 @@ h1, h2, h3, b, strong { font-weight: var(--fw-body-strong); }
 @media (prefers-reduced-motion: reduce) { .mb-chat-card { animation: none; } .mb-chat-fold-body, .mb-chat-fold-chev { transition: none; } }
 
 .mb-chat-user-kind { display: inline-flex; align-items: center; gap: var(--space-1); margin-right: var(--space-2); padding: 0 var(--space-1\.5); border-radius: var(--radius-sm); background: color-mix(in srgb, currentColor 14%, transparent); font-size: var(--fs-caption); font-weight: var(--fw-label); vertical-align: 1px; }
+
+/* Folded card receipts: a group that never overlaps the title; on a phone it takes its own line under it. */
+.mb-chat-fold-pills { flex-shrink: 0; display: inline-flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-1); }
+@media (max-width: 767px) { .mb-chat-fold-head { flex-wrap: wrap; } .mb-chat-fold-pills { flex-basis: 100%; justify-content: flex-start; padding-left: calc(16px + var(--space-2)); } }

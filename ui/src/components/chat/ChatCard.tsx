@@ -20,7 +20,7 @@ export function ChatCard({ card }: { card: Card }) {
           <span className="mb-chat-fold-title">{card.title.replace(/ · \d+ rows?$/, '')}</span>
           <span className="mono mb-chat-fold-n">{rows} {rows === 1 ? 'row' : 'rows'}</span>
         </button>
-        <ReceiptProvider queries={card.queries}>{qids.map((q) => <QueryTag key={q} qid={q} />)}</ReceiptProvider>
+        <span className="mb-chat-fold-pills"><ReceiptProvider queries={card.queries}>{qids.map((q) => <QueryTag key={q} qid={q} />)}</ReceiptProvider></span>
       </div>
       <div className="mb-chat-fold-body"><div>{open && <ToolCard card={card} />}</div></div>
     </div>
