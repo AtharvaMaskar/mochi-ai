@@ -88,7 +88,7 @@ function Open({ id, version, asOf, toggle }: { id: string; version?: number; asO
       const next = await api.publish(id, on);
       setTimeout(() => { setMeta(next); dispatchEvent(new Event('mochi-stories-changed')); }, on ? 900 : 0); // let the held button land first
       if (on) { const url = shareUrl(id, next.kind); await copy(url); setToast(`Published. Link copied: ${url}`); }
-      else setToast('Unpublished. Only you can see it now.');
+      else setToast('Unpublished. Only signed-in people can see it now.');
     } catch (e) { setToast((e as Error).message); }
   };
   const versions = m?.versions ?? [];

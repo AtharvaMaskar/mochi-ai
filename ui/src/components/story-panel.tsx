@@ -35,7 +35,7 @@ export function StoryPanel({ id, onClose }: { id: string | null; onClose: () => 
 }
 
 /** Share, one entry point (Notion/Claude style): a button that says who can see this, and a popover with the access
- *  choice (Segmented: Only you / Anyone with the link), the link with Copy and Open, and "publish the latest" when the
+ *  choice (Segmented: Signed-in people / Anyone with the link), the link with Copy and Open, and "publish the latest" when the
  *  public link lags. Not the owner: just the word. */
 export function Share({ m, url, onPublish, onCopy }: { m: StoryMeta; url: string; onPublish: (on: boolean) => void; onCopy: () => void }) {
   const [open, setOpen] = useState(false);
@@ -61,10 +61,10 @@ export function Share({ m, url, onPublish, onCopy }: { m: StoryMeta; url: string
         <div className="mb-menu mb-share" role="dialog" aria-label={`Share this ${kind}`}>
           <p className="mb-share-title">Share this {kind}</p>
           <Segmented label="Who can see it" value={pub ? 'link' : 'me'} onChange={(v) => { if ((v === 'link') !== pub) onPublish(v === 'link'); }}
-            options={[{ id: 'me', label: 'Only you' }, { id: 'link', label: 'Anyone with the link' }]} />
+            options={[{ id: 'me', label: 'Signed-in people' }, { id: 'link', label: 'Anyone with the link' }]} />
           <p className="mb-share-who">{pub
-            ? <>People with the link see <span className="mono">v{live}</span>, live, with every receipt.{behind && <> Your latest is <span className="mono">v{latest}</span>.</>}</>
-            : <>It's a draft. Publishing makes a read-only link anyone can open.</>}</p>
+            ? <>Anyone with the link, signed in or not, sees <span className="mono">v{live}</span>, live, with every receipt.{behind && <> Your latest is <span className="mono">v{latest}</span>.</>}</>
+            : <>Only people signed in to Mochi Brain can see it. Anyone with the link makes a read-only page anyone can open, no sign-in.</>}</p>
           {pub && (
             <div className="mb-share-link">
               <span className="mono" title={url}>{url.replace(/^https?:\/\//, '')}</span>
@@ -126,7 +126,7 @@ function Panel({ id, ready, closing, onClose }: { id: string; ready: boolean; cl
       const next = await api.publish(id, on);
       setTimeout(() => setMeta(next), on ? 900 : 0); // let the held button land first
       if (on) { const url = shareUrl(id, next.kind); await copy(url); setToast(`Published. Link copied: ${url}`); }
-      else setToast('Unpublished. Only you can see it now.');
+      else setToast('Unpublished. Only signed-in people can see it now.');
     } catch (e) { setToast((e as Error).message); }
   };
 
@@ -164,7 +164,7 @@ function Panel({ id, ready, closing, onClose }: { id: string; ready: boolean; cl
           </div>
         </div>
         <p className="mb-panel-caption t-caption muted">
-          {show ? <>{m.kind === 'dashboard' ? 'Dashboard' : 'Story'} · {m.status === 'published' ? 'Public' : 'Only you can see this draft'}<LiveSince at={r.updatedAt} frozen={asOf !== undefined} /></> : ' '}
+          {show ? <>{m.kind === 'dashboard' ? 'Dashboard' : 'Story'} · {m.status === 'published' ? 'Public' : 'Draft: only signed-in people can see it'}<LiveSince at={r.updatedAt} frozen={asOf !== undefined} /></> : ' '}
         </p>
       </header>
       <div className="mb-panel-body">
