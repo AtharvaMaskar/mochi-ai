@@ -2,7 +2,7 @@
 // README Feature Ledger and the report all read this shape.
 import { z } from 'zod';
 
-export const Arch = z.enum(['A', 'B', 'C', 'D']);
+export const Arch = z.enum(['A', 'B', 'C', 'D', 'E', 'F']);
 const Bucket = z.enum(['single_fact', 'multi_hop', 'structural']);
 const n = z.number().nonnegative();
 
@@ -23,7 +23,13 @@ export const Results = z.object({
     arch: Arch, question_id: z.string(), bucket: Bucket,
     input_tokens: n, output_tokens: n, retrieval_ms: n,
     answer: z.string(), correct: z.boolean(), truncated: z.boolean().optional(),
+    model_id: z.string().optional(), cost_usd: n.optional(), total_ms: n.optional(),
   })),
+  // Headline (SPEC §3): per task, per model x arm. Accuracy always beside cost and latency.
+  per_task: z.array(z.object({
+    model_id: z.string(), arch: Arch, n: n, accuracy: n,
+    cost_usd_mean: n, cost_usd_total: n, p50_ms: n, p95_ms: n,
+  })).default([]),
   summary: z.partialRecord(Arch, z.partialRecord(Bucket, z.object({ accuracy: n, mean_input_tokens: n, p50_ms: n, p95_ms: n }))),
   ingestion: z.array(z.object({ arch: Arch, tokens: n })),
   staleness: z.array(z.object({ event_id: z.string(), arch: Arch, maintenance_tokens: n, answer_fresh: z.boolean() })),
@@ -45,7 +51,7 @@ export const Results = z.object({
     status: z.enum(['measured', 'demonstrated', 'not_measured']),
   })),
 });
-export type Results = z.infer<typeof Results>;
+export type Results = z.input<typeof Results>; // producers may omit defaulted sections
 
 export function validateResults(input: unknown): { ok: true; value: Results } | { ok: false; errors: string[] } {
   const r = Results.safeParse(input);
@@ -54,5 +60,5 @@ export function validateResults(input: unknown): { ok: true; value: Results } | 
   const errors = LEDGER_FEATURES.filter((f) => !have.has(f)).map((f) => `ledger: missing row for "${f}"`);
   for (const l of r.data.ledger)
     if (l.status === 'not_measured' && l.result !== 'not measured') errors.push(`ledger "${l.feature}": not_measured rows must say "not measured"`);
-  return errors.length ? { ok: false, errors } : { ok: true, value: r.data };
+  return errors.length ? { ok: false, errors } : { ok: true, value: r.data as Results };
 }

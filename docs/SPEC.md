@@ -114,6 +114,11 @@ One file per retriever, one runner, one `results.json` the blog reads.
 | C | file memory (Devin spec) | `memory/MEMORY.md` index + per-area `.md` notes generated from the same JSON by an LLM "dream" pass; retrieval = load MEMORY.md, model picks files, read them. Nightly dream = LLM rewrites files (count those tokens as maintenance cost) |
 | D | graph | the five Cypher queries; prompt gets only query results + the path taken |
 
+**Extended arms and sweep (amended 2026-10-18, human-approved, budget cap $25):**
+| E | SQLite relational | the same dataset as tables; the model gets SQL tools equivalent to D's five queries — isolates "graph" from "structured storage" |
+| F | TencentDB Agent Memory | its memory pipeline fed the same tickets; time-boxed integration — if no clean Node adapter, the ledger row says "not measured" and the blog says why |
+Headline metrics are **per task** (task = brief one ticket / answer one eval question as the agent would): **cost in USD and end-to-end latency (p50/p95)**, always shown next to accuracy. Every arm runs on `claude-haiku-5-5` (default) **and** `claude-sonnet-5-5` (model sweep: can Haiku-on-graph match Sonnet-on-markdown?). Judge: `claude-opus-5-5`, 3-vote majority on every multi-hop and structural answer.
+
 **Per question record:** `{arch, bucket, input_tokens, output_tokens, retrieval_ms, answer, correct}`.
 - Tokens from the provider's usage field (via pi-ai), never estimated.
 - Scoring: single-fact = normalized exact-match; multi-hop & structural = LLM-judge against ground truth (judge prompt in repo; judge model ≠ answer model if budget allows, else same model, disclosed).
