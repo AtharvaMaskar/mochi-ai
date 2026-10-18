@@ -284,6 +284,17 @@ RETURN s.id AS ticket, s.subject AS subject, i.id AS issue_id, i.name AS issue,
 ORDER BY score, s.id LIMIT 5
 ```
 
+#### `briefing.suggestions`
+
+```cypher
+/* mochi:briefing.suggestions@v1 */
+MATCH (t:Ticket {id: $ticketId})-[:ABOUT]->(i:Issue)-[:IN]->(a:ProductArea)-[:OWNED_BY]->(tm:Team)<-[:FOR]-(s:Suggestion)-[:FROM]->(p:ObservedPattern)-[e:CONTRADICTS|UNDOCUMENTED]->(d)
+WHERE s.area = a.name AND s.status = 'open' AND s.expires_at > $as_of AND t.created_at <= $as_of AND s.created_at <= $as_of AND e.valid_from <= $as_of AND e.valid_until > $as_of
+RETURN DISTINCT s.id AS suggestion_id, type(e) AS edge, coalesce(d.id, d.name) AS target, a.name AS area, tm.name AS team,
+       s.text AS text, s.support_count AS support, p.measured_tat_hours AS measured, e.promised AS promised, s.confidence AS confidence
+ORDER BY confidence DESC, suggestion_id LIMIT 2
+```
+
 #### `likelyCause`
 
 ```cypher
@@ -348,6 +359,16 @@ RETURN c.id AS customer_id, c.name AS customer, c.segment AS segment, t.id AS ti
        i.id AS issue_id, i.name AS issue,
        CASE WHEN t.resolved_at IS NULL OR t.resolved_at > $as_of THEN 'open' ELSE 'resolved' END AS state
 ORDER BY t.created_at DESC, t.id LIMIT 10
+```
+
+#### `blastRadius.owner`
+
+```cypher
+/* mochi:blast_radius.owner@v1 */
+MATCH (r:Release {version: $version})-[x:INTRODUCED]->(i:Issue)-[:IN]->(a:ProductArea)-[:OWNED_BY]->(tm:Team)
+WHERE x.valid_from <= $as_of AND x.valid_until > $as_of AND r.created_at <= $as_of AND i.created_at <= $as_of
+RETURN tm.name AS team, a.name AS area, collect(DISTINCT i.name) AS issues
+ORDER BY team, area LIMIT 3
 ```
 
 #### `searchSimilar`
