@@ -1,0 +1,46 @@
+/* Mochi, measurements and timings from the design system's bundle.css; colours from mochi.css tokens only. */
+@keyframes mb-idle { 0%,40%,64%,100% { border-radius: 50% 50% 45% 45% / 60% 60% 40% 40%; transform: translateX(0) rotate(0deg) scale(1); } 20%,82% { border-radius: 52% 48% 46% 44% / 57% 61% 39% 43%; transform: translateX(0) rotate(0deg) scale(1.035); } 48% { transform: translateX(-3%) rotate(-3deg) scale(1.01); } 56% { transform: translateX(3%) rotate(3deg) scale(1.01); } }
+@keyframes mb-listen { 0%,100% { transform: scale(1); } 50% { transform: scale(1.04); } }
+@keyframes mb-ring { 0% { transform: scale(1); opacity: .6; } 100% { transform: scale(1.3); opacity: 0; } }
+@keyframes mb-curious { 0%,100% { border-radius: 46% 54% 46% 46% / 62% 64% 36% 38%; transform: rotate(-11deg) scale(.96,1.08); } 50% { border-radius: 46% 54% 46% 46% / 62% 64% 36% 38%; transform: rotate(-15deg) scale(.94,1.1); } }
+@keyframes mb-think { 0%,100% { border-radius: 58% 42% 46% 52% / 52% 62% 38% 48%; transform: rotate(-10deg); } 50% { border-radius: 44% 56% 54% 44% / 62% 50% 50% 40%; transform: rotate(10deg); } }
+@keyframes mb-orbit { 0% { transform: rotate(0deg) translateX(132px) scale(1); } 50% { transform: rotate(180deg) translateX(132px) scale(.68); } 100% { transform: rotate(360deg) translateX(132px) scale(1); } }
+@keyframes mb-speak { 0%,100% { transform: scale(1,1); } 25% { transform: scale(1.07,.93); } 50% { transform: scale(.97,1.05); } 75% { transform: scale(1.04,.96); } }
+@keyframes mb-done { 0% { transform: translateY(0) scale(1.14,.82); } 30% { transform: translateY(-26%) scale(.92,1.1); } 55% { transform: translateY(0) scale(1.14,.86); } 75% { transform: translateY(-5%) scale(.98,1.03); } 100% { transform: translateY(0) scale(1,1); } }
+@keyframes mb-sorry { 0%,100% { border-radius: 50% 50% 44% 44% / 40% 40% 60% 60%; transform: scale(1.13,.74) rotate(0deg); } 50% { border-radius: 50% 50% 44% 44% / 40% 40% 60% 60%; transform: scale(1.16,.71) rotate(-2deg); } }
+@keyframes mb-wave { 0%,100% { border-radius: 50% 50% 45% 45% / 60% 60% 40% 40%; transform: rotate(-8deg); } 50% { border-radius: 46% 54% 54% 40% / 58% 54% 46% 42%; transform: rotate(10deg) translateX(4%); } }
+@keyframes mb-core { 0%,100% { transform: translate(-8%,4%) scale(1); } 50% { transform: translate(9%,-6%) scale(1.1); } }
+
+.mb-mochi { position: relative; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.mb-mochi-body { position: relative; overflow: hidden; border-radius: var(--mochi-rest); background: radial-gradient(120% 110% at 34% 26%, var(--mochi-highlight) 0%, var(--mochi-skin) 42%, var(--mochi-shade) 100%); transition: background .6s ease; }
+.mb-mochi[data-mood="sorry"] .mb-mochi-body { background: radial-gradient(120% 110% at 34% 26%, var(--mochi-highlight) 0%, var(--mochi-skin-sorry) 42%, var(--mochi-shade-sorry) 100%); }
+.mb-mochi-core { position: absolute; left: 22%; top: 30%; width: 56%; height: 54%; border-radius: 50%; transition: background .6s ease, opacity .6s ease; animation: mb-core 7s ease-in-out infinite; }
+.mb-mochi-shine { position: absolute; left: 20%; top: 9%; width: 34%; height: 18%; border-radius: 50%; background: var(--mochi-highlight); opacity: .55; filter: blur(9px); }
+.mb-mochi-ring { position: absolute; inset: 0; margin: auto; border-radius: var(--mochi-rest); border: 1.5px solid; animation: mb-ring 1.8s ease-out infinite; }
+.mb-mochi-sat { position: absolute; left: 50%; top: 50%; width: 22px; height: 22px; margin: -11px 0 0 -11px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, var(--mochi-highlight) 0%, var(--mochi-skin) 50%, var(--mochi-shade) 100%); animation: mb-orbit 2s linear infinite; }
+.mb-mochi-xs .mb-mochi-body { width: 20px; height: 18px; } .mb-mochi-xs .mb-mochi-core { filter: blur(2px); }
+.mb-mochi-sm .mb-mochi-body { width: 34px; height: 30px; box-shadow: var(--shadow-mochi); } .mb-mochi-sm .mb-mochi-core { filter: blur(4px); }
+.mb-mochi-md .mb-mochi-body { width: 64px; height: 56px; box-shadow: var(--shadow-mochi); } .mb-mochi-md .mb-mochi-core { filter: blur(8px); }
+.mb-mochi-lg { width: 300px; height: 260px; }
+/* the reference's warm brown shading is mochi-ink-hojicha in our tokens */
+.mb-mochi-lg .mb-mochi-body { width: 220px; height: 196px; box-shadow: inset -16px -20px 36px color-mix(in srgb, var(--mochi-ink-hojicha) 26%, transparent), inset 0 -3px 0 color-mix(in srgb, var(--mochi-highlight) 40%, transparent), 0 22px 40px -22px color-mix(in srgb, var(--mochi-ink-hojicha) 45%, transparent); }
+.mb-mochi-lg .mb-mochi-core { filter: blur(24px); }
+.mb-mochi-lg .mb-mochi-ring { width: 220px; height: 196px; }
+
+/* MochiMood */
+.mb-mochi-mood { display: inline-flex; align-items: baseline; gap: var(--space-3); }
+.mb-mochi-state { font-family: var(--font-brand); font-size: 12px; letter-spacing: .18em; text-transform: uppercase; color: var(--ink-muted); }
+.mb-mochi-flavour { font-family: var(--font-serif); font-style: italic; font-size: 26px; line-height: 1; }
+
+/* Squish on tap: from its base, each tap restarts it (a/b alternate). */
+.mb-mochi-press { cursor: pointer; transform-origin: 50% 100%; transition: transform .26s cubic-bezier(.3,1.7,.45,1); }
+.mb-mochi-press:not([role="button"]) { cursor: default; }
+.mb-mochi[role="button"] { cursor: pointer; }
+@keyframes mb-squish-a { 0% { transform: none; } 18% { transform: scale(1.18, .8); } 40% { transform: scale(.9, 1.12); } 60% { transform: scale(1.06, .95); } 80% { transform: scale(.98, 1.02); } 100% { transform: none; } }
+@keyframes mb-squish-b { 0% { transform: none; } 18% { transform: scale(1.18, .8); } 40% { transform: scale(.9, 1.12); } 60% { transform: scale(1.06, .95); } 80% { transform: scale(.98, 1.02); } 100% { transform: none; } }
+.mb-squish-a { animation: mb-squish-a .62s cubic-bezier(.3,.6,.4,1); }
+.mb-squish-b { animation: mb-squish-b .62s cubic-bezier(.3,.6,.4,1); }
+
+@media (prefers-reduced-motion: reduce) {
+  .mb-mochi *, .mb-squish-a, .mb-squish-b { animation: none !important; }
+}
