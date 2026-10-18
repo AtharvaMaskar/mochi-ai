@@ -15,7 +15,7 @@ import { ReceiptProvider } from '../components/receipts.tsx';
 import { Mochi, NeedsYou } from '../components/ds.tsx';
 import { StoryPanel } from '../components/story-panel.tsx';
 import { OpenArtifact, OutputsRail } from '../components/chat/outputs-rail.tsx';
-import { Threads, rememberThread, useThreadsOpen } from '../components/chat/threads.tsx';
+import { Threads, rememberThread, useThreadTitle, useThreadsOpen } from '../components/chat/threads.tsx';
 import { createPortal } from 'react-dom';
 import { FileText, LayoutDashboard, PanelLeftOpen, PanelRightOpen, TrendingUp, Users } from 'lucide-react';
 import { MessageList } from '../components/chat/MessageList.tsx';
@@ -179,6 +179,7 @@ export function Chat() {
   const [rail, setRail] = useState<HTMLElement | null>(null);
   const [side, setSide] = useThreadsOpen(SHEET_KEY);
   const [outputs, setOutputs] = useState(false); // the rail as a sheet below 768px
+  const title = useThreadTitle(threadId);
   const openArtifact = useMemo(() => (id: string) => { setOutputs(false); setOpenId(id); }, []);
   const go = (id: string) => { setOpenId(null); try { localStorage.setItem(THREAD_KEY, id); } catch { /* storage blocked */ } setThreadId(id); };
   return (
@@ -186,14 +187,16 @@ export function Chat() {
     <CopilotKitProvider runtimeUrl="/api/copilotkit" messageFilter={(m) => m.slice(-1)} showDevConsole={false} enableInspector={false}>
       <OpenArtifact.Provider value={openArtifact}>
         <div className="mb-split" data-side={side ? 'open' : 'closed'} data-outputs={outputs || undefined}>
-          <Threads current={threadId} onPick={go} onNew={() => go(newThread())} onClose={() => setSide(false)} />
+          <Threads current={threadId} open={side} onPick={go} onNew={() => go(newThread())} onToggle={setSide} />
           <button type="button" className="mb-scrim" aria-label="Close" tabIndex={-1} onClick={() => { setSide(false); setOutputs(false); }} />
           <div className="mb-split-chat">
+            <div className="mb-col-head mb-chat-head">
+              {/* phone only: the rails are sheets, so their toggles live in this header */}
+              <button type="button" className="mb-icon-btn mb-side-toggle" aria-label="Show conversations" onClick={() => setSide(true)}><PanelLeftOpen size={16} strokeWidth={1.5} aria-hidden="true" /></button>
+              <span className="mb-chat-title">{title}</span>
+              <button type="button" className="mb-icon-btn mb-outputs-toggle" aria-label="Show outputs" onClick={() => setOutputs(true)}><PanelRightOpen size={16} strokeWidth={1.5} aria-hidden="true" /></button>
+            </div>
             <div className="mb-page mb-page-narrow">
-              <div className="mb-chat-bar">
-                <button type="button" className="mb-icon-btn mb-side-toggle" aria-label="Show conversations" onClick={() => setSide(true)}><PanelLeftOpen size={16} strokeWidth={1.5} aria-hidden="true" /></button>
-                <button type="button" className="mb-icon-btn mb-outputs-toggle" aria-label="Show outputs" onClick={() => setOutputs(true)}><PanelRightOpen size={16} strokeWidth={1.5} aria-hidden="true" /></button>
-              </div>
               <OpenId.Provider value={openId}><Conversation key={threadId} threadId={threadId} onOpen={setOpenId} rail={rail} /></OpenId.Provider>
             </div>
           </div>

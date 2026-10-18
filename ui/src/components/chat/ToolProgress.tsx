@@ -26,11 +26,28 @@ const stepLabel = (s: ToolStep) => {
   return p ? p[0].toUpperCase() + p.slice(1) : PHRASE[s.name] ?? s.name.replace(/_/g, ' ');
 };
 
+/** The first short string argument other than `purpose`: what tells two runs of one tool apart. */
+const detail = (args = '') => {
+  try {
+    const v = Object.entries(JSON.parse(args) as Record<string, unknown>).find(([k, x]) => k !== 'purpose' && typeof x === 'string' && x.trim() && x.length <= 40)?.[1];
+    return typeof v === 'string' ? v.trim() : '';
+  } catch { return ''; } // still streaming
+};
+/** Step labels that never read identical: a repeat gets its distinguishing argument, else a number. */
+export function labels(steps: ToolStep[]): string[] {
+  const base = steps.map(stepLabel);
+  const dup = (l: string) => base.filter((x) => x === l).length > 1;
+  const out = base.map((l, i) => (dup(l) && detail(steps[i].args) ? `${l}: “${detail(steps[i].args)}”` : l));
+  const seen = new Map<string, number>();
+  return out.map((l) => { const n = (seen.get(l) ?? 0) + 1; seen.set(l, n); return n > 1 ? `${l} (${n})` : l; });
+}
+
 export function ToolProgress({ steps }: { steps: ToolStep[] }) {
   const [open, setOpen] = useState(false);
   if (!steps.length) return null;
   const folded = steps.length >= 3 && steps.every((s) => s.done);
   const n = steps.length;
+  const text = labels(steps);
   const summary = steps.every((s) => !WRITES.has(s.name)) ? `Used ${n} graph queries` : `Took ${n} steps`;
   return (
     <div className="mb-chat-steps-wrap">
@@ -41,10 +58,10 @@ export function ToolProgress({ steps }: { steps: ToolStep[] }) {
       )}
       {(!folded || open) && (
         <ul className="mb-chat-steps" aria-label="What Mochi did">
-          {steps.map((s) => (
+          {steps.map((s, i) => (
             <li key={s.id} className={s.done ? 'is-done' : 'is-live'}>
               {s.done ? <DrawnCheck /> : <span className="mb-chat-step-dot" aria-hidden="true" />}
-              <span className="mb-chat-step-text">{stepLabel(s)}{s.done ? '' : '…'}</span>
+              <span className="mb-chat-step-text">{text[i]}{s.done ? '' : '…'}</span>
             </li>
           ))}
         </ul>

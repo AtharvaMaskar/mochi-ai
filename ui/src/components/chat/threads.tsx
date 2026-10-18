@@ -1,8 +1,7 @@
 // Conversations sidebar: this browser's chat threads, newest first, kept in localStorage as {id, title, at}[]. The
 // agent restores a durable conversation by threadId, so switching is only a new threadId.
 import { useEffect, useState, useSyncExternalStore } from 'react';
-import { PanelLeftClose, SquarePen } from 'lucide-react';
-import { Button } from '../ds.tsx';
+import { PanelLeftClose, PanelLeftOpen, SquarePen } from 'lucide-react';
 
 type Thread = { id: string; title: string; at: number };
 const KEY = 'mochi-threads', EVT = 'mochi-threads-changed';
@@ -32,29 +31,43 @@ const ago = (at: number, now: number) => {
   const m = Math.round((now - at) / 60_000);
   return m < 1 ? 'now' : m < 60 ? `${m}m` : m < 1440 ? `${Math.round(m / 60)}h` : `${Math.round(m / 1440)}d`;
 };
+const subscribe = (f: () => void) => { addEventListener(EVT, f); addEventListener('storage', f); return () => { removeEventListener(EVT, f); removeEventListener('storage', f); }; };
+/** The current conversation's title for the centre header, or null before its first message. */
+export function useThreadTitle(id: string): string | null {
+  const t = parse(useSyncExternalStore(subscribe, read)).find((x) => x.id === id);
+  return t ? plain(t.title) : null;
+}
 
-export function Threads({ current, onPick, onNew, onClose }: { current: string; onPick: (id: string) => void; onNew: () => void; onClose: () => void }) {
-  const raw = useSyncExternalStore((f) => { addEventListener(EVT, f); addEventListener('storage', f); return () => { removeEventListener(EVT, f); removeEventListener('storage', f); }; }, read);
-  const list = parse(raw);
+const icon = { size: 16, strokeWidth: 1.5, 'aria-hidden': true } as const;
+/** Open: header (Chats, collapse), a "New conversation" row, the list. Collapsed: a 48px strip (expand, new). */
+export function Threads({ current, open, onPick, onNew, onToggle }: { current: string; open: boolean; onPick: (id: string) => void; onNew: () => void; onToggle: (open: boolean) => void }) {
+  const list = parse(useSyncExternalStore(subscribe, read));
   const now = Date.now();
+  if (!open) return (
+    <nav className="mb-threads mb-strip" data-collapsed aria-label="Conversations">
+      <div className="mb-col-head"><button type="button" className="mb-icon-btn" aria-label="Show conversations" title="Show conversations" onClick={() => onToggle(true)}><PanelLeftOpen {...icon} /></button></div>
+      <div className="mb-strip-body"><button type="button" className="mb-icon-btn" aria-label="New conversation" title="New conversation" onClick={onNew}><SquarePen {...icon} /></button></div>
+    </nav>
+  );
   return (
     <nav className="mb-threads" aria-label="Conversations">
-      <div className="mb-threads-head">
-        <Button size="sm" onClick={onNew}><SquarePen size={16} strokeWidth={1.5} aria-hidden="true" />New conversation</Button>
-        <button type="button" className="mb-icon-btn" aria-label="Hide conversations" onClick={onClose}><PanelLeftClose size={16} strokeWidth={1.5} aria-hidden="true" /></button>
+      <div className="mb-col-head">
+        <span className="mb-col-title">Chats</span>
+        <button type="button" className="mb-icon-btn" aria-label="Hide conversations" title="Hide conversations" onClick={() => onToggle(false)}><PanelLeftClose {...icon} /></button>
       </div>
-      {list.length ? (
-        <ul>
-          {list.map((t) => (
-            <li key={t.id}>
-              <button type="button" className="mb-thread-row" aria-current={t.id === current ? 'true' : undefined} onClick={() => onPick(t.id)}>
-                <span className="mb-thread-title">{plain(t.title)}</span>
-                <span className="mono mb-thread-at">{ago(t.at, now)}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      ) : <p className="t-caption muted mb-threads-empty">Your conversations show up here.</p>}
+      <ul>
+        <li><button type="button" className="mb-thread-row mb-thread-new" onClick={onNew}><SquarePen {...icon} /><span className="mb-thread-title">New conversation</span></button></li>
+        {list.map((t) => (
+          <li key={t.id}>
+            <button type="button" className="mb-thread-row" aria-current={t.id === current ? 'true' : undefined} onClick={() => onPick(t.id)}>
+              <span className="mb-thread-title">{plain(t.title)}</span>
+              <span className="mono mb-thread-at">{ago(t.at, now)}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+      {!list.length && <p className="t-caption muted mb-threads-empty">Your conversations show up here.</p>}
     </nav>
   );
 }
+
