@@ -49,8 +49,8 @@ export function Composer({ onSend, onStop, running = false, disabledReason, comm
           if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); if (!running) e.currentTarget.form?.querySelector<HTMLButtonElement>('button[type=submit]')?.click(); }
         }} />
       {running
-        ? <Button variant="secondary" size="sm" type="button" onClick={() => { onStop?.(); ta.current?.focus(); }}><Square size={12} strokeWidth={2} fill="currentColor" aria-hidden="true" />Stop</Button>
-        : <Button variant="primary" size="sm" type="submit" disabledReason={why}><ArrowUp size={16} strokeWidth={1.5} aria-hidden="true" />Ask</Button>}
+        ? <Button className="mb-composer-send" variant="secondary" size="sm" type="button" aria-label="Stop" title="Stop" onClick={() => { onStop?.(); ta.current?.focus(); }}><Square size={12} strokeWidth={2} fill="currentColor" aria-hidden="true" /></Button>
+        : <Button className="mb-composer-send" variant="primary" size="sm" type="submit" aria-label="Send" title="Send" disabledReason={why}><ArrowUp size={16} strokeWidth={2} aria-hidden="true" /></Button>}
     </form>
   );
 }
