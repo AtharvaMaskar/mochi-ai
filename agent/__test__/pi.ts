@@ -7,7 +7,8 @@ import { fauxProvider } from '@earendil-works/pi-ai/providers/faux';
 import type { Conversation, EntryRecord } from '@earendil-works/pi-durable';
 import { openHarness, type HarnessConfig } from '../harness.ts';
 import { userDb } from '../db.ts';
-import { admin } from './load-fixture.ts';
+import { GRAPH } from '@mochi/contracts';
+import { admin, richFixture } from './load-fixture.ts';
 import { embedStub } from './embed-stub.ts';
 
 export { ctx };
@@ -22,7 +23,9 @@ export async function openTestHarness(graph: string, team: string, extra: Partia
     dbs: { read: async () => db as never, write: async () => db as never, user: userDb as never },
     ...extra,
   });
-  return { pi, faux, db, async close() { await pi.close(); await db.close(); } };
+  // Briefs and answers append episodes to the fixture customers' cust_* graphs (C-1… never collide with seeded C-001…).
+  const dropCust = () => Promise.all(richFixture().customers.map((c) => db.selectGraph(GRAPH.cust(c.id)).delete().catch(() => {})));
+  return { pi, faux, db, async close() { await pi.close(); await dropCust(); await db.close(); } };
 }
 
 export async function entries(conv: Conversation): Promise<EntryRecord[]> {
