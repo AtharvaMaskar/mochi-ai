@@ -94,6 +94,7 @@ Doctrine (what the company claims) lives on `KBArticle` and `Policy` (`promised_
 | `INTRODUCED` | Release | Issue | yes |
 | `FOLLOWS` | Ticket | Ticket | |
 | `MERGED_INTO` | Ticket | Ticket (primary) | |
+| `SIMILAR_TO` | Ticket | Ticket (dream-built kNN over embeddings) | yes |
 | `CONTRADICTS` | ObservedPattern | KBArticle, Policy | yes |
 | `UNDOCUMENTED` | ObservedPattern | ProductArea | yes |
 | `SEEN_IN` | ObservedPattern | Ticket | |
@@ -101,6 +102,7 @@ Doctrine (what the company claims) lives on `KBArticle` and `Policy` (`promised_
 | `FOR` | Suggestion | Team | |
 | `FEEDBACK` | AgentUser | Suggestion | |
 | `IN_CLUSTER` | Ticket | Cluster | yes |
+| `REMEMBERS` | Customer, AgentUser | Episode (in `cust_*` / `user_*` graphs) | |
 
 ### The temporal rule
 
@@ -123,6 +125,8 @@ flowchart LR
   Customer -->|"ON_PLAN (t)"| Plan
   Ticket -->|ABOUT| Issue
   Ticket -->|FOLLOWS| Ticket
+  Ticket -->|MERGED_INTO| Ticket
+  Ticket -->|"SIMILAR_TO (t)"| Ticket
   Ticket -->|RESOLVED_BY| Resolution
   Ticket -->|"IN_CLUSTER (t)"| Cluster
   Resolution -->|BASED_ON| KBArticle
@@ -140,6 +144,8 @@ flowchart LR
   ObservedPattern -->|SEEN_IN| Ticket
   Suggestion -->|FROM| ObservedPattern
   Suggestion -->|FOR| Team
+  Customer -->|REMEMBERS| Episode
+  AgentUser -->|REMEMBERS| Episode
 ```
 
 `(t)` marks temporal edges.
@@ -156,7 +162,7 @@ flowchart LR
                                               |  story API + WebSocket
 ```
 
-- **FalkorDB** holds all memory and context. Hand-written Cypher, no ORM, no Graphiti. Vector search uses FalkorDB's vector index on `Ticket.embedding` (384-dim MiniLM, computed locally). Clusters use `algo.labelPropagation`. Remove FalkorDB and nothing works.
+- **FalkorDB** holds all memory and context. Hand-written Cypher, no ORM, no Graphiti. Vector search uses FalkorDB's vector index on `Ticket.embedding` (1536-dim OpenAI `text-embedding-3-small`; the local 384-dim MiniLM is used only by tests). Clusters use `algo.labelPropagation`. Remove FalkorDB and nothing works.
 - **Pi Durable** (`@earendil-works/pi-durable`) is the agent harness. SQLite holds checkpoints and transcripts only, never memory. The root conversation is the support channel. The `mochi-graph` extension gives read tools (`briefing`, `likely_cause`, `who_knows`, `emerging_clusters`, `blast_radius`, `search_similar`, `customer_profile`, `query_graph`, `graph_algorithm`, `build_story`, `render_html`), all replay-safe, and write tools (`record_resolution`, `teach`, `feedback`) with no replay: after a crash the model is told the call was interrupted, and it is never silently repeated. User conversations do not get `record_resolution`.
 - **`query_graph` and `graph_algorithm`.** For questions no fixed tool covers, the model writes its own Cypher against a schema section generated from `contracts/graph.ts`. Its Cypher is model-written, so it is not in the list below; each run is stored as a `q_<n>` receipt with its exact text. It is read-only because the database enforces it (`GRAPH.RO_QUERY` as `mochi_reader`); code adds a write precheck, contract-name check, mandatory `$as_of`, a 5 s timeout and a 200-row cap. `graph_algorithm` runs whitelisted FalkorDB algorithms. Edge sets with no temporal edge run on `mochi_company` through `GRAPH.RO_QUERY`. Any temporal edge means a live-edge projection (`EDGE_AS_OF`) into `algo_scratch`, and that projection is part of the receipt. What each one runs on:
   - `shortest_path`: `algo.SPpaths` over the contract edges, ≤ 4 hops, both directions, returned as a path receipt.
@@ -166,8 +172,9 @@ flowchart LR
   - `betweenness`: Ticket/Issue/ProductArea via `ABOUT`, `SIMILAR_TO`, `IN`, sampled with seed 42. It ranks issues and areas that bridge similar tickets across issues.
   - `neighbourhood`: `algo.bfs` over one edge type, depth ≤ 2.
 - **CopilotKit chat.** The web chat uses CopilotKit's headless React packages and speaks AG-UI to our endpoint, hosted inside the agent process next to the harness. Answers render as tool cards built by our code (numbers come from query rows, never from model tokens), then story tags, then sandboxed HTML as a last resort. The sandbox allows only `mochi.css` tokens, no network, and no literal digits: every figure is a placeholder filled from a stored query.
+- **`/story` and `/dashboard`.** Start a chat message with `/story` or `/dashboard` and the model gathers the data (fixed tools, or its own Cypher through `query_graph` and `graph_algorithm`), then calls `build_story` with that kind. The result is a draft only you see until you press Publish; a dashboard is a `<grid>` of live tiles. Both are markdown plus `query_id` tags, so every number in them is a stored query.
 - **The dream** is a Pi Durable background task on a timer (`MOCHI_DREAM_EVERY_MS`, default 24 h), or `npm run dream`, or `POST /api/dream/run`. Steps: snapshot (`GRAPH.COPY` to `mochi_company_prev`) → ingest (LLM extraction into `MERGE` Cypher, marked by `ingested_at`; a second issue in the same email adds a second `ABOUT`) → similarity (each ticket's 6 nearest neighbours by vector index, kept when the distance is within the night's median, become temporal `SIMILAR_TO` edges) → invalidate (contradiction events retire old edges) → clusters → practice (ObservedPatterns) → mismatch rules → suggestions → doctrine review → morning report. The mismatch rules are plain arithmetic and Cypher, no LLM: a pattern whose measured time exceeds a promise by more than 25% with at least 5 supporting tickets becomes `CONTRADICTS`; a workaround used often but in no KB becomes `UNDOCUMENTED`. The LLM writes only the suggestion prose. Teachings from chat land as `DoctrineCandidate` nodes; the dream reviews and commits them as `Policy` with `taught_by` and `source_session`.
-- **The simulated helpdesk** (`sim/`, landing soon, change `add-sim`). A fictional, Freshdesk-shaped ticketing system with about 3,000 E Corp Securities tickets and their mail threads: follow-ups, duplicates, merges, CC'd parties, auto-replies, bounces, spam, forwards, Hinglish. It serves a `/api/v2/` REST API with Basic auth and pagination, POSTs webhooks on a replay clock (`/sim/clock`), and keeps its ground truth in a file it never serves. `gen/listen.ts` takes each webhook, fetches the ticket and writes it to the graph as pending; the dream does the extraction. The graph, the eval and the benchmark all come from that one source. Facts never pass through the LLM: Haiku only rewords tone, and the paraphrase cache is committed so reruns cost nothing.
+- **The simulated helpdesk** (`sim/`, `npm run sim`). A fictional, Freshdesk-shaped ticketing system with about 3,000 E Corp Securities tickets and their mail threads: follow-ups, duplicates, merges, CC'd parties, auto-replies, bounces, spam, forwards, Hinglish. It serves a `/api/v2/` REST API with Basic auth and pagination, POSTs webhooks on a replay clock (`/sim/clock`), and keeps its ground truth in a file it never serves. `gen/listen.ts` takes each webhook, fetches the ticket and writes it to the graph as pending; the dream does the extraction. The graph, the eval and the benchmark all come from that one source. Facts never pass through the LLM: Haiku only rewords tone, and the paraphrase cache is committed so reruns cost nothing.
 
 ## Receipts and `?asOf=`
 
@@ -197,6 +204,8 @@ npm run bench -- --max-usd 25               # stop at a spend cap
 ```
 
 Arms: A stuff-everything, B vector top-k (FalkorDB vector index, edges ignored), C file memory (the open Agent Memory Repo spec, not Devin the product), D graph (the queries below), E SQLite relational, F TencentDB Agent Memory (time-boxed). Tokens come from the provider's usage field. Single-fact answers are scored by exact match; multi-hop and structural by an LLM judge (prompt in `bench/judge.md`). Output: `bench/results.json`, the only source of published figures. We report the buckets where other arms win.
+
+Arm F is not measured. TencentDB Agent Memory runs its extraction LLM calls in a separate HTTP gateway that bypasses our cost meter and spend cap, so its tokens could not be counted honestly. `bench/artifacts/arm-f.md` records what we checked and which step failed.
 
 ### Feature Ledger
 

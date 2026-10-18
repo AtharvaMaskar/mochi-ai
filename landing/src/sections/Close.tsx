@@ -22,7 +22,7 @@ const FAQ = [
   { q: 'What if the dream is wrong?', a: 'It never edits a fact in place. It sets an end date on the old one and adds the new one, so every query can run as of any time and you can see both.' },
   { q: 'Does it scale?', a: 'The benchmark measures concurrency, with briefings read while the dream writes. Until those figures are in bench/results.json, this page makes no claim.' },
   { q: 'How do I run it?', a: 'Clone the repo, start FalkorDB with docker compose up, then run npm run gen, npm run load and npm run dev. The README has the graph model and every Cypher query the product depends on.' },
-  { q: 'Which AI tools built this?', a: 'Claude Code wrote most of the code, under OpenSpec changes the team reviewed. The README discloses it, and we can explain every query and design decision.' },
+  { q: 'Which AI tools built this?', a: 'Claude Code wrote most of the code; the team reviewed each change before it merged. The README discloses it, and we can explain every query and design decision.' },
 ];
 
 export function Faq() {

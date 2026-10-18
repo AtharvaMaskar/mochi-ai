@@ -8,7 +8,7 @@
     "preview": "vite preview",
     "record": "node fixtures/record.ts",
     "test": "node --test \"fixtures/*.test.ts\"",
-    "check": "node check-tokens.ts && node ../contracts/type-lint.ts src && tsc -p . && vite build && node --test \"fixtures/*.test.ts\""
+    "check": "node check-tokens.ts && node ../contracts/type-lint.ts src ../mochi-brain-blog.html && tsc -p . && vite build && node --test \"fixtures/*.test.ts\""
   },
   "dependencies": {
     "@mochi/contracts": "*",
