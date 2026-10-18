@@ -124,7 +124,7 @@
   .num { font-size: var(--fs-data-strong); color: var(--ink); background: var(--bg-surface); border: 1px solid var(--border);
          border-radius: var(--radius-md); padding: 0.05em 0.5em; overflow-wrap: anywhere;
          -webkit-box-decoration-break: clone; box-decoration-break: clone; }
-  .num.pending { color: var(--ink-faint); border-style: dashed; border-color: var(--border-dashed); }
+  .num.nm { color: var(--ink-faint); border-style: dashed; border-color: var(--border-dashed); }
 
   figure { margin: var(--space-8) 0; }
   figcaption { font-size: var(--fs-caption); color: var(--ink-muted); margin-top: var(--space-2); line-height: 1.5; }
@@ -206,7 +206,7 @@
   .roll-col { display: flex; flex-direction: column; transition: transform .6s cubic-bezier(.3, 1.25, .45, 1); }
   .roll-col > span { height: 1.3em; }
   .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-  .pend { border: 1px dashed var(--border-dashed); border-radius: var(--radius-sm); padding: 28px var(--space-3); text-align: center; font-size: var(--fs-caption); color: var(--ink-muted); }
+  .miss { border: 1px dashed var(--border-dashed); border-radius: var(--radius-sm); padding: 28px var(--space-3); text-align: center; font-size: var(--fs-caption); color: var(--ink-muted); }
   .fx .grid { stroke: var(--border); stroke-width: 1; }
   .fx .mark { cursor: pointer; outline: none; }
   .fx .mark:focus-visible .dot { stroke: var(--focus); }
@@ -245,16 +245,42 @@
 
 <dl class="memo">
   <div><dt>Date</dt><dd>Sun, 18 Oct 2026</dd></div>
-  <div><dt>From</dt><dd>The Mochi Brain team</dd></div>
+  <div><dt>From</dt><dd>Atharva Maskar</dd></div>
   <div><dt>To</dt><dd>Graph Hacks judges, and anyone building agent memory</dd></div>
-  <div><dt>Subject</dt><dd>One build day, logged: what we chose, what we rejected, what it cost</dd></div>
+  <div><dt>Subject</dt><dd>One build day, logged: what I chose, what I threw away, what it cost, and where I lost</dd></div>
 </dl>
 
 </div>
 </header>
 <main>
 
-<p>This is the decision log of one build day. The repo got its first commit at 10:35 IST. Each entry below has a timestamp from the git history, the question we faced, what we rejected, and what it cost. Every figure on this page is read from <code>bench/results.json</code>. Figures the benchmark has not produced yet say <span class="num pending">pending</span>. The code is at <a href="https://github.com/AtharvaMaskar/mochi-ai">github.com/AtharvaMaskar/mochi-ai</a>.</p>
+<h2 id="why">Why I built this</h2>
+
+<p>I'm an AI engineer at a stock-broking platform. This project comes from a problem I see at work every day.</p>
+
+<p>A customer can be onboarded in a day or two. Behind that, support depends on many teams: onboarding, KYC, the KRA and more. Every hand-off between them is manual. Every new ticket starts from zero.</p>
+
+<p>I also wanted to explore agent memory. It is one of the least explored parts of agentic systems. Most agents keep memory in markdown files. That never sat right with me: it burns tokens. Here I could finally measure it.</p>
+
+<p>Honest take on FalkorDB: I thought it was just another graph database. Then I found graph algorithms as tools. The graph does the joining, ranking and clustering. The model picks the tool and writes the sentence. That was the missing link for me.</p>
+
+<p>So I built <span class="mochi">mochi</span>: a support desk whose whole memory is one FalkorDB graph, where every answer shows the path it walked. All data on this page is synthetic. E Corp Securities is a fictional broker.</p>
+
+<p>The rest is the decision log of one build day. The first commit landed at 10:35 IST. Each entry has a timestamp from git, the question, what I rejected and what it cost. Every figure is read from <code>bench/results.json</code>. I don't type numbers by hand. The code is at <a href="https://github.com/AtharvaMaskar/mochi-ai">github.com/AtharvaMaskar/mochi-ai</a>.</p>
+
+<h2 id="headline">The headline</h2>
+
+<p class="want">We want a small model to be enough, because the memory carries the weight. In <span class="mochi">mochi</span>, Haiku answers from the graph.</p>
+
+<p>Haiku on the graph: <span class="num" data-fig="haiku_d_acc"></span> correct, at <span class="num" data-fig="haiku_d_cost"></span> per answer. Sonnet on markdown notes: <span class="num" data-fig="sonnet_c_acc"></span>, at <span class="num" data-fig="sonnet_c_cost"></span>. Same <span class="num" data-fig="n_q"></span> questions. Same judge.</p>
+
+<p>The gap is multi-hop. "Which release caused the issues behind this week's refund tickets?" On Haiku, the graph got <span class="num" data-fig="mh_D"></span> of those right. Markdown notes got <span class="num" data-fig="mh_C"></span>. SQLite tables with the same queries got <span class="num" data-fig="mh_E"></span>. Tables are the honest rival. Edges still won.</p>
+
+<p>Then the bill for keeping notes. Turning the tickets into markdown memory took <span class="num" data-fig="ingest_c"></span> tokens. The graph's extraction took <span class="num" data-fig="ingest_d"></span>. When a fact changes, a model rewrites the notes: <span class="num" data-fig="upkeep_c"></span> tokens per change, on average. The graph closes the old fact with a date, in one Cypher write: <span class="num" data-fig="upkeep_d"></span> tokens.</p>
+
+<p>And staleness. After the facts changed, the graph answered with the current fact on <span class="num" data-fig="stale_d"></span> questions. The notes managed <span class="num" data-fig="stale_c"></span>. A note doesn't know it stopped being true.</p>
+
+<p>Where it lost, up front: on Haiku, notes, tables and vector top-k are all cheaper per answer than the graph. All three are wrong more often. The full list is in <a href="#lost">Where I lost</a>.</p>
 
 <h2>The problem</h2>
 
@@ -262,9 +288,9 @@
 
 <p>Watch a support agent take a ticket. "Money deducted, order not placed." Before they can write anything useful, they open the CRM to see who this is. Then billing, to confirm the debit. Then the history, to learn it is the third attempt. Then team chat, to ask if anyone saw this today. Then a knowledge base that may predate the last release.</p>
 
-<p>The context exists. It is stored in pieces that do not know about each other, so a person reassembles it per ticket. Senior agents are fast because they carry the links in their heads: which release broke what, which team owns which screen, which workaround works. When they leave, the links leave.</p>
+<p>The context exists. It sits in pieces that don't know about each other, so a person rebuilds it per ticket. Senior agents are fast because they carry the links in their heads: which release broke what, which team owns which screen, which workaround works. When they leave, the links leave.</p>
 
-<p>The questions support asks are about connections. What did this customer try before? What fixed the last tickets like this one? Which release caused this spike? Who has solved this before? So we stored the connections as a graph the agent can walk, instead of prose it has to re-read.</p>
+<p>The questions support asks are about connections. What did this customer try before? What fixed the last tickets like this? Which release caused this spike? Who has solved this before? So I stored the connections as a graph the agent can walk, instead of prose it has to re-read.</p>
 
 <figure>
   <div class="race">
@@ -302,7 +328,7 @@
   <figcaption>Fig 1. The same question, two retrieval shapes. The graph walks <code>RAISED → ABOUT → INTRODUCED</code>. The cabinet costs one read per note, however many notes there are.</figcaption>
 </figure>
 
-<p>"We think" is not evidence. Most of what follows is us trying to prove ourselves wrong, and logging what that cost.</p>
+<p>"I think" is not evidence. Most of what follows is me trying to prove myself wrong, and logging what that cost.</p>
 
 <h2>Decision log</h2>
 
@@ -312,19 +338,19 @@
   <span class="stamp">sun 12:31 · amended from the sat plan</span>
   <h3>Graph, markdown, vector or SQLite</h3>
   <p class="q">Is a graph the right memory, or would a folder of markdown, a vector index, or plain tables do the same job?</p>
-  <p>We want to know whether the graph earns its place. In <span class="mochi">mochi</span>, one dataset and one question set go to six memory arms. Each arm uses the same model and the same judge:</p>
+  <p>We want to know whether the graph earns its place. In <span class="mochi">mochi</span>, one dataset and one question set go to six memory arms. Each arm gets the same model and the same judge:</p>
   <ul>
     <li><strong>A</strong> puts everything in the prompt.</li>
-    <li><strong>B</strong> is vector top-k, stored in FalkorDB's own vector index so that only the traversal differs from D.</li>
-    <li><strong>C</strong> is markdown file memory: an implementation of the open Agent Memory Repo spec, with a <code>MEMORY.md</code> index and a nightly rewrite.</li>
+    <li><strong>B</strong> is vector top-k, stored in FalkorDB's own vector index, so only the traversal differs from D.</li>
+    <li><strong>C</strong> is markdown file memory: the open Agent Memory Repo spec, with a <code>MEMORY.md</code> index and a nightly rewrite.</li>
     <li><strong>D</strong> is the graph: five hand-written Cypher queries.</li>
     <li><strong>E</strong> holds the same data in SQLite, with SQL tools that mirror D one for one.</li>
     <li><strong>F</strong> is TencentDB Agent Memory, time-boxed.</li>
   </ul>
-  <p>E was added at 12:31. It is the arm most likely to embarrass us. If tables with joins answer as well as edges, then the win is "structured storage", not "graph", and we should say so.</p>
+  <p>I added E at 12:31. It is the arm most likely to embarrass me. If tables with joins answer as well as edges, the win is "structured storage", not "graph", and I'd have to say so.</p>
   <dl class="trade">
     <dt>rejected</dt><dd>Asserting the graph is better. Benchmarking only against a stuffed prompt, which any structured store beats.</dd>
-    <dt>cost</dt><dd>The afternoon, a hard spend cap on <code>npm run bench -- --max-usd</code>, and an arm that can beat D. Arm F is reported "not measured" if it has no clean Node adapter after the time box. It is never faked.</dd>
+    <dt>cost</dt><dd>The afternoon, a hard spend cap on <code>npm run bench -- --max-usd</code>, and an arm that can beat D. Arm F had no clean Node adapter inside the time box, so it says "not measured". It is never faked.</dd>
   </dl>
 </section>
 
@@ -332,8 +358,8 @@
   <span class="stamp">sun 11:27 · add-contracts</span>
   <h3>Temporal invalidation with a sentinel, because FalkorDB can't store null</h3>
   <p class="q">When a fact changes (the bug is fixed, the customer upgrades), how does memory forget the old fact without losing it?</p>
-  <p>We want a wrong fact retired, not erased. In <span class="mochi">mochi</span>, every mutable fact is an edge with <code>valid_from</code> and <code>valid_until</code>. A contradiction sets <code>valid_until</code> on the old edge and creates a new one. Nothing is deleted.</p>
-  <p>The plan said "live means <code>valid_until</code> is null". FalkorDB disagreed: a property cannot be null. <code>SET r.x = null</code> removes it, and <code>IS NULL</code> cannot use an index. So a live edge carries a far-future sentinel, and one range filter serves both "now" and "as of last Tuesday":</p>
+  <p>We want a wrong fact retired, not erased. In <span class="mochi">mochi</span>, every fact that can change is an edge with <code>valid_from</code> and <code>valid_until</code>. A contradiction closes the old edge with a date and creates a new one. Nothing is deleted.</p>
+  <p>My plan said "live means <code>valid_until</code> is null". FalkorDB disagreed: a property can't be null. <code>SET r.x = null</code> removes it, and <code>IS NULL</code> can't use an index. So a live edge carries a far-future sentinel, and one range filter serves both "now" and "as of last Tuesday":</p>
 <pre><code><span class="c">// contracts/graph.ts</span>
 export const VALID_FOREVER = 253402300799000; <span class="c">// 9999-12-31</span>
 export const EDGE_AS_OF = (a) =&gt;
@@ -363,8 +389,8 @@ FOREACH (_ IN CASE WHEN retired &gt; 0 THEN [1] ELSE [] END |
     <figcaption>Fig 2. A contradiction retires a fact. The old edge stays walkable for as-of reads. Live reads stop serving it.</figcaption>
   </figure>
   <dl class="trade">
-    <dt>rejected</dt><dd>Python with Graphiti on FalkorDB, which gives temporal logic for free. Also "absent means live", which cannot use an index.</dd>
-    <dt>cost</dt><dd>A magic number on every live edge. Every query must carry the as-of fragment, plus <code>created_at &lt;= $as_of</code> on nodes. We wrote by hand the logic Graphiti would have given us, and we can now explain every line of it.</dd>
+    <dt>rejected</dt><dd>Python with Graphiti on FalkorDB, which gives temporal logic for free. Also "absent means live", which can't use an index.</dd>
+    <dt>cost</dt><dd>A magic number on every live edge. Every query must carry the as-of fragment, plus <code>created_at &lt;= $as_of</code> on nodes. I wrote by hand the logic Graphiti would have given me. Now I can explain every line of it.</dd>
   </dl>
 </section>
 
@@ -372,16 +398,16 @@ FOREACH (_ IN CASE WHEN retired &gt; 0 THEN [1] ELSE [] END |
   <span class="stamp">sun 11:27 · add-contracts</span>
   <h3>The database enforces the memory tiers, not the prompt</h3>
   <p class="q">The company brain is shared and append-only. What stops a prompt-injected conversation from writing to it?</p>
-  <p>We want a shared brain that no conversation can quietly edit. In <span class="mochi">mochi</span>, the tool loadout leaves the write tool out of user conversations, and FalkorDB refuses the write anyway. The ACL users are config, so they survive restarts:</p>
+  <p>We want a shared brain that no conversation can quietly edit. In <span class="mochi">mochi</span>, user conversations don't get the write tool, and FalkorDB refuses the write anyway. The ACL users are config, so they survive restarts:</p>
 <pre><code><span class="c"># docker-compose.yml</span>
 --user mochi_reader ... resetkeys ~mochi_company ~team_* -@all
        +GRAPH.RO_QUERY +GRAPH.EXPLAIN +GRAPH.LIST +PING
 --user mochi_dream  ... resetkeys ~mochi_company ~mochi_company_prev ~algo_scratch ~team_*
        -@all +GRAPH.QUERY +GRAPH.RO_QUERY +GRAPH.COPY +GRAPH.DELETE ...</code></pre>
-  <p>The obvious grant, Redis's read-only key pattern <code>%R~</code>, breaks <code>GRAPH.RO_QUERY</code>, because that command's key spec is read-write. We found this in a throwaway container before it reached the contract. The refusal test runs a write <code>CREATE</code>, a <code>GRAPH.QUERY</code>, a foreign graph and a <code>GRAPH.DELETE</code> as the reader. Refused: <span class="num" data-fig="iso_refused"></span>.</p>
+  <p>The obvious grant, Redis's read-only key pattern <code>%R~</code>, breaks <code>GRAPH.RO_QUERY</code>, because that command's key spec is read-write. I caught this in a throwaway container before it reached the contract. The refusal test runs a write <code>CREATE</code>, a <code>GRAPH.QUERY</code>, a foreign graph and a <code>GRAPH.DELETE</code> as the reader. Refused: <span class="num" data-fig="iso_refused"></span>.</p>
   <dl class="trade">
     <dt>rejected</dt><dd>Trusting the tool loadout alone. The <code>%R~</code> pattern. Runtime <code>ACL SETUSER</code>, which vanishes on restart.</dd>
-    <dt>cost</dt><dd>Three connection roles in every process. Per-command grants that we maintain by hand. A teach tool that cannot write the brain directly, so it files candidates in a team graph for the dream to commit.</dd>
+    <dt>cost</dt><dd>Three connection roles in every process. Per-command grants I maintain by hand. A teach tool that can't write the brain directly, so it files candidates in a team graph for the dream to commit.</dd>
   </dl>
 </section>
 
@@ -389,7 +415,7 @@ FOREACH (_ IN CASE WHEN retired &gt; 0 THEN [1] ELSE [] END |
   <span class="stamp">sun 11:27 · add-contracts, wired 12:15 in add-agent-core</span>
   <h3>Every number carries a receipt: <code>query_id</code> and <code>$as_of</code></h3>
   <p class="q">How does a reader check a number the agent shows them?</p>
-  <p>We want every figure to open the query that produced it. In <span class="mochi">mochi</span>, every query result is stored as <code>{id: "q_n", cypher, graph, params, rows}</code>, and every stored query must take <code>$as_of</code>. A tool card, a chart or an inline number references a <code>query_id</code>. A number without one fails validation. Because every stored query takes <code>$as_of</code>, a shared report link with <code>?asOf=</code> re-runs the same Cypher at that time and shows what the brain believed then. That needed no per-query code.</p>
+  <p>We want every figure to open the query that produced it. In <span class="mochi">mochi</span>, every query result is stored as <code>{id: "q_n", cypher, graph, params, rows}</code>, and every stored query takes <code>$as_of</code>. A tool card, a chart or an inline number points at a <code>query_id</code>. A number without one fails validation. Because every query takes <code>$as_of</code>, a shared report link with <code>?asOf=</code> re-runs the same Cypher at that time and shows what the brain believed then. That needed no per-query code.</p>
 <pre><code><span class="c">/* mochi:likely_cause@v1 */</span>
 MATCH (t:Ticket {id: $ticketId})-[:ABOUT]-&gt;(i:Issue)&lt;-[x:INTRODUCED]-(r:Release)
 WHERE x.valid_from &lt;= $as_of AND x.valid_until &gt; $as_of
@@ -397,8 +423,8 @@ WHERE x.valid_from &lt;= $as_of AND x.valid_until &gt; $as_of
 RETURN t.id AS ticket, i.name AS issue, r.version AS release
 ORDER BY r.shipped_at DESC, r.version LIMIT 3</code></pre>
   <dl class="trade">
-    <dt>rejected</dt><dd>Text-to-Cypher. A query the model invents on the spot cannot be receipted honestly, and it makes FalkorDB optional, which breaks the competition's first rule.</dd>
-    <dt>cost</dt><dd>Every query is hand-written and tested. The agent cannot answer a shape of question we did not write a query for. It says so, instead of guessing.</dd>
+    <dt>rejected</dt><dd>Free text-to-Cypher as the main path. A query the model invents on the spot is hard to receipt honestly, and it makes FalkorDB easy to swap out, which breaks the competition's first rule.</dd>
+    <dt>cost</dt><dd>Every core query is hand-written and tested. At 14:51 I amended this: chat got <code>query_graph</code>, so the model can write its own Cypher for questions I didn't write a query for. It runs as <code>GRAPH.RO_QUERY</code> under the reader role, must take <code>$as_of</code>, and is stored as a <code>q_n</code> receipt with its exact text.</dd>
   </dl>
 </section>
 
@@ -406,23 +432,23 @@ ORDER BY r.shipped_at DESC, r.version LIMIT 3</code></pre>
   <span class="stamp">sun 11:27 · add-contracts</span>
   <h3>Stories in nao's format: markdown plus tags that point at query results</h3>
   <p class="q">The dream writes a morning report, and users ask for dashboards. Who draws them, and where do their numbers come from?</p>
-  <p>We want reports that a model writes and a renderer draws, with no model-written data. In <span class="mochi">mochi</span>, a story is markdown plus self-closing tags (<code>&lt;kpi&gt;</code>, <code>&lt;bars&gt;</code>, <code>&lt;line&gt;</code>, <code>&lt;table&gt;</code>, <code>&lt;memdiff&gt;</code>, <code>&lt;suggestion&gt;</code>, <code>&lt;num&gt;</code>), and each tag names a <code>query_id</code> and its columns. The format is borrowed from nao's <code>story-segments.ts</code>. One parser in <code>contracts/</code> serves both the producers and the renderer, so they cannot drift.</p>
+  <p>We want reports a model writes and a renderer draws, with no model-written data. In <span class="mochi">mochi</span>, a story is markdown plus self-closing tags (<code>&lt;kpi&gt;</code>, <code>&lt;bars&gt;</code>, <code>&lt;line&gt;</code>, <code>&lt;table&gt;</code>, <code>&lt;memdiff&gt;</code>, <code>&lt;suggestion&gt;</code>, <code>&lt;num&gt;</code>), and each tag names a <code>query_id</code> and its columns. I borrowed the format from nao's <code>story-segments.ts</code>. One parser in <code>contracts/</code> serves both the producers and the renderer, so they can't drift.</p>
 <pre><code>Median resolution is &lt;num query_id="q_1" column="median_h"&gt;…&lt;/num&gt; hours.
 &lt;bars query_id="q_2" label="Emerging clusters" x="cluster" y="tickets"/&gt;</code></pre>
   <dl class="trade">
     <dt>rejected</dt><dd>Letting the model write HTML or chart JSON. Separate schemas for each card type.</dd>
-    <dt>cost</dt><dd>The model can only draw what we have a tag for. A story that names an unknown query is rejected, not rendered, and the producer pays for a retry.</dd>
+    <dt>cost</dt><dd>The model can only draw what I have a tag for. A story that names an unknown query is rejected, not rendered, and the producer pays for a retry.</dd>
   </dl>
 </section>
 
 <section class="entry" id="d-guard">
   <span class="stamp">sun 11:35 · add-chat-contracts</span>
   <h3>Sandboxed HTML, with no literal numbers</h3>
-  <p class="q">Some chat answers need a layout no component covers. How do we allow model-written HTML without allowing model-written figures?</p>
+  <p class="q">Some chat answers need a layout no component covers. How do I allow model-written HTML without allowing model-written figures?</p>
   <p>We want the last-resort HTML path to obey the receipts rule too. In <span class="mochi">mochi</span>, the guard rejects any digit in visible text outside a <code>data-q="q_n" data-col="…"</code> placeholder. The host fills each placeholder from the stored query rows before render. The guard also rejects any script, any network reference and any literal colour or font. The iframe gets <code>sandbox=""</code> and a CSP of <code>default-src 'none'</code>.</p>
   <dl class="trade">
-    <dt>rejected</dt><dd>CopilotKit's open generative UI path, which is never enabled. JavaScript in the sandbox, because script can write any text, so "no literal numbers" could not be checked. A DOM sanitiser, which adds a dependency and still does not enforce receipts.</dd>
-    <dt>cost</dt><dd>"Release v2.4" in prose must come from a placeholder or be spelled out. Interactivity is limited to CSS and <code>&lt;details&gt;</code>. The guard is regex-based; the CSP is the real network barrier.</dd>
+    <dt>rejected</dt><dd>CopilotKit's open generative UI path, which is never enabled. JavaScript in the sandbox, because script can write any text, so "no literal numbers" could not be checked. A DOM sanitiser, which adds a dependency and still doesn't enforce receipts.</dd>
+    <dt>cost</dt><dd>"Release v2.4" in prose must come from a placeholder or be spelled out. Interactivity is limited to CSS and <code>&lt;details&gt;</code>. The guard is regex-based. The CSP is the real network barrier.</dd>
   </dl>
 </section>
 
@@ -441,10 +467,10 @@ ORDER BY r.shipped_at DESC, r.version LIMIT 3</code></pre>
     <li>Commit taught policies.</li>
     <li>Write the morning report.</li>
   </ol>
-  <p>A model touches two steps: entity extraction, into a closed vocabulary from the contract, and two sentences of suggestion prose. Detecting a mismatch is arithmetic: a promised number in a KB article against a measured number from tickets, in Cypher.</p>
+  <p>A model touches two steps: entity extraction, into a closed vocabulary from the contract, and two sentences of suggestion prose. Spotting a mismatch is arithmetic: a promised number in a KB article against a measured number from tickets, in Cypher.</p>
   <dl class="trade">
     <dt>rejected</dt><dd>A cron job bolted on. Asking an LLM to spot contradictions. Updating pattern nodes in place, which breaks as-of reads. Running community detection on the live graph, because algorithms ignore edge properties and would count retired edges.</dd>
-    <dt>cost</dt><dd>A scratch projection graph for every clustering run. Label propagation on a bipartite Ticket–Issue graph collapses to roughly one cluster per issue, and we accepted that. In Pi Durable 1.3.0, a sleeping background task may mark its conversation busy, so the demo path is "run dream now". The mismatch ablation (rules vs an LLM reading all the text) is in the ledger below.</dd>
+    <dt>cost</dt><dd>A scratch projection graph for every clustering run. Label propagation on a Ticket–Issue graph collapses to roughly one cluster per issue. I accepted that for the nightly report, and the clusters entry below says what that means. In Pi Durable 1.3.0 a sleeping background task can mark its conversation busy, so the demo path is "run dream now". The mismatch ablation (rules against an LLM reading all the text) is in the ledger below.</dd>
   </dl>
 </section>
 
@@ -452,10 +478,10 @@ ORDER BY r.shipped_at DESC, r.version LIMIT 3</code></pre>
   <span class="stamp">sun 12:15 · add-agent-core, swept 12:31</span>
   <h3>Haiku is the default model</h3>
   <p class="q">If the graph does the remembering, how small can the model be?</p>
-  <p>We want the memory to carry the weight, not the model. In <span class="mochi">mochi</span>, <code>MOCHI_MODEL</code> defaults to <code>claude-haiku-5-5</code>, and every arm also runs on <code>claude-sonnet-5-5</code>. The question the sweep answers: can Haiku on the graph match Sonnet on markdown? Haiku on D scored <span class="num" data-fig="haiku_d_acc"></span> at <span class="num" data-fig="haiku_d_cost"></span> per task. Sonnet on C scored <span class="num" data-fig="sonnet_c_acc"></span> at <span class="num" data-fig="sonnet_c_cost"></span> per task.</p>
+  <p>We want the memory to carry the weight, not the model. In <span class="mochi">mochi</span>, <code>MOCHI_MODEL</code> defaults to <code>claude-haiku-5-5</code>, and every arm also runs on <code>claude-sonnet-5-5</code>. The question: can Haiku on the graph match Sonnet on markdown? Haiku on D scored <span class="num" data-fig="haiku_d_acc"></span> at <span class="num" data-fig="haiku_d_cost"></span> per task. Sonnet on C scored <span class="num" data-fig="sonnet_c_acc"></span> at <span class="num" data-fig="sonnet_c_cost"></span> per task.</p>
   <dl class="trade">
-    <dt>rejected</dt><dd>A Sonnet default, which is the comfortable choice for a demo.</dd>
-    <dt>cost</dt><dd>A weaker reader of hard questions in the live product. The sweep roughly doubles benchmark spend. The judge is a third model, <code>claude-opus-5-5</code>, with a 3-vote majority on every multi-hop and structural answer.</dd>
+    <dt>rejected</dt><dd>A Sonnet default, the comfortable choice for a demo.</dd>
+    <dt>cost</dt><dd>A weaker reader of hard questions in the live product. Sonnet on the graph does score higher: <span class="num" data-fig="sonnet_d_acc"></span>. The sweep roughly doubles benchmark spend. The judge is a third model, <code>claude-opus-5-5</code>, with a 3-vote majority on every multi-hop and structural answer.</dd>
   </dl>
 </section>
 
@@ -463,9 +489,9 @@ ORDER BY r.shipped_at DESC, r.version LIMIT 3</code></pre>
   <span class="stamp">sun 12:31 · amend-contracts-2</span>
   <h3>The headline is cost and latency per task, beside accuracy</h3>
   <p class="q">What number should a reader compare across arms?</p>
-  <p>We want the number a team would pay. In <span class="mochi">mochi</span>, a task is one eval question answered the way the agent would answer it, tool calls included. Each task records <code>cost_usd</code>, priced per call from provider usage, and <code>total_ms</code>, end to end. <code>per_task[]</code> aggregates them by model and arm. Accuracy is never shown without them.</p>
+  <p>We want the number a team would pay. In <span class="mochi">mochi</span>, a task is one eval question answered the way the agent would answer it, tool calls included. Each task records <code>cost_usd</code>, priced per call from provider usage, and <code>total_ms</code>, end to end. <code>per_task[]</code> groups them by model and arm. Accuracy is never shown without them.</p>
   <dl class="trade">
-    <dt>rejected</dt><dd>Mean input tokens, which was the Saturday draft's figure. It hides tool-call round trips and output cost. Also one average across buckets, which hides where each arm wins.</dd>
+    <dt>rejected</dt><dd>Mean input tokens, the Saturday draft's figure. It hides tool-call round trips and output cost. Also one average across buckets, which hides where each arm wins.</dd>
     <dt>cost</dt><dd>A per-call price table with Haiku's long-prompt tier. Arm A uses prompt caching, as a real deployment would. That is disclosed, and its uncached cost is recorded beside it, so neither number is hidden.</dd>
   </dl>
 </section>
@@ -474,21 +500,72 @@ ORDER BY r.shipped_at DESC, r.version LIMIT 3</code></pre>
   <span class="stamp">sun 13:27 · amend-contracts-3, add-sim</span>
   <h3>A simulated helpdesk instead of a desk API on the graph</h3>
   <p class="q">Where do tickets come from in the demo, and how real does their mess need to be?</p>
-  <p>We want Mochi to integrate with something shaped like a real helpdesk. In <span class="mochi">mochi</span>, a fictional Freshdesk-shaped sim for E Corp Securities serves tickets over a REST API, with webhooks and a replay clock. The mail is messy: follow-ups, merges, CCs, auto-reply loops, bounces, spam, Hinglish and wrong requesters. Its shape comes from public Freshdesk docs only. Mochi gets a webhook, fetches the ticket, writes it pending, and the dream ingests it. Facts never pass through a model: templates fix every fact, and Haiku only rewords tone, behind a committed cache.</p>
+  <p>We want Mochi to plug into something shaped like a real helpdesk. In <span class="mochi">mochi</span>, a fictional Freshdesk-shaped sim for E Corp Securities serves tickets over a REST API, with webhooks and a replay clock. The mail is messy: follow-ups, merges, CCs, auto-reply loops, bounces, spam, Hinglish and wrong requesters. Its shape comes from public Freshdesk docs only. Mochi gets a webhook, fetches the ticket, stores it as not yet ingested, and the dream ingests it. Facts never pass through a model: templates fix every fact, and Haiku only rewords tone, behind a committed cache.</p>
   <dl class="trade">
-    <dt>rejected</dt><dd>A bespoke desk API on top of the graph. A second, separate sim world, which would give two truths. Any real helpdesk data, which the rules forbid and we would not use anyway.</dd>
-    <dt>cost</dt><dd>A third serial contract change mid-day, a webhook listener with a sweep, a replay clock, and noise filters at ingest. The graph, the eval and the benchmark now derive from one truth file.</dd>
+    <dt>rejected</dt><dd>A bespoke desk API on top of the graph. A second, separate sim world, which would give two truths. Any real helpdesk data, which the rules forbid and I wouldn't use anyway.</dd>
+    <dt>cost</dt><dd>A third serial contract change mid-day, a webhook listener with a sweep, a replay clock, and noise filters at ingest. The graph, the eval and the benchmark now come from one truth file.</dd>
   </dl>
 </section>
 
 <section class="entry" id="d-scale">
   <span class="stamp">sun 13:27 · add-sim</span>
   <h3>The scale cut: benchmark a fixed slice, not the whole sim</h3>
-  <p class="q">The sim renders thousands of tickets. Do we benchmark all of them?</p>
+  <p class="q">The sim renders thousands of tickets. Do I benchmark all of them?</p>
   <p>We want benchmark numbers we can afford to re-run. In <span class="mochi">mochi</span>, the benchmark runs on a fixed, seeded slice of the sim that keeps every planted structure: both bad-release spikes, the stale KB articles, the undocumented workarounds, the follow-up chains and a merge cluster. The graph the benchmark ran against held <span class="num" data-fig="nodes"></span> nodes and <span class="num" data-fig="edges"></span> edges.</p>
   <dl class="trade">
     <dt>rejected</dt><dd>Running arm A and the Sonnet sweep over the full sim, which would blow the spend cap. A random slice, which could drop the planted answers.</dd>
-    <dt>cost</dt><dd>The figures describe the slice, not production volume. The concurrency test is one container on one laptop. It describes architectural behaviour; it makes no scalability claim.</dd>
+    <dt>cost</dt><dd>The figures describe the slice, not production volume. The concurrency test is one container on one laptop. It describes how the design behaves. It makes no scalability claim.</dd>
+  </dl>
+</section>
+
+<section class="entry" id="d-clusters">
+  <span class="stamp">sun 14:28 · SIMILAR_TO in the contracts, reworded 20:24</span>
+  <h3>The honest clusters note: the benchmark and the nightly report group differently</h3>
+  <p class="q">Do the graph algorithms find spikes in structure that means something, or in whatever edges happen to exist?</p>
+  <p>We want an algorithm to run on edges that carry meaning. In <span class="mochi">mochi</span>, the dream builds <code>SIMILAR_TO</code>: a dated nearest-neighbour edge between similar tickets. The <code>graph_algorithm</code> chat tool and the clusters benchmark run label propagation over live <code>SIMILAR_TO</code> edges.</p>
+  <p>On the planted bad-release spikes, the graph found <span class="num" data-fig="cl_graph"></span>. A model given the same raw text found <span class="num" data-fig="cl_llm"></span>.</p>
+  <p>The honest part. The nightly morning report doesn't use that path. Its cluster step still groups the last seven days' tickets by issue, projected into <code>algo_scratch</code>. So the benchmark number describes the chat tool, not the report. At 20:24 I fixed the wording everywhere, so one number doesn't quietly cover both.</p>
+  <dl class="trade">
+    <dt>rejected</dt><dd>Quoting the benchmark number for the morning report. Calling one-cluster-per-issue "discovery". Running algorithms on the live graph, where retired edges still count.</dd>
+    <dt>cost</dt><dd>Two cluster paths to explain instead of one. A nightly kNN build in the dream. Both the graph and the model missed <span class="num" data-fig="cl_missed"></span> planted spikes.</dd>
+  </dl>
+</section>
+
+<section class="entry" id="d-journal">
+  <span class="stamp">sun 16:32 · falkordb-storage</span>
+  <h3>FalkorDB as Pi Durable's journal</h3>
+  <p class="q">The memory lives in FalkorDB. The agent's own history lives in SQLite. Can one database hold both?</p>
+  <p>We want the agent's own history to be walkable, like its memory. In <span class="mochi">mochi</span>, <code>MOCHI_STORAGE=falkordb</code> swaps Pi Durable's storage for <code>agent/storage/falkordb.ts</code>, which writes the <code>mochi_journal</code> graph. Each commit batch is one parameterised write, atomic in FalkorDB. A <code>Journal</code> counter node issues the commit sequence in the same query. A forked conversation is a <code>FORKED_FROM</code> edge. The <code>trace_story</code> tool walks the journal as <code>mochi_reader</code>, which can read it and never write it.</p>
+  <p>The upstream Pi Durable storage conformance suite passes against it, and the crash test resumes on it. That is demonstrated, not benchmarked. <code>bench/results.json</code> has no row for it, so I quote no number.</p>
+  <dl class="trade">
+    <dt>rejected</dt><dd>Making it the default on deadline day. Writing my own harness storage from scratch instead of implementing Pi Durable's <code>Storage</code> interface.</dd>
+    <dt>cost</dt><dd>It ships off by default. SQLite stays the default journal. Production must run <code>--appendfsync always</code>, or a crash can lose a committed step. One more graph in the ACL config.</dd>
+  </dl>
+</section>
+
+<section class="entry" id="d-traces">
+  <span class="stamp">sun 17:55 · decision-traces, compared 18:20 in traces-vs-files</span>
+  <h3>Decision traces: learning from past tickets without a pile of stale notes</h3>
+  <p class="q">Can the agent learn from past tickets without growing a pile of stale notes?</p>
+  <p>We want the agent to reuse what worked last time, and to drop it the moment its facts stop being true. In <span class="mochi">mochi</span>, every answer that worked becomes a trace in the <code>mochi_traces</code> graph: <code>Trace</code>, <code>Step</code> and <code>Query</code> nodes, with the receipts it used. A new ticket finds similar resolved tickets through <code>SIMILAR_TO</code>, then replays their stored queries, so the model reads rows instead of exploring. Before replay, every receipt is re-checked at the current <code>$as_of</code>. A trace whose facts were retired is closed and never offered again.</p>
+  <p>I tested it against five other ways to learn. Each one learned from the same <span class="num" data-fig="dt_warm"></span> earlier resolved tickets, with the same facts per lesson. Each answered the same <span class="num" data-fig="dt_eval"></span> later tickets. Then I retired <span class="num" data-fig="dt_retired"></span> facts and checked whether stale fixes came back.</p>
+  <ul>
+    <li><strong>Graph traces</strong>, replayed as above.</li>
+    <li><strong>Graph memory, no learning</strong>: plain arm D.</li>
+    <li><strong>Markdown + LESSONS.md</strong>: arm C with an append-only lessons file.</li>
+    <li><strong>Devin-style Knowledge</strong>: trigger and content entries. It is modelled on Devin's documented Knowledge feature, not Devin itself.</li>
+    <li><strong>Vector lessons</strong>: top-3 lessons by embedding.</li>
+    <li><strong>SQL lessons</strong>: a lessons table the model queries with one read-only <code>SELECT</code>.</li>
+  </ul>
+  <p>Traces got <span class="num" data-fig="ap_correct:graph_traces_warm_replay"></span> right at <span class="num" data-fig="ap_cost:graph_traces_warm_replay"></span> per 1,000 answers. No learning: <span class="num" data-fig="ap_correct:D"></span> at <span class="num" data-fig="ap_cost:D"></span>. Replay is cheaper because the model reads <span class="num" data-fig="ap_tok:graph_traces_warm_replay"></span> input tokens instead of <span class="num" data-fig="ap_tok:D"></span>, in one model call instead of two.</p>
+  <p>After the retirements, traces stayed current on <span class="num" data-fig="ap_fresh:graph_traces_warm_replay"></span>. LESSONS.md stayed current on <span class="num" data-fig="ap_fresh:C_lessons"></span>, and the stale fix came back <span class="num" data-fig="ap_resurf:C_lessons"></span> times. Vector and SQL lessons had the same problem. A lesson doesn't know its fact was retired. A trace re-checks its receipts.</p>
+  <figure>
+    <div class="frame" id="chart-traces"></div>
+    <figcaption>Fig 3. Six ways to learn from past tickets, on <code data-fig="dt_model"></code>. Top: correct answers on the later tickets. Bottom: answers still current after the retirements. The label shows cost per 1,000 answers. Tap a bar for its receipt. Source: <code>decision_traces.approaches</code>.</figcaption>
+  </figure>
+  <dl class="trade">
+    <dt>rejected</dt><dd>A LESSONS.md file, the usual way agents learn. Vector lessons, though they were the cheapest at <span class="num" data-fig="ap_cost:vector_lessons"></span> per 1,000 answers. Editing lessons in place, which breaks as-of reads.</dd>
+    <dt>cost</dt><dd>Against plain graph memory, replay scored a little lower: <span class="num" data-fig="ap_correct:graph_traces_warm_replay"></span> correct against <span class="num" data-fig="ap_correct:D"></span>, and <span class="num" data-fig="ap_fresh:graph_traces_warm_replay"></span> current against <span class="num" data-fig="ap_fresh:D"></span>. A second graph to keep, and a receipt re-check on every replay. It ships off by default, behind <code>MOCHI_TRACES=on</code>.</dd>
   </dl>
 </section>
 
@@ -506,17 +583,17 @@ ORDER BY r.shipped_at DESC, r.version LIMIT 3</code></pre>
 
 <figure>
   <div class="frame" id="chart-cost"></div>
-  <figcaption>Fig 3. Mean cost per task in USD, by arm and model. Lower is cheaper. The percentage is accuracy on the same tasks. Source: <code>per_task[].cost_usd_mean</code>, <code>accuracy</code>.</figcaption>
+  <figcaption>Fig 4. Mean cost per task in USD, by arm and model. Lower is cheaper. The percentage is accuracy on the same tasks. Source: <code>per_task[].cost_usd_mean</code>, <code>accuracy</code>.</figcaption>
 </figure>
 
 <figure>
   <div class="frame" id="chart-latency"></div>
-  <figcaption>Fig 4. End-to-end latency per task: the bar ends at p50, the whisker at p95. Source: <code>per_task[].p50_ms</code>, <code>p95_ms</code>.</figcaption>
+  <figcaption>Fig 5. End-to-end latency per task: the bar ends at p50, the whisker at p95. Source: <code>per_task[].p50_ms</code>, <code>p95_ms</code>.</figcaption>
 </figure>
 
 <figure>
   <div class="frame" id="chart-acc"></div>
-  <figcaption>Fig 5. Accuracy by question bucket, on the default model. Single-fact answers are exact-match. Multi-hop and structural answers are judged against ground truth computed from the JSON, not from the graph. Source: <code>summary</code>.</figcaption>
+  <figcaption>Fig 6. Accuracy by question bucket, on the default model. Single-fact answers are exact-match. Multi-hop and structural answers are judged against ground truth computed from the JSON, not from the graph. Source: <code>summary</code>.</figcaption>
 </figure>
 
 <p>Three buckets, reported separately, because averages hide the story:</p>
@@ -528,21 +605,29 @@ ORDER BY r.shipped_at DESC, r.version LIMIT 3</code></pre>
 </table></div>
 
 <h3>Staleness</h3>
-<p>Contradiction events replayed through each arm's maintenance path: C rewrites its markdown with an LLM, and D runs the invalidation write with no LLM. After each event we ask a question whose answer changed. D answered fresh after <span class="num" data-fig="stale_d"></span> events, using <span class="num" data-fig="maint_d"></span> maintenance tokens. C answered fresh after <span class="num" data-fig="stale_c"></span>, using <span class="num" data-fig="maint_c"></span>.</p>
+<p>Contradiction events replayed through each arm's upkeep path. C rewrites its markdown with an LLM. D runs the invalidation write, no LLM. After each event I ask a question whose answer changed. D answered with the current fact on <span class="num" data-fig="stale_d"></span> events, using <span class="num" data-fig="maint_d"></span> upkeep tokens. C answered with it on <span class="num" data-fig="stale_c"></span>, using <span class="num" data-fig="maint_c"></span>.</p>
 <div class="table-wrap" id="table-stale"></div>
 
 <h2>The Feature Ledger</h2>
-<p class="want">Every graph feature pays rent. A feature we did not measure says "not measured" in public.</p>
+<p class="want">Every graph feature pays rent. A feature I didn't measure says "not measured" in public.</p>
 <div class="table-wrap" id="table-ledger"></div>
 <p>Mismatch ablation, on the planted doctrine-vs-practice mismatches. The graph rules found <span class="num" data-fig="abl_graph"></span>. An LLM given every doc and ticket as text found <span class="num" data-fig="abl_llm"></span>.</p>
 
-<h2>Where we lost</h2>
-<p class="want">A benchmark that only shows wins is an ad. This list is computed from the results, so it cannot leave a loss out.</p>
-<ul id="losses"><li><span class="num pending">pending</span></li></ul>
-<p>Two losses are structural and need no benchmark. First, the graph's write path costs more per episode than appending a line to a markdown file. Second, ingestion needs an LLM to extract entities, and files do not. Ingestion tokens for D: <span class="num" data-fig="ingest_d"></span>.</p>
+<h2 id="lost">Where I lost</h2>
+<p class="want">A benchmark that only shows wins is an ad. Here is where the graph didn't win.</p>
+<ul>
+  <li>Sonnet on the graph scored <span class="num" data-fig="sonnet_d_acc"></span>, above Haiku's <span class="num" data-fig="haiku_d_acc"></span>. It costs <span class="num" data-fig="sonnet_d_cost"></span> per answer. I still default to Haiku.</li>
+  <li>Decision traces scored below plain graph memory: <span class="num" data-fig="ap_correct:graph_traces_warm_replay"></span> correct against <span class="num" data-fig="ap_correct:D"></span>, and <span class="num" data-fig="ap_fresh:graph_traces_warm_replay"></span> current against <span class="num" data-fig="ap_fresh:D"></span>.</li>
+  <li>On clusters, the graph missed <span class="num" data-fig="cl_missed"></span> planted spikes. So did the model.</li>
+  <li>The nightly report's clusters group by issue, not by the <code>SIMILAR_TO</code> path the benchmark measured.</li>
+  <li>The graph's write path costs more per episode than appending a line to a file. Its ingestion needs a model for entity extraction: <span class="num" data-fig="ingest_d"></span> tokens.</li>
+  <li>Concurrency is one container on one laptop, with synthetic load. It is not a production cluster.</li>
+</ul>
+<p>The rest is computed from the results, so no loss can be left out:</p>
+<ul id="losses"></ul>
 
 <h2>The crash test</h2>
-<p class="want">We want an always-on agent to survive dying. In <span class="mochi">mochi</span>, every step of a run is a Pi Durable checkpoint in SQLite.</p>
+<p class="want">We want an always-on agent to survive dying. In <span class="mochi">mochi</span>, every step of a run is a Pi Durable checkpoint.</p>
 <ol>
   <li>A ticket arrives with a fixed <code>requestId</code>, and the agent starts its briefing.</li>
   <li>The script sends <code>kill -9</code> after the first tool call.</li>
@@ -558,19 +643,19 @@ ORDER BY r.shipped_at DESC, r.version LIMIT 3</code></pre>
 <h2>FAQ</h2>
 <dl class="faq">
   <dt>Why not just a vector database?</dt>
-  <dd>We tried. It is arm B. See fig 5.</dd>
+  <dd>I tried. It is arm B. See fig 6.</dd>
   <dt>Why not just Postgres?</dt>
-  <dd>We tried SQLite. It is arm E, and it gets the same five queries as SQL. If it ties, we will say the graph's advantage was structure, not edges.</dd>
+  <dd>I tried SQLite. It is arm E, and it gets the same five queries as SQL. It came second. Tables are a fair rival.</dd>
   <dt>Is this a shot at Devin?</dt>
-  <dd>No. Arm C implements the open Agent Memory Repo spec, not Devin the product. That spec is good at what it is for: preferences and project gotchas. Support context has a different shape.</dd>
+  <dd>No. Arm C implements the open Agent Memory Repo spec, not Devin the product. The Devin-style Knowledge approach is modelled on Devin's documented Knowledge feature, not Devin itself. Both are good at what they are for: preferences and project gotchas. Support context has a different shape.</dd>
   <dt>Why is there a SQLite file in a graph project?</dt>
-  <dd>Two jobs. FalkorDB holds what the agent knows. SQLite holds what the agent is doing: Pi Durable's transcripts and checkpoints, which the crash test runs on. We did not hand-roll storage under our own crash demo.</dd>
+  <dd>By default, two jobs. FalkorDB holds what the agent knows. SQLite holds what the agent is doing: Pi Durable's transcripts and checkpoints. With <code>MOCHI_STORAGE=falkordb</code>, that journal moves into FalkorDB too.</dd>
   <dt>Is any of the data real?</dt>
-  <dd>No. E Corp Securities is fictional. The generator is seeded and in the repo. The helpdesk's shape comes from public Freshdesk docs, and no real ticket was read, copied or used as an example.</dd>
+  <dd>No. E Corp Securities is fictional. The generator is seeded and in the repo. The helpdesk's shape comes from public Freshdesk docs. No real ticket was read, copied or used as an example.</dd>
   <dt>What if the dream is wrong?</dt>
-  <dd>It retires, it never deletes. Yesterday's brain is a <code>GRAPH.COPY</code>, and any report can be re-run with <code>?asOf=</code>. Suggestions are hypotheses with ticket IDs attached. They are never applied automatically.</dd>
+  <dd>It retires, it never deletes. Yesterday's brain is a <code>GRAPH.COPY</code>, and any report can be re-run with <code>?asOf=</code>. Suggestions are hypotheses with ticket IDs attached. Nothing applies them automatically.</dd>
   <dt>Would this survive real ticket volume?</dt>
-  <dd>We measured one container, not a fleet. Briefing latency while the dream was writing, by number of parallel conversations:</dd>
+  <dd>I measured one container, not a fleet. Briefing latency while the dream was writing, by number of parallel conversations:</dd>
 </dl>
 <div class="table-wrap" id="table-conc"></div>
 <p>Torn reads during the dream: <span class="num" data-fig="torn"></span>. Append-only writes and single-query batches are what make that checkable.</p>
@@ -580,8 +665,9 @@ ORDER BY r.shipped_at DESC, r.version LIMIT 3</code></pre>
 <section class="band band-close">
 <div class="band-in">
 
-<h2>How this was built</h2>
-<p>AI coding assistants built most of this repo, as the rules allow, and we disclose it here and in the README. We used Claude Code on Claude Opus 5.5. Parallel agents each worked in their own git worktree, one OpenSpec change per worktree: propose, apply, archive. Contracts froze first, and every later contract change was serial. This post was drafted by an agent from the archived changes and the git log, then reviewed by us. We can explain every graph model, query and decision on this page. The figures come from <code>bench/results.json</code> through <code>blog/fill-bench.ts</code>, which refuses to fill the page while any marker is left.</p>
+<h2>Use of AI</h2>
+<p>Honest take: I could have built all of this without AI. But alone, something would have given: the UI, the UX, a feature I'd cut, or a benchmark I'd skip. I'm obsessed with getting things right, and that's what I used AI for. Every screen here went through 10 to 15 variations before I kept one. I rethought every interaction and every component, tried them side by side, and threw most of them away. AI didn't decide what was good. It made trying ten versions cheap enough that I actually did it. What I got out of it: more thoughtfulness, and a lot more experiments per hour.</p>
+<p>Disclosure: built with Claude Code on Claude Opus 5.5. I used it to write specs and proposals, to write and test code in parallel git worktrees, one OpenSpec change per worktree, and to review diffs. I approved every design decision and spec amendment. An agent drafted this page from the git log, the archived changes and <code>bench/results.json</code>. I edited it. I can explain every graph model, query and decision on it. The figures come in through <code>blog/fill-bench.ts</code>, which refuses to fill the page while any marker is left.</p>
 
 <footer>
   Repo: <a href="https://github.com/AtharvaMaskar/mochi-ai">github.com/AtharvaMaskar/mochi-ai</a> · Tracks entered: 01 Agents That Act on Connected Data, 02 Agent Memory and Coordination, 03 Company Brain · Built with AI coding assistants, disclosed above · Graph Hacks, WeMakeDevs × FalkorDB, Oct 2026 · Synthetic data only.
@@ -590,7 +676,7 @@ ORDER BY r.shipped_at DESC, r.version LIMIT 3</code></pre>
 </div>
 </section>
 
-<!-- bench/results.json, injected by blog/fill-bench.ts. Null sections render "pending". -->
+<!-- bench/results.json, injected by blog/fill-bench.ts. A null section renders "not measured". -->
 <script type="application/json" id="bench">{
   "run_at": 1792319159413,
   "seed": 42,
@@ -16439,8 +16525,12 @@ ORDER BY r.shipped_at DESC, r.version LIMIT 3</code></pre>
   const task = (model, arch) => per && per.find((r) => r.model_id.includes(model) && r.arch === arch);
   const sum = (xs) => xs.reduce((a, b) => a + b, 0);
   const staleBy = (arch) => (BENCH.staleness || []).filter((s) => s.arch === arch);
+  // Decision traces sit outside the zod contract (decision-traces change); read raw, render "not measured" if absent.
+  const DT = BENCH.decision_traces || null, AP = DT && DT.approaches;
+  const usdK = (x) => "$" + (x * 1000).toFixed(2);
+  const correct = (a) => Math.round(a.accuracy * a.n) + " of " + a.n;
 
-  // Named figures. Each returns a string, or null for "pending".
+  // Named figures. Each returns a string, or null for "not measured".
   const FIG = {
     model: () => BENCH.model && BENCH.model.id,
     price: () => BENCH.model && "$" + BENCH.model.usd_per_1m_input + " / $" + BENCH.model.usd_per_1m_output + " per 1M in / out",
@@ -16462,12 +16552,34 @@ ORDER BY r.shipped_at DESC, r.version LIMIT 3</code></pre>
     ingest_d: () => { const i = BENCH.ingestion && BENCH.ingestion.find((x) => x.arch === "D"); return i && i.tokens.toLocaleString("en-US"); },
     bill: () => per && per.length && usd(sum(per.map((r) => r.cost_usd_total))),
     torn: () => BENCH.concurrency && sum(BENCH.concurrency.runs.map((r) => r.torn_reads)).toLocaleString("en-US"),
+    n_q: () => { const t = task("haiku", "D"); return t && String(t.n); },
+    sonnet_d_acc: () => { const t = task("sonnet", "D"); return t && pct(t.accuracy); },
+    sonnet_d_cost: () => { const t = task("sonnet", "D"); return t && usd(t.cost_usd_mean); },
+    mh_D: () => BENCH.summary.D.multi_hop && pct(BENCH.summary.D.multi_hop.accuracy),
+    mh_C: () => BENCH.summary.C.multi_hop && pct(BENCH.summary.C.multi_hop.accuracy),
+    mh_E: () => BENCH.summary.E.multi_hop && pct(BENCH.summary.E.multi_hop.accuracy),
+    ingest_c: () => { const i = BENCH.ingestion && BENCH.ingestion.find((x) => x.arch === "C"); return i && i.tokens.toLocaleString("en-US"); },
+    upkeep_c: () => staleBy("C").length && Math.round(sum(staleBy("C").map((s) => s.maintenance_tokens)) / staleBy("C").length).toLocaleString("en-US"),
+    upkeep_d: () => staleBy("D").length && String(Math.round(sum(staleBy("D").map((s) => s.maintenance_tokens)) / staleBy("D").length)),
+    cl_graph: () => { const c = BENCH.clusters_ablation; return c && `${c.graph.matched_spikes} of ${c.graph.matched_spikes + c.graph.missed_spikes} spikes, ${c.graph.spurious} spurious, ${c.graph.tokens.toLocaleString("en-US")} tokens`; },
+    cl_llm: () => { const c = BENCH.clusters_ablation; return c && `${c.llm.matched_spikes} of ${c.llm.matched_spikes + c.llm.missed_spikes} spikes, ${c.llm.spurious} spurious, ${c.llm.tokens.toLocaleString("en-US")} tokens`; },
+    cl_missed: () => { const c = BENCH.clusters_ablation; return c && `${c.graph.missed_spikes} of ${c.graph.matched_spikes + c.graph.missed_spikes}`; },
+    dt_model: () => DT && DT.model,
+    dt_warm: () => DT && String(DT.tasks.warm),
+    dt_eval: () => DT && String(DT.tasks.eval),
+    dt_retired: () => AP && AP.D.staleness && String(AP.D.staleness.of),
+    ap_correct: (k) => AP[k] && correct(AP[k]),
+    ap_cost: (k) => AP[k] && usdK(AP[k].cost_usd_mean),
+    ap_tok: (k) => AP[k] && Math.round(AP[k].input_tokens_mean).toLocaleString("en-US"),
+    ap_fresh: (k) => AP[k].staleness && AP[k].staleness.fresh + " of " + AP[k].staleness.of,
+    ap_resurf: (k) => AP[k].staleness && String(AP[k].staleness.stale_resurfaced),
   };
   document.querySelectorAll("[data-fig]").forEach((el) => {
     let v = null;
-    try { v = FIG[el.dataset.fig](); } catch (_) { v = null; }
+    const [name, ...args] = el.dataset.fig.split(":");
+    try { v = FIG[name](...args); } catch (_) { v = null; }
     if (has(v) && v !== false && v !== "") el.textContent = v;
-    else { el.textContent = "pending"; el.classList.add("pending"); }
+    else { el.textContent = "not measured"; el.classList.add("nm"); }
   });
 
   // ---- inline SVG charts -------------------------------------------------
@@ -16482,9 +16594,9 @@ ORDER BY r.shipped_at DESC, r.version LIMIT 3</code></pre>
     if (has(text)) e.textContent = text;
     s.appendChild(e); return e;
   }
-  function pending(box, label) {
-    const d = h("div", "pend", "pending: bench/results.json has not been filled yet");
-    d.setAttribute("role", "img"); d.setAttribute("aria-label", label + ", pending");
+  function missing(box, label) {
+    const d = h("div", "miss", "not measured: bench/results.json has no data for this chart");
+    d.setAttribute("role", "img"); d.setAttribute("aria-label", label + ", not measured");
     box.replaceChildren(d);
   }
   // Motion explains data and runs once, when a chart first scrolls into view. Reduced motion gets the final state.
@@ -16526,7 +16638,7 @@ ORDER BY r.shipped_at DESC, r.version LIMIT 3</code></pre>
   function showRec(mark) {
     const r = mark.rec;
     if (!r) return;
-    const rows = [["arm", r.arm], ["model", r.model], ["n", has(r.n) ? String(r.n) : "not recorded"]]
+    const rows = r.rows || [["arm", r.arm],["model", r.model], ["n", has(r.n) ? String(r.n) : "not recorded"]]
       .concat(r.row ? [["cost / task", usd(r.row.cost_usd_mean)], ["latency", ms(r.row.p50_ms) + " p50 · " + ms(r.row.p95_ms) + " p95"]] : [["cost / task", "not measured"]]);
     pop.innerHTML = `<b>Receipt</b><dl><dt>field</dt><dd>bench/results.json · ${esc(r.path)}</dd>` +
       rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("") + "</dl>";
@@ -16586,7 +16698,7 @@ ORDER BY r.shipped_at DESC, r.version LIMIT 3</code></pre>
 
   function perTaskChart(id, label, pick, whisker, fmt, field) {
     const box = document.getElementById(id);
-    if (!per || !per.length) return pending(box, label);
+    if (!per || !per.length) return missing(box, label);
     const max = Math.max(...per.map((r) => (whisker ? whisker(r) : pick(r)))) || 1;
     const list = h("div", "bars"); list.setAttribute("role", "group"); list.setAttribute("aria-label", label);
     box.replaceChildren(list);
@@ -16614,7 +16726,7 @@ ORDER BY r.shipped_at DESC, r.version LIMIT 3</code></pre>
   (function accChart() {
     const box = document.getElementById("chart-acc");
     const S = BENCH.summary;
-    if (!S || !Object.keys(S).length) return pending(box, "Accuracy by bucket");
+    if (!S || !Object.keys(S).length) return missing(box, "Accuracy by bucket");
     const def = BENCH.model && BENCH.model.id;
     const list = h("div", "bars"); list.setAttribute("role", "group"); list.setAttribute("aria-label", "Accuracy by bucket and arm");
     box.replaceChildren(list);
@@ -16639,10 +16751,39 @@ ORDER BY r.shipped_at DESC, r.version LIMIT 3</code></pre>
     });
   })();
 
+  // ---- decision traces: six ways to learn, correct answers and answers still current --
+  (function tracesChart() {
+    const box = document.getElementById("chart-traces");
+    if (!AP) return missing(box, "Learning from past tickets");
+    const LABEL = [["graph_traces_warm_replay", "Graph traces (replay)"], ["D", "Graph, no learning"], ["C_lessons", "Markdown + LESSONS.md"],
+      ["devin_knowledge", "Devin-style Knowledge"], ["vector_lessons", "Vector lessons"], ["sql_lessons", "SQL lessons"]].filter(([k]) => AP[k]);
+    const list = h("div", "bars"); list.setAttribute("role", "group"); list.setAttribute("aria-label", "Learning from past tickets, by approach");
+    box.replaceChildren(list);
+    const marks = [];
+    const group = (title, val, text, field) => {
+      list.appendChild(h("div", "bar-group", title));
+      LABEL.forEach(([k, label]) => {
+        const a = AP[k], tr = k === "graph_traces_warm_replay", R = barRow(list, label, tr);
+        R.track.rec = { path: `decision_traces.approaches.${k}.${field}`, rows: [["approach", label], ["model", DT.model], ["correct", correct(a)],
+          ["cost / 1k", usdK(a.cost_usd_mean)], ["p50", ms(a.p50_ms)], ["current", a.staleness ? a.staleness.fresh + " of " + a.staleness.of : "not measured"]] };
+        marks.push([R, val(a), text(a), tr ? "var(--arm-d)" : "var(--ink-faint)"]);
+      });
+    };
+    group(`Correct answers, of ${DT.tasks.eval}`, (a) => a.accuracy, (a) => correct(a) + " · " + usdK(a.cost_usd_mean) + " / 1k", "accuracy");
+    group("Still current after the retirements", (a) => (a.staleness ? a.staleness.fresh / a.staleness.of : 0),
+      (a) => (a.staleness ? a.staleness.fresh + " of " + a.staleness.of : "not measured"), "staleness");
+    zero(marks.map((m) => m[0]));
+    marks.forEach(([R]) => roll(R.val, "0 of 0", "set"));
+    onView(box, (final) => {
+      void list.offsetWidth;
+      marks.forEach(([R, v, t, c], i) => { R.set(v, null, c, t, final ? 0 : i * 60); roll(R.val, t, final ? "set" : "roll"); });
+    });
+  })();
+
   // ---- cost vs accuracy: dots land, then the frontier draws left to right -------
   (function frontier() {
     const box = document.getElementById("chart-frontier");
-    if (!per || !per.length) return pending(box, "Accuracy against cost per task");
+    if (!per || !per.length) return missing(box, "Accuracy against cost per task");
     let on = false, lastW = 0;
     function draw(state) {
       const final = state === "final";
@@ -16703,7 +16844,7 @@ ORDER BY r.shipped_at DESC, r.version LIMIT 3</code></pre>
   // ---- tables: rows reveal one by one; a "not measured" row is never hidden ------
   function table(id, head, rows, emptyText, reveal) {
     const box = document.getElementById(id);
-    if (!rows) { box.innerHTML = `<table><tr><td class="muted">pending</td></tr></table>`; return; }
+    if (!rows) { box.innerHTML = `<table><tr><td class="muted">not measured</td></tr></table>`; return; }
     if (!rows.length) { box.innerHTML = `<table><tr><td class="muted">${esc(emptyText)}</td></tr></table>`; return; }
     box.innerHTML = "<table><tr>" + head.map((h) => `<th class="${h.r ? "r" : ""}">${esc(h.t)}</th>`).join("") + "</tr>" +
       rows.map((r) => "<tr>" + r.map((c, i) => `<td class="${head[i].r ? "r" : ""}">${c}</td>`).join("") + "</tr>").join("") + "</table>";
