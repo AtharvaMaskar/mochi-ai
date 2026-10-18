@@ -84,12 +84,20 @@ WHERE x.version = $version AND ${LIVE('x')} AND t.created_at <= $as_of
 ORDER BY t.created_at DESC, t.id LIMIT 10`,
   allTickets: `SELECT t.id AS ticket, t.subject AS subject, t.status AS status, i.name AS issue, t.embedding AS embedding
 FROM tickets t LEFT JOIN issues i ON i.id = t.issue_id WHERE t.created_at <= $as_of`,
-  customer: `SELECT c.id AS customer_id, c.name AS name, c.segment AS segment, c.city AS city, p.plan AS plan
+  customer: `SELECT c.id AS customer_id, c.name AS name, c.segment AS segment, p.plan AS plan, c.city AS city
 FROM customers c LEFT JOIN on_plan p ON p.customer_id = c.id AND ${LIVE('p')} WHERE c.id = $customerId`,
-  customerTickets: `SELECT t.id AS ticket, t.subject AS subject, t.status AS status, t.created_at AS created_at,
-  t.resolved_at AS resolved_at, r.summary AS resolution, t.merged_into AS merged_into
+  customerHistory: `SELECT t.id AS ticket, t.subject AS subject, t.created_at AS created_at, t.status AS status,
+  r.kind AS resolution_kind, coalesce(r.summary, 'Closed with no recorded fix') AS ended
 FROM tickets t LEFT JOIN resolutions r ON r.id = t.resolution_id
-WHERE t.customer_id = $customerId AND t.created_at <= $as_of ORDER BY t.created_at DESC, t.id LIMIT 20`,
+WHERE t.customer_id = $customerId AND t.created_at <= $as_of AND t.status IN ('resolved', 'closed') AND t.merged_into IS NULL
+ORDER BY t.created_at DESC, t.id LIMIT 10`,
+  customerOpen: `SELECT t.id AS ticket, t.subject AS subject, t.created_at AS created_at, t.status AS status
+FROM tickets t WHERE t.customer_id = $customerId AND t.created_at <= $as_of AND t.status NOT IN ('resolved', 'closed')
+ORDER BY t.created_at DESC, t.id LIMIT 10`,
+  customerMerged: `SELECT d.id AS ticket, d.subject AS subject, d.merged_into AS merged_into
+FROM tickets d JOIN tickets p ON p.id = d.merged_into
+WHERE d.customer_id = $customerId AND d.created_at <= $as_of AND p.created_at <= $as_of
+ORDER BY d.created_at DESC, d.id LIMIT 10`,
   retirePlan: `UPDATE on_plan SET valid_until = $as_of WHERE customer_id = $id AND plan <> $to AND ${LIVE('on_plan')}`,
   insertPlan: `INSERT INTO on_plan VALUES ($id, $to, $as_of, $forever)`,
   retireIntroduced: `UPDATE introduced SET valid_until = $as_of WHERE issue_id = $id AND ${LIVE('introduced')}`,
@@ -137,10 +145,9 @@ export const SQL_TOOLS: Record<string, (db: Sql, a: any, as_of: number) => Promi
     const [v] = await embed([String(a.text)]);
     return { q_1: nearest(all(db, SQL.allTickets, { as_of }), v, k) };
   },
-  // wire-ui's customer_profile ({customerId}): segment, live plan, city, then every ticket with how it ended.
   async customer_profile(db, a, as_of) {
     const p = { customerId: a.customerId, as_of };
-    return { q_1: all(db, SQL.customer, p), q_2: all(db, SQL.customerTickets, p) };
+    return { q_1: all(db, SQL.customer, p), q_2: all(db, SQL.customerHistory, p), q_3: all(db, SQL.customerOpen, p), q_4: all(db, SQL.customerMerged, p) };
   },
 };
 

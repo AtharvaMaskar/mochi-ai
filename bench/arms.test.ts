@@ -96,11 +96,12 @@ test('E has SQL for every read tool D exposes', () => {
   assert.deepEqual(READ_TOOL_SPECS.map((s) => s.name).filter((n) => !SQL_TOOLS[n]), []);
 });
 
-test('TODO(wire-ui): customer_profile lands in READ_TOOL_SPECS, E serves it', { skip: !READ_TOOL_SPECS.some((s) => (s.name as string) === 'customer_profile') }, async () => {
+test('E serves customer_profile with the same four queries as the graph', async () => {
   const db = load(tinyDataset() as any, new Map());
   const r = await SQL_TOOLS.customer_profile(db, { customerId: 'C-1' }, Date.now());
+  assert.deepEqual(Object.keys(r), ['q_1', 'q_2', 'q_3', 'q_4']);
   assert.equal(r.q_1[0].plan, 'premium');
-  assert.ok(r.q_2.length >= 2);
+  assert.equal(r.q_2.length + r.q_3.length + r.q_4.length >= 2, true);
 });
 
 test('E staleness: an event retires the live row and inserts the new fact, as applyEvent does', async () => {

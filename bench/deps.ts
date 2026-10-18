@@ -20,12 +20,17 @@ export type MismatchEdge = { type: 'CONTRADICTS' | 'UNDOCUMENTED'; kb_id: string
 const DATA = new URL('../data/', import.meta.url);
 const read = (f: string | URL) => JSON.parse(readFileSync(f, 'utf8'));
 
-/** `dataset`: a dataset.json path (default data/dataset.json; add-sim's bench slice is data/bench/dataset.json). Eval is data/eval.json. */
-export async function readData(dataset: string | URL = new URL('dataset.json', DATA)): Promise<{ dataset: Dataset; eval: Eval }> {
+/** `dataset`: a dataset.json path, default add-sim's 400-ticket bench slice data/bench/dataset.json. Eval is data/eval.json. */
+export async function readData(dataset: string | URL = new URL('bench/dataset.json', DATA)): Promise<{ dataset: Dataset; eval: Eval }> {
   const d = validateDataset(read(dataset));
   if (!d.ok) throw new Error(`${dataset} invalid: ${d.errors.slice(0, 3).join('; ')}`);
   const e = validateEval(read(new URL('eval.json', DATA)), d.value);
   if (!e.ok) throw new Error(`data/eval.json invalid: ${e.errors.slice(0, 3).join('; ')}`);
+  // Eval must be computed over this dataset: every id or version a question or answer names has to exist in it.
+  const v = d.value, ids = new Set<string>([...v.tickets, ...v.customers, ...v.issues, ...v.agents, ...v.kb_articles, ...v.resolutions].map((x) => x.id));
+  for (const r of v.releases) ids.add(r.version);
+  const missing = e.value.questions.flatMap((q) => (`${q.question} ${q.answer}`.match(/\b[A-Z]{1,3}-\d+\b|\b\d+\.\d+\.\d+\b/g) ?? []).filter((x) => !ids.has(x)).map((x) => `${q.id}:${x}`));
+  if (missing.length) throw new Error(`data/eval.json names ids not in ${dataset}: ${missing.slice(0, 5).join(', ')}`);
   return { dataset: d.value, eval: e.value };
 }
 
