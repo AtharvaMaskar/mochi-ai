@@ -68,7 +68,7 @@ export function Bars(v: Extract<Visual, { type: 'bars' }>) {
             <span className="mb-bars-track"><span className="mb-bars-fill" data-hot={hot || undefined} style={{ width: `${((Number(r[v.y]) || 0) / max) * 100}%`, animationDelay: `${i * 0.06}s` }} /></span>
             <span className="mb-bars-v">
               {hot && <span className="mb-hot">Hot</span>}
-              {v.trend && <span className="mb-trend">{TREND[String(r[v.trend])] ?? fmt(r[v.trend])}</span>}
+              {v.trend && <span className="mb-trend">{TREND[String(r[v.trend])] ?? (isNum(r[v.trend]) ? `+${fmt(r[v.trend])} new` : fmt(r[v.trend]))}</span>}
               <span className="mono"><RollingNumber value={fmt(r[v.y])} /></span>
             </span>
           </div>);

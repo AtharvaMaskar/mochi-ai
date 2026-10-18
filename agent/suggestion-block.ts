@@ -23,7 +23,8 @@ export function suggestionBlock(qid: string, row: Record<string, unknown>) {
   const nums = [...text.matchAll(/<num query_id="(q_\d+)" column="(\w+)">([^<]*)<\/num>/g)].map(([, query_id, column, value]) => ({ query_id, column, value }));
   return {
     type: 'suggestion' as const, query_id: qid, edge: String(row.edge),
-    tag: contradicts ? 'The docs and reality disagree' : 'Practice nobody wrote down',
+    // Name the thing: three identical headlines in a report read as boilerplate. No digits here (they'd need receipts).
+    tag: contradicts ? `${attr(String(row.target))} no longer matches practice` : `A workaround the ${attr(String(row.team))} team uses, undocumented`,
     actions: [`send_to_team:${attr(String(row.team))}`, ...(contradicts ? [`draft_kb:${attr(String(row.target))}`] : []), 'dismiss'],
     text, nums,
   };
