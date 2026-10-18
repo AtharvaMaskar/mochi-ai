@@ -5,7 +5,7 @@ import * as Q from './index.ts';
 import { ALGORITHMS, graphAlgorithm, queryGraph, ROW_CAP, type ToolCtx } from './graph-tools.ts';
 
 export type ReadToolSpec = {
-  name: 'briefing' | 'likely_cause' | 'who_knows' | 'emerging_clusters' | 'blast_radius' | 'search_similar' | 'customer_profile' | 'query_graph' | 'graph_algorithm';
+  name: 'briefing' | 'likely_cause' | 'who_knows' | 'emerging_clusters' | 'blast_radius' | 'search_similar' | 'customer_profile' | 'query_graph' | 'graph_algorithm' | 'trace_story';
   description: string;
   parameters: TSchema;
   run(db: Q.Db, args: any, as_of: number, graph: string, embed?: Q.EmbedFn, ctx?: ToolCtx): Promise<Q.Result>;

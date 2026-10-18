@@ -1,6 +1,6 @@
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { GRAPH, checkCypherNames, EDGE_AS_OF, NODE_AS_OF, VALID_FOREVER, TEMPORAL_INDEXES } from './graph.ts';
+import { ACL, GRAPH, JOURNAL_GRAPH, JOURNAL_LABELS, L, checkCypherNames, EDGE_AS_OF, NODE_AS_OF, VALID_FOREVER, TEMPORAL_INDEXES } from './graph.ts';
 import { connect } from './testdb.ts';
 
 test('graph name builders', () => {
@@ -13,6 +13,12 @@ test('checkCypherNames accepts contract names and reports drift', () => {
   assert.deepEqual(checkCypherNames('MATCH (c:Customer)-[:RAISED]->(t:Ticket)-[a:ABOUT]->(:Issue) RETURN c'), []);
   assert.deepEqual(checkCypherNames('MATCH (r:Release)-[:INTRODUCED|ABOUT*1..3]->(x) RETURN x'), []);
   assert.deepEqual(checkCypherNames("MATCH (t:Tickt)-[:ABOUTS]->(i) WHERE t.subject = '(x:Nope)' RETURN t").sort(), ['edge ABOUTS', 'label Tickt']);
+});
+
+test('journal names stay outside the company contract; its user writes only the journal', () => {
+  for (const l of JOURNAL_LABELS) assert.ok(!(l in L), l);
+  assert.match(ACL.journal.rules, new RegExp(`^resetkeys ~${JOURNAL_GRAPH} resetchannels `));
+  assert.ok(ACL.reader.rules.includes(`~${JOURNAL_GRAPH}`) && !/\+GRAPH\.QUERY/.test(ACL.reader.rules), 'reader reads the journal, never writes');
 });
 
 const G = 'contracts_test_temporal';

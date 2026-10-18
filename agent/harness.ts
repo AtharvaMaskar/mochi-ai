@@ -12,12 +12,14 @@ import {
   type AgentChange, type ConversationId, type Extension, type JsonObject, type ModelRef, type Tx, type ToolExecutionApi, type ToolRegistration,
 } from '@earendil-works/pi-durable';
 import { openNodeSqliteStorage } from '@earendil-works/pi-durable/storage/sqlite/node';
+import { openFalkorStorage } from './storage/falkordb.ts';
 import { AreaName, EDGE_AS_OF, GRAPH, VALID_FOREVER, parseStory, validateCard, validateSandboxHtml, type StoredQuery, type ToolCard } from '@mochi/contracts';
 import { reader as defaultReader, writer as defaultWriter, userDb as defaultUserDb } from './db.ts';
 import type { DreamModule } from './dream-port.ts';
 import { DEMO_USER_GRAPH, briefWithMemory, readPreferences, rememberPreference } from './memory.ts';
 import type * as Q from './queries/index.ts';
-import { READ_TOOL_SPECS } from './queries/tools.ts';
+import { READ_TOOL_SPECS as COMPANY_READ_SPECS } from './queries/tools.ts';
+import { TRACE_TOOL } from './queries/trace.ts';
 import { SCHEMA_PROMPT } from './queries/graph-tools.ts';
 import { applyEdits, commitStory, latestDreamStory, visible, type Kind } from './stories.ts';
 import { StoryDoc } from './story-doc.ts';
@@ -52,6 +54,7 @@ export const DreamTaskDoc = defineDoc<{ taskId: number | null }>({
   kind: 'mochi.dream-task', version: 1, scope: 'session', initial: () => ({ taskId: null }),
 });
 
+const READ_TOOL_SPECS = [...COMPANY_READ_SPECS, TRACE_TOOL]; // trace_story reads the journal graph
 export const READ_TOOLS = READ_TOOL_SPECS.map((s) => s.name);
 
 const PREAMBLE = `You are Mochi, the support copilot for E Corp Securities (a fictional broker; all data is synthetic).
@@ -360,7 +363,11 @@ CREATE (a)-[:FEEDBACK {verdict: $verdict, at: $now}]->(s)`, { params: { suggesti
   registry.install(extension);
   for (const ext of cfg.extra ?? []) registry.install(ext);
 
-  const harness = await Harness.open(await openNodeSqliteStorage(cfg.storage ?? process.env.MOCHI_SQLITE ?? './mochi.sqlite'), {
+  // MOCHI_STORAGE=falkordb puts the journal in the mochi_journal graph (cfg.storage, a SQLite path, is then unused).
+  const backend = process.env.MOCHI_STORAGE ?? 'sqlite';
+  if (backend !== 'sqlite' && backend !== 'falkordb') throw new Error(`MOCHI_STORAGE must be sqlite or falkordb, got ${backend}`);
+  const storage = backend === 'falkordb' ? await openFalkorStorage() : await openNodeSqliteStorage(cfg.storage ?? process.env.MOCHI_SQLITE ?? './mochi.sqlite');
+  const harness = await Harness.open(storage, {
     models, registry, settings: { retry: { maxRetries: 3 } },
   }, ctx);
   const root = await harness.root(ctx, { agent: { model } });
