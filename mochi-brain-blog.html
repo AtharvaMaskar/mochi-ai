@@ -9,27 +9,24 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&family=Instrument+Serif&display=swap">
 <style>
-  /* Light values inlined from contracts/mochi.css. Nothing here is hand-picked. */
+  /* Dark-theme values inlined from docs/design-system/tokens.json, only the tokens this page uses. */
   :root {
-    color-scheme: light;
+    color-scheme: dark;
     --font-sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
     --font-mono: "IBM Plex Mono", Menlo, Consolas, monospace;
     --font-serif: "Instrument Serif", "Iowan Old Style", Georgia, serif;
-    --bg-page: #F7F8FA;
-    --bg-surface: #FFFFFF;
-    --bg-subtle: #F1F3F6;
-    --ink: #101828;
-    --ink-body: #1D2939;
-    --ink-secondary: #344054;
-    --ink-muted: #5D6675;
-    --ink-faint: #98A2B3;
-    --border: #E4E7EC;
-    --border-strong: #D0D5DD;
-    --border-dashed: #C5CBD3;
-    --focus: #3B6FB6;
-    --warning-ink: #8A5300;
-    --warning-dot: #C27A00;
-    --success-ink: #1F5E3A;
+    --bg-page: #0E1116;
+    --bg-surface: #161A21;
+    --bg-subtle: #1E232B;
+    --ink: #F2F4F7;
+    --ink-body: #D9DEE5;
+    --ink-secondary: #B8C0CC;
+    --ink-muted: #98A2B3;
+    --ink-faint: #667085;
+    --border: #2A303A;
+    --border-strong: #3A414D;
+    --border-dashed: #4A5260;
+    --focus: #8CB8EE;
     --radius-xs: 2px;
     --radius-sm: 6px;
     --radius-md: 8px;
@@ -44,20 +41,14 @@
     --fs-caption: 12px;
     --fs-eyebrow: 12px; --fw-eyebrow: 500;
     --fs-data: 12px; --fs-data-xs: 11px;
-    --on-ink: #FFFFFF;
     --agent-sky: #7FAEE6;
     --agent-ube: #A99BE0;
     --shadow-seg: 0 1px 2px rgba(16,24,40,0.12);
     --shadow-pop: 0 8px 24px -12px rgba(16,24,40,0.25);
-    /* Mixed from the tokens above. Night = the landing's night keyframe: ink with ube at 10/20/30/48%. */
-    --night-0: color-mix(in srgb, var(--agent-ube) 10%, var(--ink));
-    --night-1: color-mix(in srgb, var(--agent-ube) 20%, var(--ink));
-    --night-2: color-mix(in srgb, var(--agent-ube) 30%, var(--ink));
-    --night-glow: color-mix(in srgb, var(--agent-ube) 48%, var(--ink));
-    --on-night-dim: color-mix(in srgb, var(--on-ink) 80%, var(--agent-ube));
-    --on-night-line: color-mix(in srgb, var(--on-ink) 22%, transparent);
-    /* Arm D, the one series the charts are about. The six agent hues fail the categorical checks on white. */
-    --arm-d: color-mix(in srgb, var(--agent-ube) 55%, var(--ink));
+    /* Mixed from the tokens above: the horizon is bg-page tinted with ube and sky. */
+    --sky-horizon: color-mix(in srgb, color-mix(in srgb, var(--agent-ube) 65%, var(--agent-sky)) 16%, var(--bg-page));
+    /* Arm D, the one series the charts are about: light ube, 6.6:1 on dark bg-surface. */
+    --arm-d: var(--agent-ube);
   }
   * { box-sizing: border-box; }
   html { -webkit-text-size-adjust: 100%; }
@@ -66,35 +57,28 @@
     font-family: var(--font-sans); font-size: var(--fs-lead); line-height: var(--lh-lead);
     padding: 0 16px; overflow-x: hidden;
   }
-  #paper { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: -1; display: block; pointer-events: none; }
-  main { max-width: 44rem; margin: 0 auto; padding: 0 0 32px; }
-
-  /* Night bands: the landing's night sky behind the masthead and the sign-off, fading into paper. */
-  .band { position: relative; isolation: isolate; margin: 0 -16px; padding: 0 16px; color: var(--on-ink); }
-  .band-in { max-width: 44rem; margin: 0 auto; }
-  .band-sky { position: absolute; inset: 0; z-index: -1; overflow: hidden;
-    background: radial-gradient(62% 58% at 80% 96%, var(--night-glow), transparent 72%),
-                linear-gradient(180deg, var(--night-0) 0%, var(--night-0) 26%, var(--night-1) 62%, var(--night-2) 100%);
-    -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 120px), transparent);
-            mask-image: linear-gradient(to bottom, black calc(100% - 120px), transparent); }
-  .band-close .band-sky { -webkit-mask-image: linear-gradient(to bottom, transparent, black 120px);
-                                  mask-image: linear-gradient(to bottom, transparent, black 120px); }
-  .band-sky canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; filter: blur(1.6px); }
-  .band-tint { position: absolute; inset: -20%; opacity: .16; mix-blend-mode: screen;
+  /* Night sky: one fixed layer behind everything. The gradient is the fallback without canvas. */
+  .sky { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none;
+    background: radial-gradient(80% 50% at 70% 100%, var(--sky-horizon), transparent 75%),
+                linear-gradient(180deg, var(--bg-page) 0%, var(--bg-page) 35%, var(--sky-horizon) 100%); }
+  .sky canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; filter: blur(1px); }
+  .sky-tint { position: absolute; inset: -20%; opacity: .08; mix-blend-mode: screen;
     background: radial-gradient(40% 50% at 30% 40%, var(--agent-ube), transparent 70%),
                 radial-gradient(40% 50% at 72% 60%, var(--agent-sky), transparent 70%); }
-  @media (prefers-reduced-motion: no-preference) { .band-tint { animation: hue 28s ease-in-out infinite alternate; } }
-  @keyframes hue { 0% { transform: translateX(-6%); opacity: .10; } 50% { opacity: .2; } 100% { transform: translateX(6%); opacity: .12; } }
-  .band-top .band-in { padding: 72px 0 152px; }
-  .band-close { margin-top: 32px; }
-  .band-close .band-in { padding: 152px 0 48px; }
-  .band h1, .band h2, .band strong, .band .memo dd { color: var(--on-ink); }
-  .band p { color: var(--on-night-dim); }
-  .band .memo { border-color: var(--on-night-line); margin-bottom: 0; }
-  .band .memo dt { color: var(--on-night-dim); }
-  .band a { color: var(--on-ink); text-decoration-color: var(--on-night-dim); }
-  .band p code { background: var(--on-night-line); border-color: var(--on-night-line); color: var(--on-ink); }
-  .band footer { border-color: var(--on-night-line); color: var(--on-night-dim); }
+  @media (prefers-reduced-motion: no-preference) { .sky-tint { animation: hue 40s ease-in-out infinite alternate; } }
+  @keyframes hue { 0% { transform: translateX(-6%); opacity: .06; } 50% { opacity: .11; } 100% { transform: translateX(6%); opacity: .07; } }
+  /* The article sits on a lifted surface; the 40px gutter plus 1px border keep the 44rem text column. */
+  main { max-width: calc(44rem + 82px); margin: 0 auto; padding: 24px 40px 32px;
+    background: color-mix(in srgb, var(--bg-surface) 88%, transparent); border: 1px solid var(--border); border-radius: var(--radius-md);
+    -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+  @media (max-width: 560px) { main { margin: 0 -16px; padding: 24px 16px 32px; border-width: 1px 0; border-radius: 0; } }
+
+  /* Masthead and sign-off sit straight on the sky. */
+  .band { color: var(--ink); }
+  .band-in { max-width: 44rem; margin: 0 auto; }
+  .band-top .band-in { padding: 72px 0 48px; }
+  .band-close .band-in { padding: 48px 0; }
+  .band .memo { margin-bottom: 0; }
   h1 { font-size: var(--fs-display); line-height: var(--lh-display); font-weight: var(--fw-display);
        letter-spacing: var(--ls-display); color: var(--ink); margin: 0 0 var(--space-6); }
   .mochi { font-family: var(--font-serif); font-weight: 400; letter-spacing: -0.01em; }
@@ -252,9 +236,8 @@
 </style>
 </head>
 <body>
-<canvas id="paper" aria-hidden="true"></canvas>
+<div class="sky" aria-hidden="true"><div class="sky-tint"></div><canvas></canvas></div>
 <header class="band band-top">
-<div class="band-sky" aria-hidden="true"><div class="band-tint"></div><canvas></canvas></div>
 <div class="band-in">
 
 <h1><span class="mochi">mochi</span> Brain</h1>
@@ -594,7 +577,6 @@ ORDER BY r.shipped_at DESC, r.version LIMIT 3</code></pre>
 </main>
 
 <section class="band band-close">
-<div class="band-sky" aria-hidden="true"><div class="band-tint"></div><canvas></canvas></div>
 <div class="band-in">
 
 <h2>How this was built</h2>
@@ -950,123 +932,70 @@ ORDER BY r.shipped_at DESC, r.version LIMIT 3</code></pre>
   })();
 })();
 
-// ---- paper shader -----------------------------------------------------------
-// Monochrome paper: static fibre grain plus slow pulp mottling on --bg-page.
-// One still frame under prefers-reduced-motion; flat --bg-page without WebGL.
-(function paper() {
-  const canvas = document.getElementById("paper");
-  const gl = canvas.getContext("webgl", { antialias: false, alpha: false });
-  if (!gl) { canvas.remove(); return; }
-  const vsrc = "attribute vec2 p; void main(){ gl_Position = vec4(p, 0.0, 1.0); }";
-  const fsrc = `
-    precision mediump float;
-    uniform vec2 u_res; uniform float u_t;
-    float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123); }
-    float noise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f*f*(3.0-2.0*f);
-      return mix(mix(hash(i), hash(i+vec2(1.0,0.0)), u.x), mix(hash(i+vec2(0.0,1.0)), hash(i+vec2(1.0,1.0)), u.x), u.y); }
-    float fbm(vec2 p){ float v = 0.0, a = 0.5; for (int i = 0; i < 5; i++){ v += a*noise(p); p = p*2.03 + vec2(17.0, 9.2); a *= 0.5; } return v; }
-    void main(){
-      vec2 uv = gl_FragCoord.xy / u_res;
-      vec2 q = uv * vec2(u_res.x / u_res.y, 1.0);
-      vec3 paper = vec3(0.969, 0.973, 0.980);           // --bg-page #F7F8FA
-      float grain = fbm(q * 220.0) - 0.5;
-      float pulp = fbm(q * 4.0 + vec2(u_t * 0.006, -u_t * 0.004)) - 0.5;
-      float lum = -grain * 0.014 - pulp * 0.010;
-      lum -= smoothstep(0.6, 1.3, distance(uv, vec2(0.5))) * 0.012;
-      gl_FragColor = vec4(paper + vec3(lum), 1.0);
-    }`;
-  function shader(type, src) { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); return gl.getShaderParameter(s, gl.COMPILE_STATUS) ? s : null; }
-  const vs = shader(gl.VERTEX_SHADER, vsrc), fs = shader(gl.FRAGMENT_SHADER, fsrc);
-  if (!vs || !fs) { canvas.remove(); return; }
-  const prog = gl.createProgram(); gl.attachShader(prog, vs); gl.attachShader(prog, fs); gl.linkProgram(prog);
-  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) { canvas.remove(); return; }
-  gl.useProgram(prog);
-  gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
-  const loc = gl.getAttribLocation(prog, "p"); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
-  const uRes = gl.getUniformLocation(prog, "u_res"), uT = gl.getUniformLocation(prog, "u_t");
+// ---- night sky ---------------------------------------------------------------
+// Ported from the Aceternity stars-background / shooting-stars algorithm (docs/research/aceternity.md), not
+// copied: a star field scaled to the viewport with per-star twinkle, and one slow shooting star every 4-7s
+// with a gradient trail. 30fps cap; stops on hidden tabs; one still frame under prefers-reduced-motion;
+// the CSS gradient alone without canvas.
+(function sky() {
+  const canvas = document.querySelector(".sky canvas");
+  const ctx = canvas.getContext && canvas.getContext("2d");
+  if (!ctx) { canvas.remove(); return; }
   const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const t0 = performance.now();
-  function draw(now) { gl.uniform1f(uT, (now - t0) / 1000); gl.drawArrays(gl.TRIANGLES, 0, 3); }
+  const light = getComputedStyle(document.documentElement).getPropertyValue("--ink").trim();
+  let w = 0, h = 0, field = [], streak = null, spawnIn = 2 + Math.random() * 3, last = 0, raf = 0;
+  window.__skyFrames = 0;
   function resize() {
-    const dpr = Math.min(window.devicePixelRatio || 1, 1.5) * 0.5; // half-res is invisible at this subtlety
-    canvas.width = Math.ceil(innerWidth * dpr); canvas.height = Math.ceil(innerHeight * dpr);
-    gl.viewport(0, 0, canvas.width, canvas.height); gl.uniform2f(uRes, canvas.width, canvas.height);
-    if (still) draw(t0);
+    const dpr = Math.min(devicePixelRatio || 1, 2);
+    w = innerWidth; h = innerHeight;
+    canvas.width = Math.ceil(w * dpr); canvas.height = Math.ceil(h * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const n = Math.min(500, Math.floor(w * h * 0.00015)); // Aceternity density: ~311 at 1920x1080
+    let s = 7; const rnd = () => ((s = (s * 16807) % 2147483647) / 2147483647); // seeded, so stills match
+    field = Array.from({ length: n }, () => ({ x: rnd() * w, y: rnd() * h, r: 0.5 + rnd() * 0.9, a: 0.5 + rnd() * 0.5,
+      tw: rnd() < 0.7, speed: 0.5 + rnd() * 0.5, phase: rnd() * 6.28 }));
+    draw(performance.now(), 0);
   }
-  resize(); addEventListener("resize", resize);
-  if (!still) (function frame(now) { draw(now); if (!document.hidden) requestAnimationFrame(frame); else document.addEventListener("visibilitychange", () => requestAnimationFrame(frame), { once: true }); })(t0);
-})();
-
-// ---- night bands -------------------------------------------------------------
-// The landing's star engine (landing/src/sky/stars.ts), ported: a seeded field with per-star twinkle and
-// shooting stars with an eight-segment tail. 30fps cap; paused off-screen and on hidden tabs; one still
-// frame with no shooting stars under prefers-reduced-motion; the CSS gradient alone without canvas.
-(function night() {
-  const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const light = getComputedStyle(document.documentElement).getPropertyValue("--on-ink").trim();
-  window.__nightFrames = [];
-  document.querySelectorAll(".band-sky canvas").forEach((canvas, bi) => {
-    const ctx = canvas.getContext && canvas.getContext("2d");
-    if (!ctx) { canvas.remove(); return; }
-    let w = 0, h = 0, field = [], streaks = [], spawnIn = 1.5 + bi * 3, last = 0, raf = 0, seen = !("IntersectionObserver" in window);
-    window.__nightFrames[bi] = 0;
-    function resize() {
-      const dpr = Math.min(devicePixelRatio || 1, 1.5);
-      w = canvas.clientWidth; h = canvas.clientHeight;
-      canvas.width = Math.ceil(w * dpr); canvas.height = Math.ceil(h * dpr);
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      const n = Math.min(240, Math.floor(w * h * 0.00012));
-      let s = 7 + bi; const rnd = () => ((s = (s * 16807) % 2147483647) / 2147483647); // seeded, so stills match
-      field = Array.from({ length: n }, () => ({ x: rnd() * w, y: rnd() * h, r: 0.6 + rnd() * 1.1, phase: rnd() * 6.28, period: 1.6 + rnd() * 1.6 }));
-      draw(performance.now(), 0);
+  function draw(now, dt) {
+    window.__skyFrames++;
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = light;
+    for (const st of field) {
+      ctx.globalAlpha = still || !st.tw ? st.a : 0.5 + Math.abs(Math.sin(now * 0.001 / st.speed + st.phase)) * 0.5;
+      ctx.beginPath(); ctx.arc(st.x, st.y, st.r, 0, 6.283); ctx.fill();
     }
-    function draw(now, dt) {
-      window.__nightFrames[bi]++;
-      ctx.clearRect(0, 0, w, h);
-      ctx.fillStyle = light;
-      for (const st of field) {
-        ctx.globalAlpha = still ? 0.8 : 0.55 + Math.abs(Math.sin(now / 1000 / st.period + st.phase)) * 0.45;
-        ctx.beginPath(); ctx.arc(st.x, st.y, st.r, 0, 6.283); ctx.fill();
-      }
-      if (!still) {
-        spawnIn -= dt;
-        if (spawnIn <= 0 && streaks.length < 2) {
-          const ang = Math.PI * (0.78 + Math.random() * 0.1), speed = 520 + Math.random() * 260; // down and to the left
-          streaks.push({ x: w * (0.45 + Math.random() * 0.6), y: -10 + Math.random() * h * 0.25, vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed, life: 0, dist: 0 });
-          spawnIn = 3 + Math.random() * 5; // occasional, not a shower
-        }
-        ctx.strokeStyle = light; ctx.lineWidth = 1.6; ctx.lineCap = "round";
-        streaks = streaks.filter((s) => {
-          s.x += s.vx * dt; s.y += s.vy * dt; s.dist += Math.hypot(s.vx, s.vy) * dt; s.life += dt;
-          const len = Math.min(220, 12 * (1 + s.dist / 100)), sp = Math.hypot(s.vx, s.vy);
-          const tx = s.x - (s.vx / sp) * len, ty = s.y - (s.vy / sp) * len;
-          const fade = s.life > 1.6 ? Math.max(0, 1 - (s.life - 1.6) / 0.6) : 1;
-          for (let k = 0; k < 8; k++) { // tail: eight segments fading toward the back
-            const a0 = k / 8, a1 = (k + 1) / 8;
-            ctx.globalAlpha = fade * a1 * a1;
-            ctx.beginPath(); ctx.moveTo(tx + (s.x - tx) * a0, ty + (s.y - ty) * a0); ctx.lineTo(tx + (s.x - tx) * a1, ty + (s.y - ty) * a1); ctx.stroke();
-          }
-          return fade > 0 && s.x > -400 && s.y < h + 40;
-        });
-      }
-      ctx.globalAlpha = 1;
-    }
-    function loop(now) {
-      raf = requestAnimationFrame(loop);
-      if (now - last < 33) return; // 30fps cap
-      const dt = Math.min(0.1, (now - last) / 1000); last = now;
-      draw(now, dt);
-    }
-    const start = () => { if (still || !seen || document.hidden || raf) return; last = performance.now(); raf = requestAnimationFrame(loop); };
-    const stop = () => { cancelAnimationFrame(raf); raf = 0; };
-    resize();
-    addEventListener("resize", resize);
+    ctx.globalAlpha = 1;
     if (still) return;
-    if (!seen) new IntersectionObserver((es) => { seen = es[es.length - 1].isIntersecting; seen ? start() : stop(); }).observe(canvas);
-    document.addEventListener("visibilitychange", () => (document.hidden ? stop() : start()));
-    start();
-  });
+    spawnIn -= dt;
+    if (!streak && spawnIn <= 0) { // enter from the top or right edge, heading down-left
+      const ang = Math.PI * (0.72 + Math.random() * 0.12), sp = 240 + Math.random() * 160;
+      const top = Math.random() < 0.6;
+      streak = { x: top ? w * (0.3 + Math.random() * 0.7) : w + 10, y: top ? -10 : Math.random() * h * 0.5,
+        vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, dist: 0 };
+    }
+    if (!streak) return;
+    const sp = Math.hypot(streak.vx, streak.vy);
+    streak.x += streak.vx * dt; streak.y += streak.vy * dt; streak.dist += sp * dt;
+    const len = Math.min(180, 10 * (1 + streak.dist / 100));
+    const tx = streak.x - (streak.vx / sp) * len, ty = streak.y - (streak.vy / sp) * len;
+    const g = ctx.createLinearGradient(tx, ty, streak.x, streak.y);
+    g.addColorStop(0, "transparent"); g.addColorStop(1, light);
+    ctx.strokeStyle = g; ctx.lineWidth = 1.4; ctx.lineCap = "round";
+    ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(streak.x, streak.y); ctx.stroke();
+    if (tx < -20 || ty > h + 20) { streak = null; spawnIn = 4 + Math.random() * 3; }
+  }
+  function loop(now) {
+    raf = requestAnimationFrame(loop);
+    if (now - last < 33) return; // 30fps cap
+    const dt = Math.min(0.1, (now - last) / 1000); last = now;
+    draw(now, dt);
+  }
+  const start = () => { if (still || document.hidden || raf) return; last = performance.now(); raf = requestAnimationFrame(loop); };
+  const stop = () => { cancelAnimationFrame(raf); raf = 0; };
+  resize();
+  addEventListener("resize", resize);
+  document.addEventListener("visibilitychange", () => (document.hidden ? stop() : start()));
+  start();
 })();
 </script>
 </body>
