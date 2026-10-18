@@ -43,9 +43,17 @@ export type Overview = {
   morning_report: StoryRow | null;
 };
 
+/** On a 401, open #/login and come back here after. Shared story and dashboard links stay public, so they never redirect. */
+export function toLogin() {
+  if (/^#\/(login|story\/|dashboard\/)/.test(location.hash)) return;
+  location.hash = `#/login?next=${encodeURIComponent(location.hash || '#/')}`;
+}
+export const signOut = async () => { await fetch('/api/logout', { method: 'POST' }).catch(() => {}); toLogin(); };
+
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
   let r: Response;
   try { r = await fetch(path, init); } catch { throw new Error('I can’t reach the Mochi agent. Is `npm run dev` running?'); }
+  if (r.status === 401) toLogin();
   const body = await r.json().catch(() => null);
   if (!r.ok) throw new Error(body?.error ?? (r.status === 502 || r.status === 504 ? 'I can’t reach the Mochi agent. Is `npm run dev` running?' : `The agent answered ${r.status}.`));
   return body as T;
@@ -124,9 +132,6 @@ export function useLive(storyId: string | undefined, enabled = true, everyMessag
 
 // ---------- Dream progress (one run at a time, shared by Overview and the island) ----------
 
-/** The dream trigger's admin token: dev only (a production build drops this branch), so the deployed site hides the button. */
-export const ADMIN_TOKEN: string | undefined = import.meta.env.DEV ? import.meta.env.VITE_MOCHI_ADMIN_TOKEN || undefined : undefined;
-
 export const DREAM_STEPS = ['ingest', 'cluster', 'retire', 'mismatch', 'report'] as const;
 export type DreamRun = { running: boolean; at: number; step?: string; failed?: string; done?: { story_id: string | null; ms: number; ingested: number; retired: number }; runs: number };
 let dream: DreamRun = { running: false, at: 0, runs: 0 };
@@ -139,7 +144,8 @@ export async function runDream() {
   if (dream.running) return;
   setDream({ running: true, at: 0, step: DREAM_STEPS[0], failed: undefined, done: undefined, runs: dream.runs + 1 });
   try {
-    const r = await fetch('/api/dream/run', { method: 'POST', headers: { accept: 'text/event-stream', 'x-mochi-admin': ADMIN_TOKEN ?? '' } });
+    const r = await fetch('/api/dream/run', { method: 'POST', headers: { accept: 'text/event-stream' } }); // the session cookie authorises it
+    if (r.status === 401) toLogin();
     if (!r.ok || !r.body) throw new Error((await r.json().catch(() => null))?.error ?? `The agent answered ${r.status}.`);
     const reader = r.body.pipeThrough(new TextDecoderStream()).getReader();
     let buf = '';

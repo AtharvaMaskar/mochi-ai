@@ -15,11 +15,13 @@ import { Report } from './screens/Report.tsx';
 import { Reports } from './screens/Reports.tsx';
 import { Chat } from './screens/Chat.tsx';
 import { Preview } from './screens/Preview.tsx';
+import { Login } from './screens/Login.tsx';
 
 document.documentElement.dataset.theme = 'light'; // light only; no switcher
 
 function App() {
   const r = useRoute();
+  if (location.hash.startsWith('#/login')) return <Login />; // the sign-in gate (api.ts sends 401s here)
   const current = r.name === 'preview' ? '' : r.name === 'reports' ? 'report' : r.name;
   return (
     <div className="mb-app">

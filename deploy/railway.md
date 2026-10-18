@@ -50,6 +50,8 @@ Make four throwaway passwords (`openssl rand -hex 16`, four times):
    | `MOCHI_DREAM_PASSWORD` | `${{FalkorDB.MOCHI_DREAM_PASSWORD}}` |
    | `MOCHI_DEMO_USER_PASSWORD` | `${{FalkorDB.MOCHI_DEMO_USER_PASSWORD}}` |
    | `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` (embeddings, text-embedding-3-small) and `MOCHI_ADMIN_TOKEN` | your key |
+   | `MOCHI_LOGIN_USER`, `MOCHI_LOGIN_PASSWORD` | the platform sign-in. Defaults are the demo credentials `admin` / `admin@1234`: change them |
+   | `MOCHI_SESSION_SECRET` | a long random string (`openssl rand -hex 32`). Unset, it is random at boot and every redeploy signs everyone out |
    | `MOCHI_MODEL` | `claude-haiku-5-5` |
    | `MOCHI_JUDGE_MODEL` | `claude-opus-5-5` |
    | `MOCHI_SQLITE` | `/data/mochi.sqlite` |
@@ -81,7 +83,7 @@ The loader connects as `mochi_dream`, and it is idempotent. Add `--fresh` to reb
 BASE=https://<your-app>.up.railway.app deploy/smoke.sh
 ```
 
-Every line should start with `200`: `/`, `/app/`, `/blog`, `/api/stories` (after wire-ui merges), `/api/copilotkit/info`, and the desk bundle. Then open `/app/` and ask the chat one question.
+Every line should start with `200` (`/`, `/app/`, `/blog`, `/api/health`, the desk bundle), except `/api/stories`, which must be `401` without the session. Then open `/app/`, sign in with `MOCHI_LOGIN_USER` / `MOCHI_LOGIN_PASSWORD`, and ask the chat one question.
 
 ## Fallback A: FalkorDB Cloud Free + app on Railway
 

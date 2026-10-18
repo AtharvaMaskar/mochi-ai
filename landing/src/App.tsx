@@ -27,7 +27,7 @@ function Nav() {
       </nav>
       <div className="nav-end">
         <a className="tlink t-label" href={LINKS.repo}>GitHub</a>
-        <Button variant="primary" size="sm" href={LINKS.desk}>Open the desk</Button>
+        <Button variant="primary" size="sm" href={LINKS.desk}>Open the platform</Button>
       </div>
     </header>
   );

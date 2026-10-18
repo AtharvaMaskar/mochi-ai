@@ -1,0 +1,27 @@
+/* #/login. The landing exception's brand moment, very soft: a still morning wash and two slow clouds, agent colours as
+   tints only. Everything else is the desk's paper surface. */
+.mb-login { position: relative; min-height: 100vh; min-height: 100dvh; display: grid; place-items: center; padding: var(--space-6) var(--space-4); overflow: hidden; background: var(--bg-page); }
+.mb-login-sky { position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--agent-sky) 18%, var(--bg-page)) 0%, var(--bg-page) 55%, color-mix(in srgb, var(--agent-anzu) 10%, var(--bg-page)) 100%); }
+.mb-login-sky span { position: absolute; width: 420px; height: 120px; border-radius: var(--radius-pill); background: var(--bg-surface); opacity: .7; filter: blur(28px); animation: mb-login-drift 90s linear infinite alternate; }
+.mb-login-sky span:first-child { top: 12%; left: -6%; }
+.mb-login-sky span:last-child { top: 68%; right: -8%; width: 360px; animation-duration: 120s; animation-direction: alternate-reverse; }
+@keyframes mb-login-drift { to { transform: translateX(14vw); } }
+
+.mb-login-card { position: relative; width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-6); background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-md); box-shadow: var(--shadow-pop); animation: mb-in .4s cubic-bezier(.2,.7,.2,1) both; }
+.mb-login-brand { display: flex; flex-direction: column; align-items: center; gap: var(--space-2); }
+.mb-login-wm { font-family: var(--ff-mochi-wordmark); font-weight: var(--fw-mochi-wordmark); letter-spacing: var(--ls-mochi-wordmark); font-size: var(--fs-mochi-wordmark); line-height: 1; color: var(--ink); }
+.mb-login-line { text-align: center; color: var(--ink-body); margin-bottom: var(--space-1); }
+.mb-login-field { display: flex; flex-direction: column; gap: var(--space-1\.5); font-size: var(--fs-label); font-weight: var(--fw-label); color: var(--ink-secondary); }
+.mb-login-field input { width: 100%; height: 36px; padding: 0 var(--space-3); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--ink); font: inherit; font-size: var(--fs-body); font-weight: var(--fw-body); transition: border-color .15s; }
+.mb-login-field input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.mb-login-field input[aria-invalid] { border-color: var(--critical); }
+.mb-login-pw { position: relative; display: block; }
+.mb-login-pw input { padding-right: 40px; }
+.mb-login-pw .mb-icon-btn { position: absolute; right: 4px; top: 4px; }
+.mb-login-error { font-size: var(--fs-label); color: var(--critical); animation: mb-in .2s ease both; }
+.mb-login-card .mb-btn { width: 100%; height: 36px; margin-top: var(--space-1); }
+
+@media (prefers-reduced-motion: reduce) {
+  .mb-login-sky span, .mb-login-card, .mb-login-error { animation: none; }
+}
