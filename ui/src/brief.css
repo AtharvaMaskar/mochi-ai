@@ -1,0 +1,89 @@
+/* Mochi's brief: summary card, collapsible evidence, vertical path, expandable pane, queue row fit.
+   Imported first by app.css, so overrides of app.css rules carry one extra class or element of specificity.
+   Motion: a ticket switch or a disclosure opening is a quick opacity crossfade, never a translate, so nothing jumps. */
+@keyframes mb-fade { from { opacity: 0; } to { opacity: 1; } }
+
+/* ---------- Expandable pane: the desk grid reads --brief-w ---------- */
+.mb-desk { transition: grid-template-columns .24s cubic-bezier(.2,.8,.2,1); }
+.mb-desk:has(.mb-brief-inner[data-wide]) { --brief-w: min(640px, calc(100vw - var(--layout-queue) - 360px)); }
+@media (max-width: 1179px) {
+  .mb-desk:has(.mb-brief-inner[data-wide]) { --brief-w: 640px; }
+  .mb-desk > aside.mb-brief { width: min(var(--brief-w, var(--layout-brief)), 100vw); }
+}
+@media (max-width: 767px) { .mb-brief-wide { display: none; } }
+.mb-brief-acts { margin-left: auto; display: inline-flex; gap: var(--space-1); }
+.mb-brief-inner { min-width: 0; }
+.mb-brief-inner .mb-brief-body { gap: var(--space-4); min-width: 0; }
+
+/* ---------- Summary card ---------- */
+.mb-sum { display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-surface); min-width: 0; animation: mb-fade .12s ease-out both; }
+.mb-sum-part { display: flex; flex-direction: column; gap: var(--space-1\.5); min-width: 0; }
+.mb-sum-eyebrow { font-size: var(--fs-eyebrow); font-weight: var(--fw-eyebrow); color: var(--ink-muted); }
+.mb-sum .mb-noticed { padding: 0; border: none; border-radius: 0; background: none; }
+.mb-sum-guess { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
+.mb-sum-lead { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); font-size: var(--fs-headline); font-weight: var(--fw-body-strong); color: var(--ink); }
+.mb-sum-lead > span:first-child { min-width: 0; overflow-wrap: anywhere; }
+.mb-sum-line { font-size: var(--fs-label); color: var(--ink-body); overflow-wrap: anywhere; }
+.mb-sum-line b { font-weight: var(--fw-body-strong); }
+.mb-sum-cust { display: flex; align-items: center; gap: var(--space-2); }
+.mb-sum-cust-text { min-width: 0; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mb-sum-cust .mono { font-size: var(--fs-data); color: var(--ink-secondary); }
+
+/* ---------- Suggestion: the NeedsYou surface, never agent colour ---------- */
+.mb-block.mb-sugg { border: 1px dashed var(--border-dashed); background: var(--bg-page); box-shadow: none; }
+.mb-sugg-eyebrow { font-size: var(--fs-eyebrow); font-weight: var(--fw-eyebrow); color: var(--ink-muted); min-width: 0; }
+.mb-block.mb-sugg-compact { padding: var(--space-3); gap: var(--space-2); }
+.mb-sugg-compact .mb-md { font-size: var(--fs-label); line-height: var(--lh-body); }
+
+/* ---------- Collapsible evidence ---------- */
+.mb-evid { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
+.mb-disc { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-surface); min-width: 0; }
+.mb-disc-head { display: flex; align-items: center; gap: var(--space-2); padding-right: var(--space-3); min-width: 0; }
+.mb-disc-btn { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--space-2); padding: var(--space-3); border: none; background: none; color: var(--ink); text-align: left; cursor: pointer; border-radius: var(--radius-md); }
+.mb-disc-btn:hover .mb-disc-label { text-decoration: underline; text-underline-offset: 3px; }
+.mb-disc-chev { transition: transform .16s ease; transform: rotate(-90deg); }
+.mb-disc[data-open] .mb-disc-chev { transform: none; }
+.mb-disc-label { flex-shrink: 0; font-size: var(--fs-label); font-weight: var(--fw-label); }
+.mb-disc-preview { min-width: 0; font-size: var(--fs-caption); color: var(--ink-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mb-disc-pills { display: inline-flex; gap: var(--space-1); flex-shrink: 0; }
+.mb-disc-head > .mb-qid { flex-shrink: 0; }
+.mb-disc-body { padding: 0 var(--space-3) var(--space-3); min-width: 0; animation: mb-fade .16s ease-out both; }
+.mb-disc-body .mb-block { padding: 0; border: none; }
+.mb-none { font-size: var(--fs-label); color: var(--ink-muted); }
+.mb-brief-inner[data-wide] .mb-evid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+
+/* ---------- Grouped fixes and history ---------- */
+.mb-fixes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
+.mb-fixes > li { display: flex; flex-direction: column; gap: var(--space-0\.5); min-width: 0; }
+.mb-fix-what { font-size: var(--fs-label); color: var(--ink-body); overflow-wrap: anywhere; }
+.mb-fix-n { color: var(--ink-muted); white-space: nowrap; }
+.mb-fix-sub { font-size: var(--fs-caption); color: var(--ink-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mb-fix-ids { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-2); }
+.mb-tid { font-family: var(--font-mono); font-size: var(--fs-data); color: var(--ink-secondary); white-space: nowrap; }
+.mb-table td.mb-tid { font-size: var(--fs-data); }
+
+/* ---------- Vertical path: one step per row, drawn in order ---------- */
+.mb-vpath { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; min-width: 0; }
+.mb-vpath > li { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; margin-left: calc(var(--side, 0) * var(--space-4)); animation: mb-fade .2s ease-out both; animation-delay: calc(var(--i, 0) * 80ms); }
+.mb-vpath-edge { position: relative; margin-left: var(--space-3); padding: var(--space-1) 0 var(--space-1) var(--space-3); font-family: var(--font-mono); font-size: var(--fs-data-xs); color: var(--ink-muted); white-space: nowrap; }
+.mb-vpath-edge::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 1px; background: var(--border-strong); transform-origin: top; animation: mb-edge .3s ease-out both; animation-delay: inherit; }
+.mb-vpath-node { display: flex; align-items: baseline; gap: var(--space-1\.5); max-width: 100%; min-width: 0; padding: var(--space-1) var(--space-2\.5); border: 1px solid var(--border-strong); border-radius: var(--radius-pill); background: var(--bg-surface); font-size: var(--fs-label); }
+.mb-vpath-node .mono { flex-shrink: 0; font-size: var(--fs-data-xs); color: var(--ink-muted); }
+.mb-vpath-name { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ---------- Queue row: the status never wraps; the cause truncates ---------- */
+.mb-row-foot > .mb-row-status { flex-shrink: 0; white-space: nowrap; }
+.mb-row-foot > .mb-row-status.mb-row-cause { flex-shrink: 1; min-width: 0; justify-content: flex-end; }
+.mb-row-cause > .mb-row-type { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mb-row-cause > .mb-conf { flex-shrink: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .mb-desk { transition: none; }
+  .mb-sum, .mb-disc-body, .mb-vpath > li, .mb-vpath-edge::before { animation: none !important; }
+  .mb-disc-chev { transition: none; }
+}
+
+/* ---------- Containment: flex/grid children default to min-width:auto, so nothing may push the pane wider ---------- */
+.mb-desk > .mb-brief { min-width: 0; overflow-x: clip; }
+.mb-brief .mb-brief-body, .mb-brief .mb-card, .mb-brief .mb-block, .mb-brief .mb-section, .mb-brief .mb-noticed, .mb-brief .mb-path { min-width: 0; }
+.mb-brief .mb-table-wrap { max-width: 100%; }

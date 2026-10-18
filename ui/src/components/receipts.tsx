@@ -1,5 +1,5 @@
 // Receipts: every number resolves through ReceiptProvider to the stored query that produced it.
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import type { StoredQuery, PathReceipt as PathReceiptT } from '@mochi/contracts';
 import { Icon, RollingNumber } from './ds.tsx';
 
@@ -93,9 +93,10 @@ export function NumPill(p: { query_id: string; column: string; value?: string; r
   );
 }
 
-/** The traversal as one continuous chain of pills; no node appears twice. Where the walk branches, the shorter
- *  branch sits in a quiet group right after its node and the chain carries on from that node. */
-export function PathReceipt({ path }: { path: PathReceiptT }) {
+/** The traversal, one step per row: the edge (mono) then the node it reaches; no node appears twice. Where the walk
+ *  branches, the shorter branch is indented under its node and the chain carries on from that node. Rows draw in
+ *  one after another (80 ms apart). `bare` drops the head when a disclosure already shows the label and pill. */
+export function PathReceipt({ path, bare }: { path: PathReceiptT; bare?: boolean }) {
   const byId = new Map(path.nodes.map((n) => [n.id, n]));
   // spanning tree from the first node, children in edge order
   const kids = new Map<string, { e: PathReceiptT['edges'][number]; to: string }[]>();
@@ -109,29 +110,28 @@ export function PathReceipt({ path }: { path: PathReceiptT }) {
     }
   }
   const depth = (id: string): number => Math.max(0, ...(kids.get(id) ?? []).map((k) => 1 + depth(k.to)));
-  let seq = 0; // pills and edges draw left to right, 60 ms apart
-  const d = () => ({ animationDelay: `${seq++ * 60}ms` });
-  const node = (id: string) => { const n = byId.get(id)!; return <span className="mb-node" style={d()} key={`n${id}`} title={`${n.label} ${n.name}`}><span className="mono">{n.label}</span><span className="mb-node-name">{n.name}</span></span>; };
-  const after = (id: string): ReactNode[] => {
+  type Step = { id: string; side: number; e?: PathReceiptT['edges'][number]; fwd?: boolean };
+  const steps: Step[] = [];
+  const walk = (id: string, side: number) => {
     const ks = [...(kids.get(id) ?? [])].sort((a, b) => depth(a.to) - depth(b.to)); // the deepest branch carries the chain
-    return ks.flatMap((k, i) => {
-      const fwd = k.e.from === id;
-      // an edge and the node it reaches wrap together, so no arrow dangles at a line end
-      const hop = [
-        <span className="mb-hop" key={`h${k.to}`}>
-          <span className="mb-edge mb-edge-draw" style={d()} aria-label={`${fwd ? '' : 'reverse '}${k.e.type}`}>{fwd ? '→' : '←'} {k.e.type} {fwd ? '→' : '←'}</span>
-          {node(k.to)}
-        </span>,
-        ...after(k.to)];
-      return i < ks.length - 1 ? [<span className="mb-path-side" key={`s${k.to}`}>{hop}</span>] : hop;
-    });
+    ks.forEach((k, i) => { const s = i < ks.length - 1 ? side + 1 : side; steps.push({ id: k.to, side: s, e: k.e, fwd: k.e.from === id }); walk(k.to, s); });
   };
-  const start = path.nodes[0]?.id;
-  const loose = path.nodes.filter((n) => !seen.has(n.id)).map((n) => node(n.id));
+  if (path.nodes[0]) { steps.push({ id: path.nodes[0].id, side: 0 }); walk(path.nodes[0].id, 0); }
+  for (const n of path.nodes) if (!seen.has(n.id)) steps.push({ id: n.id, side: 0 });
   return (
     <div className="mb-path">
-      <div className="mb-block-head"><span className="mb-block-label">The path I walked</span><QueryTag qid={path.query_id} /></div>
-      <div className="mb-path-row">{start && [node(start), ...after(start)]}{loose}</div>
+      {!bare && <div className="mb-block-head"><span className="mb-block-label">The path I walked</span><QueryTag qid={path.query_id} /></div>}
+      <ol className="mb-vpath">
+        {steps.map((s, i) => {
+          const n = byId.get(s.id)!;
+          return (
+            <li key={s.id} style={{ '--i': i, '--side': s.side } as CSSProperties}>
+              {s.e && <span className="mb-vpath-edge" aria-label={`${s.fwd ? '' : 'reverse '}${s.e.type}`}>{s.fwd ? '↓' : '↑'} {s.e.type}</span>}
+              <span className="mb-vpath-node" title={`${n.label} · ${n.name} · ${n.id}`}><span className="mono">{n.label}</span><span className="mb-vpath-name">{n.name}</span></span>
+            </li>
+          );
+        })}
+      </ol>
     </div>
   );
 }

@@ -1,4 +1,5 @@
 /* Mochi Brain ui. Every colour, font, space and radius is a mochi.css token. Light theme only. */
+@import './brief.css';
 *, *::before, *::after { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; }
 body { background: var(--bg-page); color: var(--ink); font-family: var(--font-sans); font-size: var(--fs-body); line-height: var(--lh-body); overflow-x: hidden; }
@@ -107,7 +108,7 @@ h1, h2, h3, b, strong { font-weight: var(--fw-body-strong); }
 .mb-icon { flex-shrink: 0; color: var(--ink-muted); }
 
 /* ---------- Desk ---------- */
-.mb-desk { flex: 1; min-height: 0; display: grid; grid-template-columns: var(--layout-queue) minmax(0,1fr) var(--layout-brief); }
+.mb-desk { flex: 1; min-height: 0; display: grid; grid-template-columns: var(--layout-queue) minmax(0,1fr) var(--brief-w, var(--layout-brief)); }
 .mb-pane { min-width: 0; min-height: 0; overflow-y: auto; background: var(--bg-surface); }
 .mb-pane > * { flex-shrink: 0; }
 .mb-queue { border-right: 1px solid var(--border); display: flex; flex-direction: column; }
@@ -441,9 +442,3 @@ h1, h2, h3, b, strong { font-weight: var(--fw-body-strong); }
 .mb-story-dash .mb-grid { gap: var(--space-4); }
 .mb-story-dash > .mb-block, .mb-story-dash .mb-grid > .mb-block { height: 100%; }
 @media (prefers-reduced-motion: reduce) { .mb-panel, .mb-changed, .mb-badge, .mb-live-since i { animation: none !important; } .mb-story-chip:active { transform: none; } }
-
-/* Brief-pane spacing hotfix: a tinted suggestion inside a card keeps its own padding; IDs never break; the guess row wraps. */
-.mb-card .mb-block.mb-sugg { padding: var(--space-4); border-radius: var(--radius-md); gap: var(--space-3); }
-.mb-table td:first-child { white-space: nowrap; }
-.mb-brief .mb-row-status { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-3); }
-.mb-brief .mb-row-status > .t-caption { flex-basis: 100%; }
