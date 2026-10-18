@@ -310,18 +310,18 @@
   --lh-bubble: 1.4;
   --fw-bubble: 400;
   --ff-bubble: var(--font-brand);
-  --fs-display-xl: clamp(44px, 5.8vw, 88px);
-  --lh-display-xl: 1.02;
-  --fw-display-xl: 600;
+  --fs-display-xl: clamp(40px, 4.4vw, 64px);
+  --lh-display-xl: 1.0;
+  --fw-display-xl: 700;
   --ff-display-xl: var(--font-sans);
-  --ls-display-xl: -0.03em;
-  --fs-display: clamp(32px, 3.6vw, 48px);
-  --lh-display: 1.08;
-  --fw-display: 600;
+  --ls-display-xl: -0.025em;
+  --fs-display: clamp(34px, 4.2vw, 56px);
+  --lh-display: 1.0;
+  --fw-display: 700;
   --ff-display: var(--font-sans);
-  --ls-display: -0.02em;
-  --fs-lead: 20px;
-  --lh-lead: 1.5;
+  --ls-display: -0.025em;
+  --fs-lead: 18px;
+  --lh-lead: 1.55;
   --fw-lead: 400;
   --ff-lead: var(--font-sans);
 }
@@ -436,24 +436,24 @@
 
 .t-display-xl {
   font-family: var(--font-sans);
-  font-size: clamp(44px, 5.8vw, 88px);
-  line-height: 1.02;
-  font-weight: 600;
-  letter-spacing: -0.03em;
+  font-size: clamp(40px, 4.4vw, 64px);
+  line-height: 1.0;
+  font-weight: 700;
+  letter-spacing: -0.025em;
 }
 
 .t-display {
   font-family: var(--font-sans);
-  font-size: clamp(32px, 3.6vw, 48px);
-  line-height: 1.08;
-  font-weight: 600;
-  letter-spacing: -0.02em;
+  font-size: clamp(34px, 4.2vw, 56px);
+  line-height: 1.0;
+  font-weight: 700;
+  letter-spacing: -0.025em;
 }
 
 .t-lead {
   font-family: var(--font-sans);
-  font-size: 20px;
-  line-height: 1.5;
+  font-size: 18px;
+  line-height: 1.55;
   font-weight: 400;
 }
 
