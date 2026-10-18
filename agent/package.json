@@ -2,6 +2,33 @@
   "name": "@mochi/agent",
   "private": true,
   "type": "module",
-  "scripts": { "check": "node -e 0" },
-  "dependencies": { "@mochi/contracts": "*" }
+  "exports": {
+    "./queries": "./queries/index.ts",
+    "./db": "./db.ts",
+    "./story-doc": "./story-doc.ts"
+  },
+  "scripts": {
+    "dev": "node --env-file=../.env server.ts",
+    "dream": "node --env-file=../.env scripts/dream.ts",
+    "crash-demo": "node --env-file=../.env scripts/crash-demo.ts",
+    "test": "node --test",
+    "check": "tsc -p . && node --test"
+  },
+  "dependencies": {
+    "@ag-ui/client": "1.0.2",
+    "@ag-ui/core": "1.0.2",
+    "@copilotkit/runtime": "1.79.0",
+    "@earendil-works/chord": "1.3.0",
+    "@earendil-works/pi-ai": "1.3.0",
+    "@earendil-works/pi-durable": "1.3.0",
+    "@mochi/contracts": "*",
+    "@mochi/gen": "*",
+    "falkordb": "^6.8.0",
+    "rxjs": "7.8.1",
+    "ws": "^8.22.0",
+    "zod": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.18.2"
+  }
 }

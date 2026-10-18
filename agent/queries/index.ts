@@ -1,0 +1,268 @@
+// The five load-bearing queries + similarity (SPEC §1). Each is a plain function -> { card, queries }: the card is
+// built in code from query rows, so numbers never come from model tokens. Every query runs read-only (roQuery), takes
+// $as_of through the contract fragments, binds the edges it counts, and breaks ties by id. CYPHER is README-verbatim.
+import { EDGE_AS_OF, GRAPH, NODE_AS_OF, type PathReceipt, type StoredQuery, type ToolCard } from '@mochi/contracts';
+
+type Row = Record<string, unknown>;
+export type Db = { selectGraph(name: string): { roQuery<T>(q: string, o?: { params?: Record<string, unknown> }): Promise<{ data?: T[] }> } };
+export type Result = { card: ToolCard; queries: Record<string, StoredQuery> };
+export type EmbedFn = (texts: string[]) => Promise<number[][]>;
+
+const E = EDGE_AS_OF, N = NODE_AS_OF;
+
+export const CYPHER = {
+  briefing: {
+    profile: `/* mochi:briefing.profile@v1 */
+MATCH (c:Customer)-[:RAISED]->(t:Ticket {id: $ticketId})
+WHERE ${N('c')} AND ${N('t')}
+OPTIONAL MATCH (c)-[op:ON_PLAN]->(p:Plan) WHERE ${E('op')}
+OPTIONAL MATCH (t)-[:ABOUT]->(i:Issue) WHERE ${N('i')}
+RETURN c.id AS customer_id, c.name AS name, c.segment AS segment, c.city AS city, p.name AS plan,
+       t.subject AS ticket_subject, i.id AS issue_id`,
+    recent: `/* mochi:briefing.recent@v1 */
+MATCH (c:Customer)-[:RAISED]->(:Ticket {id: $ticketId}), (c)-[r:RAISED]->(t:Ticket)
+WHERE t.id <> $ticketId AND ${N('t')}
+RETURN t.id AS ticket, t.subject AS subject, t.status AS status, t.created_at AS created_at
+ORDER BY t.created_at DESC, t.id LIMIT 3`,
+    similar: `/* mochi:briefing.similar@v1 path: graph */
+MATCH (t:Ticket {id: $ticketId})-[:ABOUT]->(i:Issue)<-[:ABOUT]-(s:Ticket)-[:RESOLVED_BY]->(r:Resolution)
+WHERE s.id <> t.id AND ${N('t')} AND ${N('i')} AND ${N('s')} AND ${N('r')} AND s.resolved_at <= $as_of
+OPTIONAL MATCH (r)-[:BASED_ON]->(k:KBArticle) WHERE ${N('k')}
+RETURN s.id AS ticket, s.subject AS subject, i.id AS issue_id, i.name AS issue,
+       r.id AS resolution_id, r.summary AS resolution, k.id AS kb_id, k.title AS kb
+ORDER BY s.resolved_at DESC, s.id LIMIT 5`,
+    // Vector search takes no filters (falkordb.md gotcha 7): over-fetch $k = 5 x 5, then filter and traverse.
+    similarVector: `/* mochi:briefing.similar@v1 path: vector→graph */
+MATCH (t:Ticket {id: $ticketId})
+CALL db.idx.vector.queryNodes('Ticket', 'embedding', $k, t.embedding) YIELD node, score
+WITH t, node AS s, score
+WHERE s.id <> t.id AND ${N('s')} AND s.resolved_at <= $as_of
+MATCH (s)-[:RESOLVED_BY]->(r:Resolution) WHERE ${N('r')}
+OPTIONAL MATCH (s)-[:ABOUT]->(i:Issue)
+OPTIONAL MATCH (r)-[:BASED_ON]->(k:KBArticle) WHERE ${N('k')}
+RETURN s.id AS ticket, s.subject AS subject, i.id AS issue_id, i.name AS issue,
+       r.id AS resolution_id, r.summary AS resolution, k.id AS kb_id, k.title AS kb, score
+ORDER BY score, s.id LIMIT 5`,
+  },
+  likelyCause: `/* mochi:likely_cause@v1 */
+MATCH (t:Ticket {id: $ticketId})-[:ABOUT]->(i:Issue)<-[x:INTRODUCED]-(r:Release)
+WHERE ${E('x')} AND ${N('t')} AND ${N('i')} AND ${N('r')}
+RETURN t.id AS ticket, t.subject AS subject, i.id AS issue_id, i.name AS issue,
+       r.version AS release, r.shipped_at AS shipped_at, x.valid_from AS introduced_at
+ORDER BY r.shipped_at DESC, r.version LIMIT 3`,
+  whoKnows: `/* mochi:who_knows@v1 */
+MATCH (a:AgentUser)-[s:SOLVED]->(t:Ticket)-[:ABOUT]->(i:Issue {id: $issueId})
+WHERE ${N('a')} AND ${N('t')} AND ${N('i')}
+WITH a, i, count(s) AS solved, min(t.id) AS example_ticket
+OPTIONAL MATCH (a)-[:MEMBER_OF]->(tm:Team)
+RETURN a.id AS agent_id, a.name AS agent, tm.name AS team, solved, example_ticket, i.name AS issue
+ORDER BY solved DESC, agent_id LIMIT 5`,
+  emergingClusters: `/* mochi:emerging_clusters@v1 */
+MATCH (t:Ticket)-[m:IN_CLUSTER]->(c:Cluster)
+WHERE ${E('m')} AND ${N('c')} AND ${N('t')}
+WITH c, count(m) AS tickets, sum(CASE WHEN t.created_at > $as_of - $window_ms THEN 1 ELSE 0 END) AS growth
+RETURN c.id AS cluster, tickets, growth
+ORDER BY growth DESC, tickets DESC, cluster LIMIT 10`,
+  blastRadius: {
+    segments: `/* mochi:blast_radius.segments@v1 */
+MATCH (r:Release {version: $version})-[x:INTRODUCED]->(i:Issue)<-[a:ABOUT]-(t:Ticket)<-[rz:RAISED]-(c:Customer)
+WHERE ${E('x')} AND ${N('r')} AND ${N('i')} AND ${N('t')} AND ${N('c')}
+RETURN c.segment AS segment, count(DISTINCT c) AS customers, count(DISTINCT t) AS tickets
+ORDER BY customers DESC, segment`,
+    totals: `/* mochi:blast_radius.totals@v1 */
+MATCH (r:Release {version: $version})-[x:INTRODUCED]->(i:Issue)<-[a:ABOUT]-(t:Ticket)<-[rz:RAISED]-(c:Customer)
+WHERE ${E('x')} AND ${N('r')} AND ${N('i')} AND ${N('t')} AND ${N('c')}
+RETURN count(DISTINCT c) AS customers, count(DISTINCT t) AS tickets,
+       count(DISTINCT CASE WHEN t.resolved_at IS NULL OR t.resolved_at > $as_of THEN t END) AS open_tickets`,
+    affected: `/* mochi:blast_radius.affected@v1 */
+MATCH (r:Release {version: $version})-[x:INTRODUCED]->(i:Issue)<-[a:ABOUT]-(t:Ticket)<-[rz:RAISED]-(c:Customer)
+WHERE ${E('x')} AND ${N('r')} AND ${N('i')} AND ${N('t')} AND ${N('c')}
+RETURN c.id AS customer_id, c.name AS customer, c.segment AS segment, t.id AS ticket, t.subject AS subject,
+       i.id AS issue_id, i.name AS issue,
+       CASE WHEN t.resolved_at IS NULL OR t.resolved_at > $as_of THEN 'open' ELSE 'resolved' END AS state
+ORDER BY t.created_at DESC, t.id LIMIT 10`,
+  },
+  searchSimilar: `/* mochi:search_similar@v1 */
+CALL db.idx.vector.queryNodes('Ticket', 'embedding', $fetch, vecf32($vector)) YIELD node, score
+WITH node AS t, score WHERE ${N('t')}
+OPTIONAL MATCH (t)-[:ABOUT]->(i:Issue)
+RETURN t.id AS ticket, t.subject AS subject, t.status AS status, i.name AS issue, score
+ORDER BY score, ticket LIMIT $k`,
+} as const;
+
+/** Every Cypher string, flattened (README export, name checks). */
+export const allCypher = (): [string, string][] => Object.entries(CYPHER).flatMap(([k, v]) =>
+  typeof v === 'string' ? [[k, v] as [string, string]] : Object.entries(v).map(([s, c]) => [`${k}.${s}`, c] as [string, string]));
+
+/** Column names of the final RETURN, in order (`expr AS name` or a bare variable), so empty results keep columns. */
+export function returnColumns(cypher: string): string[] {
+  const ret = cypher.slice(cypher.lastIndexOf('RETURN') + 6).split(/\b(?:ORDER BY|LIMIT|SKIP)\b/)[0];
+  const items: string[] = [];
+  let depth = 0, cur = '';
+  for (const ch of ret) {
+    if ('([{'.includes(ch)) depth++;
+    if (')]}'.includes(ch)) depth--;
+    if (ch === ',' && depth === 0) { items.push(cur); cur = ''; } else cur += ch;
+  }
+  items.push(cur);
+  return items.map((s) => s.trim()).filter(Boolean).map((s) => s.match(/\bAS\s+(\w+)$/i)?.[1] ?? s.replace(/^DISTINCT\s+/i, ''));
+}
+
+/** Run one stored query read-only with $as_of and keep its receipt. Re-renders reuse this with a new as_of. */
+export async function runStored(db: Db, graph: string, cypher: string, params: Row, as_of: number): Promise<StoredQuery> {
+  const r = await db.selectGraph(graph).roQuery<Row>(cypher, { params: { ...params, as_of } });
+  return { cypher, graph, params, columns: returnColumns(cypher), rows: (r.data ?? []).map(plain), ran_at: Date.now() };
+}
+// Rows must be JSON (story docs, AG-UI): vectors and other client objects become plain values.
+const plain = (row: Row): Row => JSON.parse(JSON.stringify(row));
+
+const str = (v: unknown) => (v === null || v === undefined ? '' : String(v));
+
+export async function briefing(db: Db, args: { ticketId: string }, as_of: number, graph: string = GRAPH.company): Promise<Result> {
+  const p = { ticketId: args.ticketId };
+  const q_1 = await runStored(db, graph, CYPHER.briefing.profile, p, as_of);
+  const q_2 = await runStored(db, graph, CYPHER.briefing.recent, p, as_of);
+  const profile = q_1.rows[0];
+  const viaVector = !!profile && !profile.issue_id;
+  const q_3 = viaVector
+    ? await runStored(db, graph, CYPHER.briefing.similarVector, { ...p, k: 25 }, as_of)
+    : await runStored(db, graph, CYPHER.briefing.similar, p, as_of);
+  const queries = { q_1, q_2, q_3 };
+  const top = q_3.rows[0];
+  let path: PathReceipt | null = null;
+  if (profile && top) {
+    const nodes = [{ id: args.ticketId, label: 'Ticket', name: str(profile.ticket_subject) }];
+    const edges: PathReceipt['edges'] = [];
+    if (!viaVector) {
+      nodes.push({ id: str(top.issue_id), label: 'Issue', name: str(top.issue) });
+      edges.push({ type: 'ABOUT', from: args.ticketId, to: str(top.issue_id) }, { type: 'ABOUT', from: str(top.ticket), to: str(top.issue_id) });
+    }
+    nodes.push({ id: str(top.ticket), label: 'Ticket', name: str(top.subject) }, { id: str(top.resolution_id), label: 'Resolution', name: str(top.resolution) });
+    edges.push({ type: 'RESOLVED_BY', from: str(top.ticket), to: str(top.resolution_id) });
+    if (top.kb_id) {
+      nodes.push({ id: str(top.kb_id), label: 'KBArticle', name: str(top.kb) });
+      edges.push({ type: 'BASED_ON', from: str(top.resolution_id), to: str(top.kb_id) });
+    }
+    path = { query_id: 'q_3', nodes, edges };
+  }
+  const card: ToolCard = {
+    kind: 'briefing',
+    title: profile ? `${str(profile.name)} · ${args.ticketId}${viaVector ? ' · path: vector→graph' : ''}` : `Ticket ${args.ticketId} not found`,
+    queries, path,
+    blocks: [
+      { type: 'table', query_id: 'q_1', label: 'Customer', columns: ['name', 'segment', 'plan', 'city'] },
+      { type: 'table', query_id: 'q_2', label: 'Last 3 tickets', columns: ['ticket', 'subject', 'status'] },
+      { type: 'table', query_id: 'q_3', label: viaVector ? 'Similar resolved tickets (vector→graph)' : 'What fixed similar tickets', columns: ['ticket', 'resolution', 'kb'] },
+    ],
+  };
+  return { card, queries };
+}
+
+export async function likelyCause(db: Db, args: { ticketId: string }, as_of: number, graph: string = GRAPH.company): Promise<Result> {
+  const q_1 = await runStored(db, graph, CYPHER.likelyCause, { ticketId: args.ticketId }, as_of);
+  const top = q_1.rows[0];
+  const queries = { q_1 };
+  const card: ToolCard = {
+    kind: 'likely_cause',
+    title: top ? `${args.ticketId}: likely introduced in ${str(top.release)}` : `${args.ticketId}: no live cause`,
+    queries,
+    path: top ? {
+      query_id: 'q_1',
+      nodes: [
+        { id: args.ticketId, label: 'Ticket', name: str(top.subject) },
+        { id: str(top.issue_id), label: 'Issue', name: str(top.issue) },
+        { id: str(top.release), label: 'Release', name: str(top.release) },
+      ],
+      edges: [{ type: 'ABOUT', from: args.ticketId, to: str(top.issue_id) }, { type: 'INTRODUCED', from: str(top.release), to: str(top.issue_id) }],
+    } : null,
+    blocks: [{ type: 'table', query_id: 'q_1', label: 'Live INTRODUCED edges', columns: ['issue', 'release', 'introduced_at'] }],
+  };
+  return { card, queries };
+}
+
+export async function whoKnows(db: Db, args: { issueId: string }, as_of: number, graph: string = GRAPH.company): Promise<Result> {
+  const q_1 = await runStored(db, graph, CYPHER.whoKnows, { issueId: args.issueId }, as_of);
+  const top = q_1.rows[0];
+  const queries = { q_1 };
+  const card: ToolCard = {
+    kind: 'who_knows',
+    title: top ? `Who knows ${str(top.issue)}` : `Nobody has solved ${args.issueId} yet`,
+    queries,
+    path: top ? {
+      query_id: 'q_1',
+      nodes: [
+        { id: str(top.agent_id), label: 'AgentUser', name: str(top.agent) },
+        { id: str(top.example_ticket), label: 'Ticket', name: str(top.example_ticket) },
+        { id: args.issueId, label: 'Issue', name: str(top.issue) },
+      ],
+      edges: [{ type: 'SOLVED', from: str(top.agent_id), to: str(top.example_ticket) }, { type: 'ABOUT', from: str(top.example_ticket), to: args.issueId }],
+    } : null,
+    blocks: [{ type: 'bars', query_id: 'q_1', label: 'Tickets solved on this issue', x: 'agent', y: 'solved' }],
+  };
+  return { card, queries };
+}
+
+export async function emergingClusters(db: Db, args: { days: number }, as_of: number, graph: string = GRAPH.company): Promise<Result> {
+  const q_1 = await runStored(db, graph, CYPHER.emergingClusters, { window_ms: Math.round(args.days * 86_400_000) }, as_of);
+  const queries = { q_1 };
+  const card: ToolCard = {
+    kind: 'clusters',
+    title: q_1.rows.length ? `Emerging clusters, last ${args.days} days` : 'No clusters yet: the dream has not written any',
+    queries, path: null,
+    blocks: [{ type: 'bars', query_id: 'q_1', label: `Cluster size, new in last ${args.days} days as trend`, x: 'cluster', y: 'tickets', trend: 'growth' }],
+  };
+  return { card, queries };
+}
+
+export async function blastRadius(db: Db, args: { version: string }, as_of: number, graph: string = GRAPH.company): Promise<Result> {
+  const p = { version: args.version };
+  const q_1 = await runStored(db, graph, CYPHER.blastRadius.segments, p, as_of);
+  const q_2 = await runStored(db, graph, CYPHER.blastRadius.totals, p, as_of);
+  const q_3 = await runStored(db, graph, CYPHER.blastRadius.affected, p, as_of);
+  const queries = { q_1, q_2, q_3 };
+  const top = q_3.rows[0];
+  const card: ToolCard = {
+    kind: 'blast_radius',
+    title: top ? `Release ${args.version}: blast radius` : `Release ${args.version}: no live affected customers`,
+    queries,
+    path: top ? {
+      query_id: 'q_3',
+      nodes: [
+        { id: args.version, label: 'Release', name: args.version },
+        { id: str(top.issue_id), label: 'Issue', name: str(top.issue) },
+        { id: str(top.ticket), label: 'Ticket', name: str(top.subject) },
+        { id: str(top.customer_id), label: 'Customer', name: str(top.customer) },
+      ],
+      edges: [
+        { type: 'INTRODUCED', from: args.version, to: str(top.issue_id) },
+        { type: 'ABOUT', from: str(top.ticket), to: str(top.issue_id) },
+        { type: 'RAISED', from: str(top.customer_id), to: str(top.ticket) },
+      ],
+    } : null,
+    blocks: [
+      { type: 'kpi', query_id: 'q_2', label: 'Affected customers', column: 'customers' },
+      { type: 'kpi', query_id: 'q_2', label: 'Open tickets', column: 'open_tickets' },
+      { type: 'bars', query_id: 'q_1', label: 'Affected customers by segment', x: 'segment', y: 'customers' },
+      { type: 'table', query_id: 'q_3', label: 'Affected tickets', columns: ['customer', 'segment', 'ticket', 'state'] },
+    ],
+  };
+  return { card, queries };
+}
+
+// @mochi/gen's embed (384-dim MiniLM), loaded lazily so the agent builds before gen merges. Tests pass a stub.
+const genSpec = '@mochi/gen';
+const defaultEmbed: EmbedFn = async (texts) => ((await import(genSpec)) as { embed: EmbedFn }).embed(texts);
+
+export async function searchSimilar(db: Db, args: { text: string; k?: number }, as_of: number, graph: string = GRAPH.company, embed: EmbedFn = defaultEmbed): Promise<Result> {
+  const k = Math.min(Math.max(1, Math.round(args.k ?? 5)), 20);
+  const [vector] = await embed([args.text]);
+  const q_1 = await runStored(db, graph, CYPHER.searchSimilar, { vector, k, fetch: k * 5 }, as_of);
+  const queries = { q_1 };
+  const card: ToolCard = {
+    kind: 'similar',
+    title: `Tickets similar to "${args.text.slice(0, 60)}"`,
+    queries, path: null,
+    blocks: [{ type: 'table', query_id: 'q_1', label: 'Nearest tickets (vector index)', columns: ['ticket', 'subject', 'status', 'issue'] }],
+  };
+  return { card, queries };
+}
