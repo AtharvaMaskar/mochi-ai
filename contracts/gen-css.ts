@@ -4,7 +4,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 
 type Token = { name: string; value: string | Record<string, string> };
-type Style = { name: string; family: string; fontSize: string; lineHeight: string; fontWeight: number | string; letterSpacing?: string; fontStyle?: string };
+type Style = { name: string; family: string; fontSize: string; lineHeight: string; fontWeight: number | string; letterSpacing?: string; fontStyle?: string; fluid?: { min: string; vw: string } };
 type Tokens = {
   color: { themes: { id: string }[]; tokens: Token[] };
   type: { families: Record<string, string>; groups: { styles: Style[] }[] };
@@ -42,9 +42,16 @@ export function generate(t: Tokens): string {
     out.push(block(`:root[data-theme="${theme}"]`, lines));
     if (theme === 'dark') out.push(`@media (prefers-color-scheme: dark) {\n${block(':root:not([data-theme])', lines, '  ')}\n}`);
   }
-  for (const s of t.type.groups.flatMap((g) => g.styles)) {
+  const styles = t.type.groups.flatMap((g) => g.styles);
+  const size = (s: Style) => (s.fluid ? `clamp(${s.fluid.min}, ${s.fluid.vw}, ${s.fontSize})` : s.fontSize);
+  // Type scale as variables too, so component CSS never writes a literal font-size (type-lint enforces).
+  out.push(block(':root', styles.flatMap((s) => [
+    `  --fs-${s.name}: ${size(s)};`, `  --lh-${s.name}: ${s.lineHeight};`, `  --fw-${s.name}: ${s.fontWeight};`,
+    `  --ff-${s.name}: var(--font-${s.family});`, ...(s.letterSpacing ? [`  --ls-${s.name}: ${s.letterSpacing};`] : []),
+  ])));
+  for (const s of styles) {
     const decl = [
-      `  font-family: var(--font-${s.family});`, `  font-size: ${s.fontSize};`,
+      `  font-family: var(--font-${s.family});`, `  font-size: ${size(s)};`,
       `  line-height: ${s.lineHeight};`, `  font-weight: ${s.fontWeight};`,
       ...(s.letterSpacing ? [`  letter-spacing: ${s.letterSpacing};`] : []),
       ...(s.fontStyle ? [`  font-style: ${s.fontStyle};`] : []),

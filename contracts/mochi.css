@@ -247,6 +247,85 @@
   }
 }
 
+:root {
+  --fs-title: 20px;
+  --lh-title: 1.3;
+  --fw-title: 600;
+  --ff-title: var(--font-sans);
+  --fs-body: 14px;
+  --lh-body: 1.45;
+  --fw-body: 400;
+  --ff-body: var(--font-sans);
+  --fs-body-strong: 14px;
+  --lh-body-strong: 1.45;
+  --fw-body-strong: 600;
+  --ff-body-strong: var(--font-sans);
+  --fs-label: 13px;
+  --lh-label: 1.45;
+  --fw-label: 500;
+  --ff-label: var(--font-sans);
+  --fs-eyebrow: 12px;
+  --lh-eyebrow: 1.45;
+  --fw-eyebrow: 500;
+  --ff-eyebrow: var(--font-sans);
+  --fs-caption: 12px;
+  --lh-caption: 1.45;
+  --fw-caption: 400;
+  --ff-caption: var(--font-sans);
+  --fs-headline: 16px;
+  --lh-headline: 1.4;
+  --fw-headline: 600;
+  --ff-headline: var(--font-sans);
+  --fs-noticed: 18px;
+  --lh-noticed: 1.35;
+  --fw-noticed: 400;
+  --ff-noticed: var(--font-sans);
+  --fs-data: 12px;
+  --lh-data: 1.45;
+  --fw-data: 400;
+  --ff-data: var(--font-mono);
+  --fs-data-strong: 13px;
+  --lh-data-strong: 1.45;
+  --fw-data-strong: 500;
+  --ff-data-strong: var(--font-mono);
+  --fs-data-xs: 11px;
+  --lh-data-xs: 1.45;
+  --fw-data-xs: 400;
+  --ff-data-xs: var(--font-mono);
+  --fs-mochi-wordmark: 34px;
+  --lh-mochi-wordmark: 1;
+  --fw-mochi-wordmark: 400;
+  --ff-mochi-wordmark: var(--font-serif);
+  --ls-mochi-wordmark: -0.01em;
+  --fs-mochi-mood: 26px;
+  --lh-mochi-mood: 1;
+  --fw-mochi-mood: 400;
+  --ff-mochi-mood: var(--font-serif);
+  --fs-state-label: 12px;
+  --lh-state-label: 1.45;
+  --fw-state-label: 500;
+  --ff-state-label: var(--font-brand);
+  --ls-state-label: 0.18em;
+  --fs-bubble: 16px;
+  --lh-bubble: 1.4;
+  --fw-bubble: 400;
+  --ff-bubble: var(--font-brand);
+  --fs-display-xl: clamp(44px, 5.8vw, 88px);
+  --lh-display-xl: 1.02;
+  --fw-display-xl: 600;
+  --ff-display-xl: var(--font-sans);
+  --ls-display-xl: -0.03em;
+  --fs-display: clamp(32px, 3.6vw, 48px);
+  --lh-display: 1.08;
+  --fw-display: 600;
+  --ff-display: var(--font-sans);
+  --ls-display: -0.02em;
+  --fs-lead: 20px;
+  --lh-lead: 1.5;
+  --fw-lead: 400;
+  --ff-lead: var(--font-sans);
+}
+
 .t-title {
   font-family: var(--font-sans);
   font-size: 20px;
@@ -352,6 +431,29 @@
   font-family: var(--font-brand);
   font-size: 16px;
   line-height: 1.4;
+  font-weight: 400;
+}
+
+.t-display-xl {
+  font-family: var(--font-sans);
+  font-size: clamp(44px, 5.8vw, 88px);
+  line-height: 1.02;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+
+.t-display {
+  font-family: var(--font-sans);
+  font-size: clamp(32px, 3.6vw, 48px);
+  line-height: 1.08;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.t-lead {
+  font-family: var(--font-sans);
+  font-size: 20px;
+  line-height: 1.5;
   font-weight: 400;
 }
 
