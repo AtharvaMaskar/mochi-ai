@@ -31,7 +31,7 @@ export async function ensureWorld(ctx: Ctx, graph = ctx.names.world, fresh = fal
   for (const g of [graphs.prev, graphs.scratch]) await ctx.db.selectGraph(g).delete().catch(() => {});
 }
 
-const TOOL_SYSTEM = `${ANSWER_SYSTEM} Look the answer up in the company graph with the tools first; ids in the question name what to look up.\n\n${SCHEMA_PROMPT}`;
+export const TOOL_SYSTEM = `${ANSWER_SYSTEM} Look the answer up in the company graph with the tools first; ids in the question name what to look up.\n\n${SCHEMA_PROMPT}`;
 const ROUNDS = 3;
 
 const textOf = (m: AssistantMessage) => m.content.flatMap((c) => (c.type === 'text' ? [c.text] : [])).join('').trim();
