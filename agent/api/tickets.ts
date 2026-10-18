@@ -233,10 +233,27 @@ LIMIT 1`;
 export type Complete = (system: string, user: string) => Promise<string>;
 const firstName = (name: string) => name.trim().split(/\s+/)[0] ?? name;
 
+// ponytail: in-memory draft cache, keyed by ticket + its last message + likely fix, so a reload or a second agent
+// opening the ticket costs no model call; a new message or a changed fix misses. Lost on restart; move to the graph if that matters.
+const DRAFTS = new Map<string, Awaited<ReturnType<typeof draftFresh>>>();
+const DRAFT_CAP = 500;
+
 export async function draftTicket(db: Db, graph: string, rawId: string, body: { hint?: unknown; previous?: unknown }, complete: Complete) {
+  if (body.hint !== undefined) return draftFresh(db, graph, rawId, body, complete); // Rewrite / tone: always a new call
+  const t = await ticketDetail(db, graph, rawId);
+  const key = `${t.id}|${t.thread.at(-1)?.at ?? ''}|${t.guess?.resolution ?? ''}`;
+  const hit = DRAFTS.get(key);
+  if (hit) return hit;
+  const d = await draftFresh(db, graph, rawId, body, complete, t);
+  if (DRAFTS.size >= DRAFT_CAP) DRAFTS.delete(DRAFTS.keys().next().value!);
+  DRAFTS.set(key, d);
+  return d;
+}
+
+async function draftFresh(db: Db, graph: string, rawId: string, body: { hint?: unknown; previous?: unknown }, complete: Complete, known?: Awaited<ReturnType<typeof ticketDetail>>) {
   const hint = typeof body.hint === 'string' && body.hint in HINTS ? (body.hint as DraftHint) : undefined;
   if (body.hint !== undefined && !hint) throw new SimError(400, 'hint is rewrite|shorter|warmer');
-  const t = await ticketDetail(db, graph, rawId);
+  const t = known ?? await ticketDetail(db, graph, rawId);
   const resolution = t.guess?.resolution ?? null;
   const q_1 = resolution ? await runStored(db, graph, KB_CYPHER, { resolution }, Date.now()) : null;
   const row = q_1?.rows[0];

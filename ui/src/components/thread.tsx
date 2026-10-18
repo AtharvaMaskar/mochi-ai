@@ -39,8 +39,12 @@ function Message({ m, channel, isNew }: { m: Msg; channel?: (typeof CHANNEL)[num
   );
 }
 
-// ponytail: drafts cached per ticket for this tab, so reopening a ticket doesn't spend another model call.
-const drafts = new Map<string, Draft>();
+// Drafts persist per ticket in this browser (the draft, your edits, your ticks), so a reload is instant and spends no
+// model call; the agent also caches server-side. A per-viewer convenience only: storage may be blocked, so every access is guarded.
+type Saved = { draft: Draft; text: string; ticked: boolean[] };
+const KEY = (id: string) => `mochi.draft.${id}`;
+const load = (id: string): Saved | undefined => { try { const s = localStorage.getItem(KEY(id)); return s ? JSON.parse(s) as Saved : undefined; } catch { return undefined; } };
+const save = (id: string, v: Saved) => { try { localStorage.setItem(KEY(id), JSON.stringify(v)); } catch { /* storage full or blocked */ } };
 const REVEAL_CAP = 1200; // ms: a long draft still finishes revealing quickly
 const TONES:{ hint: DraftHint; label: string }[] = [{ hint: 'shorter', label: 'Shorter' }, { hint: 'warmer', label: 'Warmer' }];
 
@@ -48,12 +52,14 @@ export type Next = { ticketId: string; to: string; claimed: boolean; onClaim: ()
 
 /** The next reply: Mochi drafts with the model, the agent works the fix plan, claims, and sends. */
 function Composer(p: Next) {
-  const cached = drafts.get(p.ticketId);
+  const [saved] = useState(() => load(p.ticketId));
+  const cached = saved?.draft;
   const [draft, setDraft] = useState<Draft | undefined>(cached);
   const [busy, setBusy] = useState(!cached);
   const [error, setError] = useState<string | null>(null);
-  const [text, setText] = useState(cached?.text ?? '');
-  const [ticked, setTicked] = useState<boolean[]>([]);
+  const [text, setText] = useState(saved?.text ?? '');
+  const [ticked, setTicked] = useState<boolean[]>(saved?.ticked ?? []);
+  useEffect(() => { if (draft) save(p.ticketId, { draft, text, ticked }); }, [draft, text, ticked]);
   const [confirm, setConfirm] = useState(false);
   const [working, setWorking] = useState(false);
   const [arrived, setArrived] = useState(0); // bumps when a new draft lands, so only that text rises in
@@ -65,7 +71,6 @@ function Composer(p: Next) {
   const run = (hint?: DraftHint) => {
     setBusy(true); setError(null);
     api.draft(p.ticketId, hint, hint ? text : undefined).then((d) => {
-      drafts.set(p.ticketId, d);
       setDraft(d); setText(d.text); setArrived((n) => n + 1);
       // The arriving words blur in once (40 ms stagger, capped), then the editable field takes over at the same size.
       if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
@@ -83,7 +88,7 @@ function Composer(p: Next) {
   const allDone = todo.every((_, i) => ticked[i]);
   const edited = !!draft && text !== draft.text;
   const act = async (f: () => Promise<boolean>) => { setWorking(true); const ok = await f(); setWorking(false); return ok; };
-  const send = async () => { setConfirm(false); if (await act(() => p.onSend(text.trim()))) setTicked(steps.map(() => true)); };
+  const send = async () => { setConfirm(false); if (await act(() => p.onSend(text.trim()))) { setTicked(steps.map(() => true)); try { localStorage.removeItem(KEY(p.ticketId)); } catch { /* blocked */ } } };
   const say = busy ? 'I’m drafting a reply from the likely fix.'
     : error ? 'I couldn’t draft this one. Write the reply here.'
     : edited ? 'You edited my draft.' : 'Nothing is done yet. Work the steps, then send.';
