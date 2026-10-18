@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import '@mochi/contracts/mochi.css';
 import './app.css';
 import './motion.css';
+import './thread.css';
 import { TopBar, useRoute } from './components/shell.tsx';
 import { Tickets } from './screens/Tickets.tsx';
 import { Overview } from './screens/Overview.tsx';
