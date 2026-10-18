@@ -1,0 +1,24 @@
+# Full local production stack: FalkorDB (same ACL users + persistence as docker-compose.yml) + the app image.
+# Host ports 6380 / 4100 so it runs next to the dev stack (6379 / 3000).
+#   docker compose -f docker-compose.prod.yml up -d --build   ->  http://localhost:4100/
+name: mochi-prod
+services:
+  falkordb:
+    extends: { file: docker-compose.yml, service: falkordb }
+    ports: !override ["6380:6379"]
+    volumes: !override [falkordb_prod:/var/lib/falkordb/data]
+  app:
+    build: .
+    env_file: .env
+    environment:
+      FALKORDB_HOST: falkordb
+      FALKORDB_PORT: "6379"
+      MOCHI_SQLITE: /data/mochi.sqlite
+      PORT: "4000"
+    ports: ["4100:4000"]
+    volumes: [app_data:/data]
+    depends_on: { falkordb: { condition: service_healthy } }
+    restart: unless-stopped
+volumes:
+  falkordb_prod: {}
+  app_data: {}
