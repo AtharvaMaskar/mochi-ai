@@ -4,3 +4,5 @@ artifacts/results.dry.json
 artifacts/limited/
 artifacts/results.limited.json
 artifacts/results.aborted.json
+artifacts/shards/
+artifacts/parts/
