@@ -115,6 +115,8 @@ if (import.meta.main) {
   const password = process.env[ACL.dream.passwordEnv];
   if (!password) throw new Error(`missing ${ACL.dream.passwordEnv} (see .env.example)`);
   const db = await FalkorDB.connect({ socket: { host: process.env.FALKORDB_HOST ?? 'localhost', port: Number(process.env.FALKORDB_PORT ?? 6379) }, username: ACL.dream.user, password });
+  // Without a handler a FalkorDB restart kills the process; with one, the client reconnects on its own.
+  (db as unknown as { on(e: string, f: (err: Error) => void): void }).on('error', (err) => console.error(`listen: falkordb ${err.message}; reconnecting`));
   const l = createListener({ simUrl: process.env.SIM_URL ?? 'http://localhost:4010', apiKey: process.env.SIM_API_KEY ?? 'sim-key', graph: db.selectGraph(GRAPH.company) });
   const port = Number(process.env.SIM_LISTEN_PORT ?? 4011);
   l.server.listen(port, () => console.log(`listening for sim webhooks on http://localhost:${port}/webhook → ${GRAPH.company}`));
