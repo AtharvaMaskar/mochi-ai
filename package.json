@@ -10,6 +10,8 @@
     "dream": "npm run dream -w agent",
     "bench": "npm run bench -w bench",
     "dev": "npm run dev -w agent",
+    "build": "npm run build -w ui -w landing",
+    "start": "node --env-file-if-exists=.env deploy/start.ts",
     "landing": "npm run dev -w landing",
     "test": "npm test --workspaces --if-present",
     "check": "tsc -p contracts && npm run check -w gen -w agent -w bench -w ui -w landing && node contracts/gen-css.ts --check"
