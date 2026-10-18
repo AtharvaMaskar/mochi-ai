@@ -49,6 +49,7 @@ test('ready view: un-answered tickets newest first, guesses with computed confid
   const r = await (await api('/api/tickets?view=ready')).json();
   assert.deepEqual(r.rows.map((x: { id: string }) => x.id), ['T-0003', 'T-0002']);
   assert.deepEqual(r.counts, { ready: 2, done: 0, all: 3 });
+  assert.deepEqual(r.queries.q_0.rows, [r.counts]); // the counts' receipt
   const [t3, t2] = r.rows;
   // T-0002 links to I-1 by ABOUT; the one other resolved ticket on I-1 used R-1, so the evidence is 1 of 1.
   assert.deepEqual(t2.guess, { issue: 'payment debited, order not placed', p: 1, basis: 'graph', query_id: 'q_1' });

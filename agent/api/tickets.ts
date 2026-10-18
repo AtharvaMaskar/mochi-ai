@@ -47,10 +47,21 @@ export async function listDesk(db: Db, graph: string, view: string, order: strin
   const test = view === 'ready' ? isReady : view === 'done' ? doneToday : () => true;
   const shown = all.filter(test).sort((a, b) => (ms(b.created_at) - ms(a.created_at)) * (order === 'oldest' ? -1 : 1));
   const g = await guesses(db, graph, shown.map((t) => graphId(t.id)), Date.now());
+  const counts = { ready: all.filter(isReady).length, done: all.filter(doneToday).length, all: all.length };
+  // The counts come from the helpdesk, not the graph; q_0 is their receipt: the request and the filters, verbatim.
+  const q_0: StoredQuery = {
+    cypher: [
+      '// Helpdesk REST, not Cypher (agent/api/tickets.ts listDesk)',
+      'GET /api/v2/tickets?include=requester&per_page=100&order_by=created_at&order_type=desc  (pages to 300, spam dropped)',
+      'ready = count(status = 2)                                  // open',
+      'done  = count(status IN [4, 5] AND IST day(updated_at) = IST day(sim_now))',
+      'all   = count(*)',
+    ].join('\n'),
+    graph: 'helpdesk', params: { sim_now: now }, columns: ['ready', 'done', 'all'], rows: [counts], ran_at: Date.now(),
+  };
   return {
-    view, order, sim_now: now,
-    counts: { ready: all.filter(isReady).length, done: all.filter(doneToday).length, all: all.length },
-    queries: g.queries,
+    view, order, sim_now: now, counts,
+    queries: { q_0, ...g.queries },
     rows: shown.map((t) => {
       const id = graphId(t.id), guess = g.byId.get(id);
       return {

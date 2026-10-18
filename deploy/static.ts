@@ -37,12 +37,22 @@ export function serveStatic(req: IncomingMessage, res: ServerResponse): boolean 
     if (statSync(file).isDirectory()) file = join(file, 'index.html');
     size = statSync(file).size;
   } catch { return false; }
-  // ponytail: no Range support; add it when public/demo.mp4 lands (Safari needs 206 to play video).
-  res.writeHead(200, {
-    'content-type': TYPES[extname(file)] ?? 'application/octet-stream', 'content-length': size,
+  const headers = {
+    'content-type': TYPES[extname(file)] ?? 'application/octet-stream', 'accept-ranges': 'bytes',
     'cache-control': file.includes(`${sep}assets${sep}`) ? 'public, max-age=31536000, immutable' : 'no-cache',
-  });
-  if (req.method === 'HEAD') res.end();
-  else createReadStream(file).pipe(res);
+  };
+  // Safari plays video only through 206 range responses. One range per request; multi-range falls back to 200.
+  const m = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range ?? '');
+  let start = 0, end = size - 1, status = 200;
+  if (m && (m[1] || m[2])) {
+    if (m[1]) { start = Number(m[1]); if (m[2]) end = Math.min(Number(m[2]), size - 1); }
+    else start = Math.max(0, size - Number(m[2]));
+    if (start > end) { res.writeHead(416, { 'content-range': `bytes */${size}` }).end(); return true; }
+    status = 206;
+    Object.assign(headers, { 'content-range': `bytes ${start}-${end}/${size}` });
+  }
+  res.writeHead(status, { ...headers, 'content-length': end - start + 1 });
+  if (req.method === 'HEAD' || size === 0) res.end();
+  else createReadStream(file, { start, end }).pipe(res);
   return true;
 }
