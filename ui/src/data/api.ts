@@ -19,6 +19,8 @@ export type TicketDetail = {
   in_memory: boolean; ingested: boolean; guess: Guess | null; guess_queries: Record<string, StoredQuery>;
   customer: ToolCard | null; thread: Msg[]; /** Freshdesk channel code: 1 email, 2 portal, 3 phone, 7 chat. */ source?: number;
 };
+/** GET /api/entity/:id: the record's fields, each read off one of `queries`' rows. */
+export type EntityCard = { kind: 'customer' | 'ticket' | 'kb'; id: string; queries: Record<string, StoredQuery> } & Record<string, unknown>;
 export type StoryRow = { id: string; title: string; version: number; generated_at: number; generated_by: string; topic: string; kind?: Kind; status?: string };
 export type Kind = 'story' | 'dashboard';
 /** Publishing state from the agent. `versions` are the ones this browser may read; `owner` is true for the author. */
@@ -51,6 +53,7 @@ export const api = {
   answer: (id: string, requestId: string, text?: string) => call<{ status: string }>(`/api/tickets/${encodeURIComponent(id)}/answer`, post({ requestId, text })),
   draft: (id: string, hint?: DraftHint, previous?: string) => call<Draft>(`/api/tickets/${encodeURIComponent(id)}/draft`, post({ hint, previous })),
   claim: (id: string) => call<{ claimed: boolean }>(`/api/tickets/${encodeURIComponent(id)}/claim`, post()),
+  entity: (id: string) => call<EntityCard>(`/api/entity/${encodeURIComponent(id)}`),
   overview: () => call<Overview>('/api/overview'),
   stories: () => call<StoryRow[]>('/api/stories'),
   story: (id: string, version?: number, asOf?: number) =>

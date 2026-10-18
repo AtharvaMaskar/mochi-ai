@@ -427,6 +427,35 @@ RETURN d.id AS ticket, d.subject AS subject, p.id AS merged_into
 ORDER BY d.created_at DESC, d.id LIMIT 10
 ```
 
+#### `entity.customerActivity`
+
+```cypher
+/* mochi:entity.customer_activity@v1 */
+MATCH (c:Customer {id: $customerId})-[:RAISED]->(t:Ticket) WHERE t.created_at <= $as_of
+WITH t ORDER BY t.created_at DESC, t.id
+RETURN sum(CASE WHEN t.status IN ['resolved', 'closed'] THEN 0 ELSE 1 END) AS open_tickets,
+       max(t.created_at) AS last_contact, head(collect(t.id)) AS latest_ticket
+```
+
+#### `entity.ticket`
+
+```cypher
+/* mochi:entity.ticket@v1 */
+MATCH (c:Customer)-[:RAISED]->(t:Ticket {id: $ticketId}) WHERE t.created_at <= $as_of
+OPTIONAL MATCH (t)-[:RESOLVED_BY]->(r:Resolution) WHERE r.created_at <= $as_of
+RETURN t.id AS ticket, t.subject AS subject, t.status AS status, t.created_at AS created_at,
+       r.summary AS resolution, c.id AS customer_id, c.name AS customer
+```
+
+#### `entity.kb`
+
+```cypher
+/* mochi:entity.kb@v1 */
+MATCH (k:KBArticle {id: $kbId}) WHERE k.created_at <= $as_of
+OPTIONAL MATCH (a:ProductArea {name: k.area})-[:OWNED_BY]->(tm:Team)
+RETURN k.id AS kb_id, k.title AS title, k.area AS area, tm.name AS team, k.promised_tat_hours AS promised_tat_hours
+```
+
 #### `deskGuess`
 
 ```cypher

@@ -44,7 +44,7 @@ export async function loadFixture(db: FalkorDB, graph: string, d: Dataset = rich
   await q(`UNWIND $rows AS r MATCH (tm:Team {name: r.team}) CREATE (:AgentUser {id: r.id, name: r.name, created_at: 0, source: 'seed'})-[:MEMBER_OF]->(tm)`, { rows: d.agents });
   await q(`UNWIND $rows AS r MATCH (a:ProductArea {name: r.area})
     CREATE (:Issue {id: r.id, name: r.name, first_seen: r.first_seen, created_at: r.first_seen, source: 'seed'})-[:IN]->(a)`, { rows: d.issues });
-  await q(`UNWIND $rows AS r CREATE (:KBArticle {id: r.id, title: r.title, updated_at: r.updated_at, promised_tat_hours: r.promised_tat_hours, steps: r.steps, created_at: r.updated_at, source: 'seed'})`, { rows: d.kb_articles });
+  await q(`UNWIND $rows AS r CREATE (:KBArticle {id: r.id, title: r.title, area: r.area, updated_at: r.updated_at, promised_tat_hours: r.promised_tat_hours, steps: r.steps, created_at: r.updated_at, source: 'seed'})`, { rows: d.kb_articles });
   await q(`UNWIND $rows AS r CREATE (res:Resolution {id: r.id, kind: r.kind, summary: r.summary, created_at: r.created_at, source: 'seed'})
     WITH res, r MATCH (k:KBArticle {id: r.kb_id}) CREATE (res)-[:BASED_ON]->(k)`,
   { rows: d.resolutions.map((r) => ({ ...r, created_at: d.tickets.find((t) => t.resolution_id === r.id)?.resolved_at ?? 0 })) });

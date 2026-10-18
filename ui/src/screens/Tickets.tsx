@@ -9,6 +9,7 @@ import { BlockView, Table, FixGroups, HistoryList, groupFixes, historyRows } fro
 import { QueryTag, PathReceipt, ReceiptProvider, useReceipts } from '../components/receipts.tsx';
 import { useWidth } from '../components/shell.tsx';
 import { BriefSummary } from '../components/brief-summary.tsx';
+import { EntityLink } from '../components/entity.tsx';
 import { ConversationThread } from '../components/thread.tsx';
 import { api, fmtClock, fmtDay, useData, type TicketDetail } from '../data/api.ts';
 
@@ -122,7 +123,12 @@ export function Tickets() {
     const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setSheet(false); };
     addEventListener('keydown', esc); return () => removeEventListener('keydown', esc);
   }, []);
-  const open = (id: string) => { setSel(id); setPane('ticket'); setRead(new Set(read).add(id)); };
+  const open = (id: string) => { setSel(id); setPane('ticket'); setRead((r) => new Set(r).add(id)); };
+  // An EntityLink card's Open link: #/?ticket=T-0001 selects that ticket here.
+  useEffect(() => {
+    const on = () => { const id = new URLSearchParams(location.hash.split('?')[1] ?? '').get('ticket'); if (id) open(id); };
+    on(); addEventListener('hashchange', on); return () => removeEventListener('hashchange', on);
+  }, []);
   // A handled ticket slides out of Ready; the next one opens.
   const handled = (id: string) => {
     const rest = rows.filter((x) => x.id !== id);
@@ -153,7 +159,7 @@ export function Tickets() {
         {list.error && !list.data ? <NeedsYou mood="sorry" title="I can’t load the tickets" reason={list.error} action="Try again" onAction={list.reload} />
           : !list.data ? <div className="mb-skel" aria-label="Loading tickets">{[80, 64, 72].map((w, i) => <i key={i} style={{ width: `${w}%` }} />)}</div>
           : rows.length ? rows.map((x) => (
-            <TicketRow key={x.id} name={x.name} time={fmtDay(x.created_at, list.data!.sim_now) === 'Today' ? fmtClock(x.created_at) : fmtDay(x.created_at, list.data!.sim_now)}
+            <TicketRow key={x.id} id={x.id} name={x.name} time={fmtDay(x.created_at, list.data!.sim_now) === 'Today' ? fmtClock(x.created_at) : fmtDay(x.created_at, list.data!.sim_now)}
               subject={x.subject} type={x.guess.issue ?? undefined} p={x.guess.p ?? undefined} status={x.state}
               reading={x.reading && x.state === 'todo'} selected={x.id === sel} unread={x.state === 'todo' ? !read.has(x.id) : false} onClick={() => open(x.id)}
               leaving={leaving === x.id && view === 'ready'} onLeft={() => handled(x.id)} mine={x.mine || claimed.has(x.id)} />
@@ -167,7 +173,7 @@ export function Tickets() {
             <div>
               <h1 className="t-title">{t.subject}</h1>
               <p className="t-caption muted">{t.requester.name}{forName && <>, writing for {forName}</>}
-                {t.customer_id && <> · <span className="mono">{t.customer_id}</span></>} · <span className="mono">{t.id}</span></p>
+                {t.customer_id && <> · <EntityLink id={t.customer_id} /></>} · <EntityLink id={t.id} /></p>
             </div>
             <div className="mb-prev-row" style={{ gap: 'var(--space-2)' }}>
               {t.state === 'todo' && (isClaimed ? <span className="mb-claimed"><Check size={16} strokeWidth={1.5} aria-hidden="true" />Claimed by you</span>

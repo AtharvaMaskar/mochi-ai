@@ -6,6 +6,7 @@ import { Button, DrawnCheck, Mochi, NeedsYou } from './ds.tsx';
 import { QueryTag, ReceiptProvider } from './receipts.tsx';
 import { api, fmtClock, fmtDay, type Draft, type DraftHint, type Msg } from '../data/api.ts';
 import { foldNoise, gapWords } from './thread-text.ts';
+import { linkifyIds } from './entity.tsx';
 
 // Freshdesk ticket source codes (sim ticket_fields).
 const CHANNEL: Record<number, { word: string; icon: LucideIcon }> = {
@@ -29,7 +30,7 @@ function Message({ m, channel, isNew }: { m: Msg; channel?: (typeof CHANNEL)[num
           {m.kind !== 'note' && channel && <span className="mb-tt-chan" title={`Via ${channel.word}`}>{ic(channel.icon)}{channel.word}</span>}
           <span className="mono mb-tt-at">{fmtClock(m.at)}</span>
         </header>
-        <div className="mb-tt-text">{body}</div>
+        <div className="mb-tt-text">{m.kind === 'note' ? body : linkifyIds(body)}</div>
         {noise && <>
           <button className="mb-tt-fold" aria-expanded={open} aria-label={open ? 'Hide signature and quoted text' : 'Show signature and quoted text'} onClick={() => setOpen(!open)}>{ic(Ellipsis)}</button>
           {open && <div className="mb-tt-noise">{noise}</div>}

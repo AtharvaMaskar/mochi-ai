@@ -1,0 +1,44 @@
+/* EntityLink: dotted-underline IDs and their hover card. Tokens only. */
+.mb-ent { display: inline; padding: 0; border: 0; background: none; color: inherit; font-family: var(--ff-data); font-size: var(--fs-data); line-height: inherit; white-space: nowrap; cursor: pointer;
+  text-decoration: underline dotted var(--ink-muted); text-decoration-thickness: 1px; text-underline-offset: 3px; transition: text-decoration-color .12s ease; }
+.mb-ent:hover, .mb-ent[aria-expanded="true"] { text-decoration-color: var(--ink); color: var(--ink); }
+.mb-ent:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--radius-sm); }
+
+.mb-ent-card { position: fixed; z-index: 45; width: min(320px, calc(100vw - 32px)); padding: var(--space-3) var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-md);
+  background: var(--bg-surface); box-shadow: var(--shadow-pop); display: flex; flex-direction: column; gap: var(--space-1\.5); color: var(--ink-body);
+  font-family: var(--ff-body); font-size: var(--fs-body); line-height: var(--lh-body); text-align: left; white-space: normal;
+  --ent-dy: -10px; animation: mb-ent-spring .36s cubic-bezier(.3,1.35,.45,1) both; }
+.mb-ent-card[data-above] { --ent-dy: 10px; }
+.mb-ent-card:focus { outline: none; }
+.mb-ent-card:focus-visible { outline: 2px solid var(--focus); }
+@keyframes mb-ent-spring { from { opacity: 0; transform: translateY(var(--ent-dy)) scale(.6); } 60% { opacity: 1; } to { opacity: 1; transform: none; } }
+
+.mb-ent-kind { font-size: var(--fs-caption); color: var(--ink-muted); }
+.mb-ent-kind .mono { font-family: var(--ff-data); font-size: var(--fs-data-xs); }
+.mb-ent-title { font-weight: var(--fw-body-strong); color: var(--ink); overflow-wrap: anywhere; }
+.mb-ent-sub { font-size: var(--fs-caption); color: var(--ink-secondary); }
+.mb-ent-kv { display: grid; grid-template-columns: auto 1fr; gap: var(--space-1) var(--space-3); margin: var(--space-1) 0 0; font-size: var(--fs-caption); }
+.mb-ent-kv dt { color: var(--ink-muted); }
+.mb-ent-kv dd { margin: 0; color: var(--ink-body); overflow-wrap: anywhere; }
+.mb-ent-kv .mono { font-family: var(--ff-data); font-size: var(--fs-data-xs); }
+.mb-ent-foot { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); margin-top: var(--space-1\.5); padding-top: var(--space-2); border-top: 1px solid var(--bg-subtle); }
+.mb-ent-qids { display: flex; gap: var(--space-1); flex-wrap: wrap; }
+.mb-ent-open { font-size: var(--fs-label); font-weight: var(--fw-label); color: var(--ink); text-underline-offset: 3px; }
+.mb-ent-open:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--radius-sm); }
+.mb-ent-card .mb-needs { padding: 0; }
+
+/* In a path chip the ID sits after the name and never shrinks. */
+.mb-vpath-node .mb-ent { flex-shrink: 0; font-size: var(--fs-data-xs); color: var(--ink-muted); }
+.mb-vpath-node .mb-ent:hover, .mb-vpath-node .mb-ent[aria-expanded="true"] { color: var(--ink); }
+
+/* The queue row is a div with a stretched button, so the ID's own button is not nested in it. */
+.mb-row-hit { position: absolute; inset: 0; z-index: 0; padding: 0; border: 0; background: none; cursor: pointer; }
+.mb-row-hit:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.mb-row-meta { display: inline-flex; align-items: baseline; gap: var(--space-2); flex-shrink: 0; }
+.mb-row .mb-ent { position: relative; z-index: 1; color: var(--ink-muted); }
+.mb-row .mb-ent:hover { color: var(--ink); }
+
+@media (prefers-reduced-motion: reduce) {
+  .mb-ent-card { animation: none; }
+  .mb-ent { transition: none; }
+}

@@ -2,6 +2,7 @@
 import { createContext, useContext, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import type { StoredQuery, PathReceipt as PathReceiptT } from '@mochi/contracts';
 import { Icon, RollingNumber } from './ds.tsx';
+import { ENTITY_ID, EntityLink } from './entity.tsx';
 
 type Queries = Record<string, StoredQuery>;
 type Open = { qid: string; x: number; y: number; ox: number; column?: string } | null;
@@ -127,7 +128,7 @@ export function PathReceipt({ path, bare }: { path: PathReceiptT; bare?: boolean
           return (
             <li key={s.id} style={{ '--i': i, '--side': s.side } as CSSProperties}>
               {s.e && <span className="mb-vpath-edge" aria-label={`${s.fwd ? '' : 'reverse '}${s.e.type}`}>{s.fwd ? '↓' : '↑'} {s.e.type}</span>}
-              <span className="mb-vpath-node" title={`${n.label} · ${n.name} · ${n.id}`}><span className="mono">{n.label}</span><span className="mb-vpath-name">{n.name}</span></span>
+              <span className="mb-vpath-node" title={`${n.label} · ${n.name} · ${n.id}`}><span className="mono">{n.label}</span><span className="mb-vpath-name">{n.name}</span>{ENTITY_ID.test(n.id) && <EntityLink id={n.id} />}</span>
             </li>
           );
         })}
