@@ -3,14 +3,15 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { validateResults } from '@mochi/contracts';
+import { tinyDataset, tinyEval, validateResults } from '@mochi/contracts';
 import { bench } from './run.ts';
 import { merge } from './merge.ts';
 import { CostCapError } from './llm.ts';
 import { connect } from './db.ts';
 
 const dir = mkdtempSync(join(tmpdir(), 'bench-run-'));
-const opts = { dry: true, prefix: 'test_bench_run', out: join(dir, 'results.json'), artifacts: dir };
+// The contract fixture, not the 400-ticket slice: local embedding of the full corpus takes minutes.
+const opts = { dry: true, prefix: 'test_bench_run', out: join(dir, 'results.json'), artifacts: dir, input: { dataset: tinyDataset() as any, eval: tinyEval() } };
 
 // Drop every graph these runs create, even when a test fails mid-run (vector-index graphs are heavy on reload).
 after(async () => {

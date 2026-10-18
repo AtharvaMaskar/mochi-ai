@@ -75,7 +75,7 @@ export function limited(d: Awaited<ReturnType<typeof readData>>, n: number): Awa
 
 export type BenchOpts = {
   only?: (typeof ONLY)[number]; runId?: string; dry: boolean; maxUsd: number; limit?: number; prefix?: string; out?: string; artifacts?: string; reply?: Reply;
-  models?: string[]; data?: string;
+  models?: string[]; data?: string; /** tests: an in-memory dataset + eval instead of --data */ input?: Awaited<ReturnType<typeof readData>>;
 };
 
 export async function bench(o: BenchOpts): Promise<Results> {
@@ -94,7 +94,7 @@ export async function bench(o: BenchOpts): Promise<Results> {
   const models = o.models?.length ? o.models : [llm.defaultModel];
   for (const m of [...models, llm.judgeModel]) if (!PRICES[m]) throw new Error(`no published price for ${m} in bench/prices.ts`);
   llm.use(models[0]);
-  const data = await readData(o.data);
+  const data = o.input ?? await readData(o.data);
   const { dataset, eval: ev } = o.limit ? limited(data, o.limit) : data;
   const db = await connect();
   const ctx: Ctx = { llm, db, dataset, names: names(prefix), artifacts };
