@@ -97,12 +97,16 @@ export function BriefSection(p: { label: string; aside?: string; did?: string[];
   );
 }
 
+/** What Mochi noticed. Bold only the key phrase. The action changes the record, so it is held to confirm. */
 export function Noticed(p: { children?: ReactNode; action?: string; success?: string; onAction?: () => void; note?: ReactNode }) {
   if (!p.children) return <p className="mb-noticed-quiet">Nothing unusual for this ticket.</p>;
   return (
     <div className="mb-noticed">
       <p className="mb-noticed-text">{p.children}</p>
-      {p.note ? <p className="mb-noticed-note">{p.note}</p> : p.action && <Button variant="primary" success={p.success} onClick={p.onAction}>{p.action}</Button>}
+      {p.note ? <p className="mb-noticed-note">{p.note}</p> : p.action && <div className="mb-noticed-act">
+        <Button size="sm" hold={700} success={p.success} onClick={p.onAction}>{p.action}</Button>
+        <span className="t-caption mb-noticed-note">Hold to confirm</span>
+      </div>}
     </div>
   );
 }

@@ -48,7 +48,8 @@ export function Button({ variant = 'secondary', size = 'md', disabledReason, suc
       onPointerUp={hold ? stopHold : undefined} onPointerLeave={hold ? stopHold : undefined} onPointerCancel={hold ? stopHold : undefined}
       onClick={(e) => {
         if (disabledReason) { shake(ref.current!); setWhy(why + 1); return; }
-        if (hold || done) { e.preventDefault(); return; }
+        // a held button lands from its timer; a keyboard press (detail 0) can't hold, so it lands at once
+        if ((hold && e.detail > 0) || done) { e.preventDefault(); return; }
         land(e);
       }}>
       {hold && <span className="mb-btn-fill" aria-hidden="true" />}

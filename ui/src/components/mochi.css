@@ -18,8 +18,9 @@
 .mb-mochi-shine { position: absolute; left: 20%; top: 9%; width: 34%; height: 18%; border-radius: 50%; background: var(--mochi-highlight); opacity: .55; filter: blur(9px); }
 .mb-mochi-ring { position: absolute; inset: 0; margin: auto; border-radius: var(--mochi-rest); border: 1.5px solid; animation: mb-ring 1.8s ease-out infinite; }
 .mb-mochi-sat { position: absolute; left: 50%; top: 50%; width: 22px; height: 22px; margin: -11px 0 0 -11px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, var(--mochi-highlight) 0%, var(--mochi-skin) 50%, var(--mochi-shade) 100%); animation: mb-orbit 2s linear infinite; }
-.mb-mochi-xs .mb-mochi-body { width: 20px; height: 18px; } .mb-mochi-xs .mb-mochi-core { filter: blur(2px); }
-.mb-mochi-sm .mb-mochi-body { width: 34px; height: 30px; box-shadow: var(--shadow-mochi); } .mb-mochi-sm .mb-mochi-core { filter: blur(4px); }
+/* xs and sm: a tighter blur and a larger core so it reads as its colour, not a grey smudge, at 1x */
+.mb-mochi-xs .mb-mochi-body { width: 20px; height: 18px; } .mb-mochi-xs .mb-mochi-core { left: 16%; top: 24%; width: 68%; height: 62%; filter: blur(1px); }
+.mb-mochi-sm .mb-mochi-body { width: 34px; height: 30px; box-shadow: var(--shadow-mochi); } .mb-mochi-sm .mb-mochi-core { left: 18%; top: 26%; width: 64%; height: 60%; filter: blur(2.5px); }
 .mb-mochi-md .mb-mochi-body { width: 64px; height: 56px; box-shadow: var(--shadow-mochi); } .mb-mochi-md .mb-mochi-core { filter: blur(8px); }
 .mb-mochi-lg { width: 300px; height: 260px; }
 /* the reference's warm brown shading is mochi-ink-hojicha in our tokens */
@@ -29,8 +30,8 @@
 
 /* MochiMood */
 .mb-mochi-mood { display: inline-flex; align-items: baseline; gap: var(--space-3); }
-.mb-mochi-state { font-family: var(--font-brand); font-size: 12px; letter-spacing: .18em; text-transform: uppercase; color: var(--ink-muted); }
-.mb-mochi-flavour { font-family: var(--font-serif); font-style: italic; font-size: 26px; line-height: 1; }
+.mb-mochi-state { font-family: var(--ff-state-label); font-size: var(--fs-state-label); font-weight: var(--fw-state-label); letter-spacing: var(--ls-state-label); text-transform: uppercase; color: var(--ink-muted); }
+.mb-mochi-flavour { font-family: var(--ff-mochi-mood); font-style: italic; font-size: var(--fs-mochi-mood); line-height: var(--lh-mochi-mood); font-weight: var(--fw-mochi-mood); }
 
 /* Squish on tap: from its base, each tap restarts it (a/b alternate). */
 .mb-mochi-press { cursor: pointer; transform-origin: 50% 100%; transition: transform .26s cubic-bezier(.3,1.7,.45,1); }
