@@ -487,3 +487,5 @@ h1, h2, h3, b, strong { font-weight: var(--fw-body-strong); }
 .mb-chat-fold[data-open] .mb-chat-fold-body { grid-template-rows: 1fr; }
 .mb-chat-fold .mb-card { border: none; border-top: 1px solid var(--border); border-radius: 0 0 var(--radius-md) var(--radius-md); }
 @media (prefers-reduced-motion: reduce) { .mb-chat-card { animation: none; } .mb-chat-fold-body, .mb-chat-fold-chev { transition: none; } }
+
+.mb-chat-user-kind { display: inline-flex; align-items: center; gap: var(--space-1); margin-right: var(--space-2); padding: 0 var(--space-1\.5); border-radius: var(--radius-sm); background: color-mix(in srgb, currentColor 14%, transparent); font-size: var(--fs-caption); font-weight: var(--fw-label); vertical-align: 1px; }

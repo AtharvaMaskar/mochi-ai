@@ -3,13 +3,19 @@
 // A turn that began live (mood set at mount) arrives: cards get the fading agent-tint ring, words blur in once.
 // Replayed history mounts without a mood and shows everything at rest.
 import { useRef, useState, type ReactNode } from 'react';
-import { Check, Copy, RotateCcw } from 'lucide-react';
+import { Check, Copy, FileText, LayoutDashboard, RotateCcw } from 'lucide-react';
 import { Mochi, type Mood } from '../ds.tsx';
 import { RevealWords } from '../markdown.tsx';
 
 export function Message({ role, mood, children }: { role: 'user' | 'assistant'; mood?: Mood; children: ReactNode }) {
   const live = useRef(!!mood).current;
-  if (role === 'user') return <div className="mb-chat-user">{children}</div>;
+  if (role === 'user') {
+    // A slash command reads as what it asks for: "/story X" shows a Story label, then X. The command still ran as typed.
+    const cmd = typeof children === 'string' ? children.match(/^\/(story|dashboard)\s+([\s\S]*)$/) : null;
+    if (!cmd) return <div className="mb-chat-user">{children}</div>;
+    const Icon = cmd[1] === 'story' ? FileText : LayoutDashboard;
+    return <div className="mb-chat-user"><span className="mb-chat-user-kind"><Icon size={14} strokeWidth={1.5} aria-hidden="true" />{cmd[1] === 'story' ? 'Story' : 'Dashboard'}</span>{cmd[2]}</div>;
+  }
   return (
     <div className="mb-chat-ai" data-arrive={live || undefined}>
       <Mochi size="sm" mood={mood} still={!mood || mood === 'idle'} />
