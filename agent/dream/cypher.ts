@@ -82,8 +82,9 @@ RETURN count(e) AS created`,
 WHERE t.resolved_at IS NOT NULL AND t.resolved_at <= $as_of AND ${NODE_AS_OF('t')}
 RETURN kb.id AS target, i.id AS issue, a.name AS area, kb.promised_tat_hours AS promised, t.id AS tid, t.created_at AS created, t.resolved_at AS resolved
 ORDER BY tid`,
-  policyResolved: `MATCH (p:Policy)-[:IN]->(a:ProductArea)<-[:IN]-(:Issue)<-[:ABOUT]-(t:Ticket)
+  policyResolved: `MATCH (p:Policy)-[:IN]->(a:ProductArea)<-[:IN]-(:Issue)<-[:ABOUT]-(t:Ticket)<-[:RAISED]-(c:Customer)
 WHERE p.promised_tat_hours IS NOT NULL AND ${NODE_AS_OF('p')} AND t.resolved_at IS NOT NULL AND t.resolved_at <= $as_of
+  AND (p.priority IS NULL OR t.priority = p.priority) AND (p.segment IS NULL OR c.segment = p.segment)
 RETURN p.id AS target, a.name AS area, p.promised_tat_hours AS promised, t.id AS tid, t.created_at AS created, t.resolved_at AS resolved
 ORDER BY tid`,
   workarounds: `MATCH (t:Ticket)-[:RESOLVED_BY]->(res:Resolution), (t)-[:ABOUT]->(:Issue)-[:IN]->(a:ProductArea)

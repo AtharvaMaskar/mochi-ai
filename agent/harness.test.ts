@@ -24,7 +24,8 @@ after(async () => {
   await closeAll();
 });
 
-const companyCount = async () => (await db.selectGraph(GRAPH.company).roQuery<{ n: number }>('MATCH (n) RETURN count(n) AS n')).data?.[0]?.n ?? 0;
+// A clean DB has no mochi_company until `npm run load`; a missing graph counts as empty.
+const companyCount = async () => !(await db.list()).includes(GRAPH.company) ? 0 : (await db.selectGraph(GRAPH.company).roQuery<{ n: number }>('MATCH (n) RETURN count(n) AS n')).data?.[0]?.n ?? 0;
 
 test('root conversation: every read tool returns a contract-valid card', async () => {
   const t = await openTestHarness(G, TEAM);
@@ -88,7 +89,8 @@ test('user conversation: no record_resolution; teach writes a candidate to the t
   } finally { await t.close(); }
 });
 
-test('reader connection refuses writes, independent of the tool list', async () => {
+test('reader connection refuses writes, independent of the tool list', async (t) => {
+  if (!(await db.list()).includes(GRAPH.company)) return t.skip(`${GRAPH.company} not loaded: run npm run load first`);
   const r = await reader();
   await r.selectGraph(GRAPH.company).roQuery('RETURN 1');
   await assert.rejects(r.selectGraph(GRAPH.company).query('MATCH (n) RETURN count(n)'));

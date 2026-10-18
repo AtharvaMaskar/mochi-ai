@@ -24,8 +24,11 @@ docker compose up -d          # FalkorDB 4.22.1 with the ACL users
 npm install
 npm run gen                   # seeded synthetic dataset -> data/dataset.json, data/eval.json
 npm run load                  # writes the graph as mochi_dream
+npm run check                 # typecheck + tests; run after npm run load (company-graph tests skip without it)
 npm run dev                   # agent: harness + chat endpoint + story API
 ```
+
+Tests create and drop throwaway graphs. Point them at your own FalkorDB, never a shared one (set `FALKORDB_PORT` in `.env`).
 
 | what | where |
 |---|---|
@@ -578,8 +581,9 @@ ORDER BY tid
 #### `policyResolved`
 
 ```cypher
-MATCH (p:Policy)-[:IN]->(a:ProductArea)<-[:IN]-(:Issue)<-[:ABOUT]-(t:Ticket)
+MATCH (p:Policy)-[:IN]->(a:ProductArea)<-[:IN]-(:Issue)<-[:ABOUT]-(t:Ticket)<-[:RAISED]-(c:Customer)
 WHERE p.promised_tat_hours IS NOT NULL AND p.created_at <= $as_of AND t.resolved_at IS NOT NULL AND t.resolved_at <= $as_of
+  AND (p.priority IS NULL OR t.priority = p.priority) AND (p.segment IS NULL OR c.segment = p.segment)
 RETURN p.id AS target, a.name AS area, p.promised_tat_hours AS promised, t.id AS tid, t.created_at AS created, t.resolved_at AS resolved
 ORDER BY tid
 ```

@@ -45,7 +45,9 @@ test('replay of the demo window: every non-noise ticket lands pending, noise is 
 });
 
 test('a duplicate webhook writes once', async () => {
-  await sim.close(); // nothing else may write while we count
+  // Pause the replay so nothing else writes while we count; the sim keeps serving the listener's ticket fetch.
+  await fetch(`${simUrl}/sim/clock`, { method: 'POST', headers: { authorization: `Basic ${btoa('sim-key:X')}` }, body: JSON.stringify({ pause: true }) });
+  await new Promise((r) => setTimeout(r, 300)); // let webhooks fired by the pause's final tick arrive
   await listener.drain();
   const id = inbox.tickets.find((t) => t.created_at >= inbox.replay_start && !t.spam && !t.headers)!.id;
   const before = listener.stats.written;
