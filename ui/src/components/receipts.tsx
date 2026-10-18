@@ -111,7 +111,7 @@ export function PathReceipt({ path }: { path: PathReceiptT }) {
   const depth = (id: string): number => Math.max(0, ...(kids.get(id) ?? []).map((k) => 1 + depth(k.to)));
   let seq = 0; // pills and edges draw left to right, 60 ms apart
   const d = () => ({ animationDelay: `${seq++ * 60}ms` });
-  const node = (id: string) => { const n = byId.get(id)!; return <span className="mb-node" style={d()} key={`n${id}`}><span className="mono">{n.label}</span>{n.name}</span>; };
+  const node = (id: string) => { const n = byId.get(id)!; return <span className="mb-node" style={d()} key={`n${id}`} title={`${n.label} ${n.name}`}><span className="mono">{n.label}</span><span className="mb-node-name">{n.name}</span></span>; };
   const after = (id: string): ReactNode[] => {
     const ks = [...(kids.get(id) ?? [])].sort((a, b) => depth(a.to) - depth(b.to)); // the deepest branch carries the chain
     return ks.flatMap((k, i) => {
