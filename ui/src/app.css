@@ -382,7 +382,27 @@ h1, h2, h3, b, strong { font-weight: var(--fw-body-strong); }
 .mb-composer-menu { position: absolute; left: 0; right: 0; bottom: calc(100% + var(--space-2)); margin: 0; padding: var(--space-1); list-style: none; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-surface); box-shadow: var(--shadow-pop); z-index: 5; animation: mb-in .18s ease-out both; }
 .mb-composer-menu li { display: flex; gap: var(--space-3); align-items: baseline; padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); cursor: pointer; }
 .mb-composer-menu li[aria-selected="true"], .mb-composer-menu li:hover { background: var(--bg-subtle); }
+/* the atmosphere (chat/Backdrop.tsx): under everything in the chat column, never under a pointer */
+.mb-split-chat:has(.mb-chat-backdrop) { position: relative; isolation: isolate; }
+.mb-chat-backdrop { position: absolute; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; background: var(--bg-page); }
+.mb-chat-backdrop-layer { position: absolute; inset: 0; }
+.mb-chat-backdrop-wash { background: radial-gradient(ellipse 70% 80% at 50% 45%, color-mix(in srgb, var(--bg-page) 72%, transparent) 30%, transparent 80%); }
+/* steps: the live one carries an agent-tint shimmer band behind its words (the words stay ink) */
+.mb-chat-steps-wrap { display: flex; flex-direction: column; gap: var(--space-1); }
+.mb-chat-steps li.is-live .mb-chat-step-text { padding: 0 var(--space-1); margin: 0 calc(-1 * var(--space-1)); border-radius: var(--radius-sm); color: var(--ink-secondary);
+  background: linear-gradient(100deg, transparent 20%, color-mix(in srgb, var(--agent-sky) 22%, transparent) 45%, color-mix(in srgb, var(--agent-ube) 18%, transparent) 55%, transparent 80%); background-size: 200% 100%; animation: mb-shimmer 1.4s linear infinite; }
+.mb-chat-steps-toggle { align-self: flex-start; display: inline-flex; align-items: center; gap: var(--space-2); padding: 0; border: none; background: none; font: inherit; font-size: var(--fs-label); color: var(--ink-muted); cursor: pointer; }
+.mb-chat-steps-toggle:hover { color: var(--ink-secondary); }
+.mb-chat-steps-toggle svg:last-child { transition: transform .2s ease; }
+.mb-chat-steps-toggle[aria-expanded="true"] svg:last-child { transform: rotate(180deg); }
+/* arrival, live turns only: a soft agent-tint ring that fades as the card settles; no movement, nothing on press or hover */
+@keyframes mb-card-arrive { from { box-shadow: 0 0 0 1px color-mix(in srgb, var(--agent-sky) 55%, transparent), 0 0 18px color-mix(in srgb, var(--agent-ube) 28%, transparent); } }
+.mb-chat-ai[data-arrive] .mb-card { animation: mb-card-arrive 1.2s ease-out .2s backwards; }
+@keyframes mb-chat-word { from { opacity: 0; filter: blur(6px); } }
+.mb-chat-word { animation: mb-chat-word .26s ease-out both; }
 @media (prefers-reduced-motion: reduce) {
+  .mb-chat-ai[data-arrive] .mb-card, .mb-chat-word, .mb-chat-steps li.is-live .mb-chat-step-text { animation: none; }
+  .mb-chat-steps-toggle svg:last-child { transition: none; }
   .mb-chat-jump, .mb-chat-steps li, .mb-chat-empty, .mb-composer-menu, .mb-chat-step-dot::before { animation: none; }
   .mb-chat-jump:active { transform: translateX(-50%); }
   .mb-chat-prompt:active { transform: none; }

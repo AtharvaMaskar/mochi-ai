@@ -238,6 +238,7 @@ export function BlockView({ v }: { v: Visual }) {
 
 const KIND: Record<ToolCardT['kind'], string> = {
   briefing: 'Briefing', likely_cause: 'Likely cause', who_knows: 'Who knows', clusters: 'Clusters', blast_radius: 'Blast radius', similar: 'Similar tickets',
+  query: 'Graph query', algorithm: 'Graph algorithm',
 };
 /** A tool card as tool code emitted it: title, path receipt, blocks. Its queries are the receipts. */
 export function ToolCard({ card, asOf }: { card: ToolCardT; asOf?: number }) {
@@ -246,7 +247,7 @@ export function ToolCard({ card, asOf }: { card: ToolCardT; asOf?: number }) {
       <section className="mb-card" aria-label={card.title}>
         <div><div className="mb-card-kind">{KIND[card.kind]}</div><div className="mb-card-title">{card.title}</div></div>
         {card.path && <PathReceipt path={card.path} />}
-        {card.blocks.map((b, i) => <BlockView key={i} v={b as Visual} />)}
+        {card.blocks.map((b, i) => <BlockView key={i} v={('label' in b && b.label && card.title.startsWith(b.label) ? { ...b, label: '' } : b) as Visual} />)}
         {!card.path && card.blocks.length === 0 && <NeedsYou reason="This card came back empty." />}
       </section>
     </ReceiptProvider>

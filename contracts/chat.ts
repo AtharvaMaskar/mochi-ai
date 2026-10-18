@@ -25,7 +25,7 @@ export const PathReceipt = z.object({
 export type PathReceipt = z.infer<typeof PathReceipt>;
 
 export const ToolCard = z.object({
-  kind: z.enum(['briefing', 'likely_cause', 'who_knows', 'clusters', 'blast_radius', 'similar']),
+  kind: z.enum(['briefing', 'likely_cause', 'who_knows', 'clusters', 'blast_radius', 'similar', 'query', 'algorithm']),
   title: z.string().min(1),
   queries: z.record(qid, StoredQuery),
   path: PathReceipt.nullable(),

@@ -44,8 +44,7 @@ export async function queryGraph(db: Db, args: { cypher: string; purpose: string
   const truncated = all.length > ROW_CAP;
   const q_1: StoredQuery = { cypher: args.cypher, graph: target, params: {}, columns, rows, ran_at: Date.now() };
   const title = `${args.purpose.slice(0, 80)} · ${rows.length} row${rows.length === 1 ? '' : 's'}${truncated ? ` (truncated at ${ROW_CAP})` : ''}`;
-  // ponytail: the contract has no 'query' card kind; 'briefing' until contracts gain one.
-  const card: ToolCard = { kind: 'briefing', title, queries: { q_1 }, path: null,
+  const card: ToolCard = { kind: 'query', title, queries: { q_1 }, path: null,
     blocks: columns.length ? [{ type: 'table', query_id: 'q_1', label: args.purpose.slice(0, 80) || 'Query result', columns: columns.slice(0, 8) }] : [] };
   return { card, queries: { q_1 } };
 }
@@ -149,7 +148,7 @@ function names(p: AlgoParams) {
   for (const n of [p.source, p.target]) if (n && !(n.label in L)) throw new Error(`unknown label ${n.label}`);
 }
 
-type Plan = { call: (onScratch: boolean) => string; specs: Spec[] | null; issues?: boolean; params: Row; kind: ToolCard['kind']; title: (rows: Row[]) => string;
+type Plan = { call: (onScratch: boolean) => string; specs: Spec[] | null; issues?: boolean; params: Row; title: (rows: Row[]) => string;
   blocks: ToolCard['blocks']; path?: (rows: Row[]) => PathReceipt | null };
 
 function plan(algorithm: Algorithm, p: AlgoParams): Plan {
@@ -166,7 +165,7 @@ function plan(algorithm: Algorithm, p: AlgoParams): Plan {
       const rels = p.relTypes?.length ? p.relTypes : PATH_TYPES;
       const maxLen = clampInt(p.maxLen, 4, 1, 4);
       return {
-        specs: custom(rels), params: { source: p.source?.id, target: p.target?.id }, kind: 'briefing', blocks: [{ type: 'table', query_id: 'q_1', label: 'Shortest path', columns: ['hops', 'route'] }],
+        specs: custom(rels), params: { source: p.source?.id, target: p.target?.id }, blocks: [{ type: 'table', query_id: 'q_1', label: 'Shortest path', columns: ['hops', 'route'] }],
         call: (sc) => `MATCH ${node(p.source, 'source', sc)}, ${node(p.target, 'target', sc)}
 WHERE ${N('s')} AND ${N('t')}
 CALL algo.SPpaths({sourceNode: s, targetNode: t, relTypes: ${lit(rels)}, relDirection: 'both', maxLen: ${maxLen}, pathCount: 1}) YIELD path
@@ -188,14 +187,14 @@ RETURN length(path) AS hops, [n IN nodes(path) | ${NAME('n')}] AS route,
       if (p.labels?.length || p.relTypes?.length) {
         const [label, rel] = [p.labels?.[0], p.relTypes?.[0]];
         if (!label || !rel) throw new Error('pagerank takes exactly one label and one relType (rank goes to the edge target), or neither for the default');
-        return { specs: custom([rel]), params: {}, kind: 'who_knows', blocks: [{ type: 'bars', query_id: 'q_1', label: `PageRank over ${label}·${rel} (rank flows to edge targets)`, x: 'name', y: 'score' }],
+        return { specs: custom([rel]), params: {}, blocks: [{ type: 'bars', query_id: 'q_1', label: `PageRank over ${label}·${rel} (rank flows to edge targets)`, x: 'name', y: 'score' }],
           call: () => `CALL algo.pageRank('${label}', '${rel}') YIELD node, score
 WITH node, score WHERE ${N('node')}
 RETURN ${KEY('node')} AS id, ${NAME('node')} AS name, score ORDER BY score DESC, id LIMIT ${top}`,
           title: () => `PageRank: ${label} by incoming ${rel}` };
       }
       const specs = DEFAULTS.pagerank.map((s) => ({ ...s, area: !!p.area }));
-      return { specs, params: p.area ? { area: p.area } : {}, kind: 'who_knows',
+      return { specs, params: p.area ? { area: p.area } : {},
         blocks: [{ type: 'bars', query_id: 'q_1', label: 'PageRank of solvers over the similarity graph', x: 'name', y: 'score' },
           { type: 'table', query_id: 'q_1', label: 'Rank vs tickets solved', columns: ['name', 'score', 'solved'] }],
         call: () => `CALL algo.pageRank(null, null) YIELD node, score
@@ -212,7 +211,7 @@ RETURN node.id AS id, node.name AS name, score, count(s) AS solved ORDER BY scor
       const issues = !both && cdlp;
       const fn = cdlp ? `algo.labelPropagation({nodeLabels: ${lit(labels)}, relationshipTypes: ${lit(rels)}, maxIterations: 10}) YIELD node, communityId AS cid`
         : `algo.wcc({nodeLabels: ${lit(labels)}, relationshipTypes: ${lit(rels)}}) YIELD node, componentId AS cid`;
-      return { specs, issues, params: {}, kind: 'clusters',
+      return { specs, issues, params: {},
         blocks: [{ type: 'table', query_id: 'q_1', label: cdlp ? 'Communities (keyed by smallest member id)' : 'Components of size 2+', columns: issues ? ['anchor', 'size', 'issues', 'members'] : ['anchor', 'size', 'members'] }],
         call: () => `CALL ${fn}
 WITH node, cid WHERE ${N('node')}
@@ -225,7 +224,7 @@ RETURN anchor, size, ${issues ? 'issues, ' : ''}members ORDER BY size DESC, anch
       const labels = both ? p.labels! : ['Ticket', 'Issue', 'ProductArea'];
       const rels = both ? p.relTypes! : ['ABOUT', 'SIMILAR_TO', 'IN'];
       const keep = both ? N('node') : `(node:Issue OR node:ProductArea) AND ${N('node')}`;
-      return { specs: both ? custom(rels) : DEFAULTS.betweenness, params: {}, kind: 'who_knows',
+      return { specs: both ? custom(rels) : DEFAULTS.betweenness, params: {},
         blocks: [{ type: 'bars', query_id: 'q_1', label: 'Betweenness (sampled, seed 42)', x: 'name', y: 'score' }],
         call: () => `CALL algo.betweenness({nodeLabels: ${lit(labels)}, relationshipTypes: ${lit(rels)}, samplingSize: 128, samplingSeed: 42}) YIELD node, score
 WITH node, score WHERE ${keep}
@@ -236,7 +235,7 @@ RETURN labels(node)[0] AS label, ${KEY('node')} AS id, ${NAME('node')} AS name, 
       const rel = p.relTypes?.[0];
       if (!rel) throw new Error('neighbourhood needs params.relTypes = [one edge type]');
       const depth = clampInt(p.depth, 1, 1, 2);
-      return { specs: custom([rel]), params: { source: p.source?.id }, kind: 'briefing',
+      return { specs: custom([rel]), params: { source: p.source?.id },
         blocks: [{ type: 'table', query_id: 'q_1', label: `Within ${depth} hop(s) over ${rel}`, columns: ['label', 'id', 'name'] }],
         call: (sc) => `MATCH ${node(p.source, 'source', sc)} WHERE ${N('s')}
 CALL algo.bfs(s, ${depth}, '${rel}') YIELD nodes
@@ -269,7 +268,7 @@ export async function graphAlgorithm(db: Db, args: { algorithm: Algorithm; param
     return { cypher, graph: scratch, params: pl.params, columns: returnColumns(cypher), rows: (r.data ?? []).slice(0, ROW_CAP).map(plain), ran_at: Date.now() };
   };
   const q_1 = pl.specs ? await serial(run) : await run();
-  const card: ToolCard = { kind: pl.kind, title: pl.title(q_1.rows), queries: { q_1 }, path: pl.path?.(q_1.rows) ?? null, blocks: q_1.rows.length ? pl.blocks : [] };
+  const card: ToolCard = { kind: 'algorithm', title: pl.title(q_1.rows), queries: { q_1 }, path: pl.path?.(q_1.rows) ?? null, blocks: q_1.rows.length ? pl.blocks : [] };
   return { card, queries: { q_1 } };
 }
 

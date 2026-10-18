@@ -18,12 +18,13 @@ import { Message, MessageActions } from '../components/chat/Message.tsx';
 import { Composer, type Command } from '../components/chat/Composer.tsx';
 import { ToolProgress } from '../components/chat/ToolProgress.tsx';
 import { EmptyState } from '../components/chat/EmptyState.tsx';
+import { Backdrop } from '../components/chat/Backdrop.tsx';
 
 const STORY_ACTIVITY = 'mochi.story'; // agent/stories.ts STORY_ACTIVITY
 type StoryRef = { id: string; version: number; kind?: 'story' | 'dashboard' };
 // The harness parses these prefixes; the composer only puts "/story " or "/dashboard " at the start of the message.
 const COMMANDS: Command[] = [{ name: '/story', hint: 'Write a story from this conversation' }, { name: '/dashboard', hint: 'Build a live dashboard' }];
-const PROMPTS = ['Make a report of the last 20 tickets from today', 'Brief me on T-0091', 'Which release caused the OTP tickets?'];
+const PROMPTS = ['Who knows about TOTP failures?', 'Why did payouts get slower this week?', '/story What changed in support this week', '/dashboard SLA breaches by product area'];
 
 /** A fixture transcript item (#/preview). */
 export function Answer({ m }: { m: Extract<ChatItem, { role: 'assistant' }> }) {
@@ -40,7 +41,7 @@ export function Answer({ m }: { m: Extract<ChatItem, { role: 'assistant' }> }) {
   );
 }
 
-type Msg = { id: string; role: string; content?: unknown; activityType?: string; toolCallId?: string; toolCalls?: { id: string; function: { name: string } }[] };
+type Msg = { id: string; role: string; content?: unknown; activityType?: string; toolCallId?: string; toolCalls?: { id: string; function: { name: string; arguments?: string } }[] };
 const THREAD_KEY = 'mochi-thread';
 const newThread = () => { const id = crypto.randomUUID(); try { localStorage.setItem(THREAD_KEY, id); } catch { /* storage blocked */ } return id; };
 const loadThread = () => { try { return localStorage.getItem(THREAD_KEY) ?? newThread(); } catch { return newThread(); } };
@@ -110,11 +111,12 @@ function Conversation({ threadId, openId, onOpen }: { threadId: string; openId: 
   const streaming = tail?.role === 'assistant' && typeof tail.content === 'string' && tail.content.trim() !== '';
   return (
     <div className="mb-chat-shell">
+      <Backdrop mood={!messages.length && !running ? 'home' : running ? 'working' : 'calm'} />
       <MessageList pinKey={turns.length} busy={running}>
         {!messages.length && !running && <EmptyState prompts={PROMPTS} onPick={(p) => void send(p)} />}
         {turns.map((t, i) => {
           const live = running && i === turns.length - 1;
-          const steps = t.parts.flatMap((m) => (m.toolCalls ?? []).map((c) => ({ id: c.id, name: c.function.name, done: results.has(c.id) || !live })));
+          const steps = t.parts.flatMap((m) => (m.toolCalls ?? []).map((c) => ({ id: c.id, name: c.function.name, args: c.function.arguments, done: results.has(c.id) || !live })));
           const texts = t.parts.filter((m) => m.role === 'assistant' && typeof m.content === 'string' && m.content.trim()).map((m) => String(m.content));
           const acts = t.parts.filter((m) => m.role === 'activity');
           const mood = !live ? undefined : steps.some((s) => !s.done) || !streaming ? 'thinking' : 'speaking';
