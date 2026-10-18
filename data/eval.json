@@ -4,15 +4,15 @@
     {
       "id": "Q-01",
       "bucket": "single_fact",
-      "question": "What plan is customer C-071 (Pooja Menon) on?",
-      "answer": "basic",
+      "question": "What plan is customer C-0830 (Gautam Hegde) on?",
+      "answer": "premium",
       "scoring": "exact",
       "after_event": "E-03"
     },
     {
       "id": "Q-02",
       "bucket": "single_fact",
-      "question": "What plan is customer C-014 (Siddharth Patil) on?",
+      "question": "What plan is customer C-0687 (Saanvi Saxena) on?",
       "answer": "basic",
       "scoring": "exact",
       "after_event": "E-05"
@@ -20,137 +20,137 @@
     {
       "id": "Q-03",
       "bucket": "single_fact",
-      "question": "What plan is customer C-064 (Meera Oberoi) on?",
-      "answer": "basic",
-      "scoring": "exact",
-      "after_event": "E-06"
-    },
-    {
-      "id": "Q-04",
-      "bucket": "single_fact",
-      "question": "What plan is customer C-084 (Diya Bhatt) on?",
+      "question": "What plan is customer C-0707 (Reyansh Upadhyay) on?",
       "answer": "premium",
       "scoring": "exact",
       "after_event": "E-07"
     },
     {
-      "id": "Q-05",
+      "id": "Q-04",
       "bucket": "single_fact",
-      "question": "What plan is customer C-033 (Tanvi Kamath) on?",
-      "answer": "basic",
+      "question": "What plan is customer C-0413 (Gautam Upadhyay) on?",
+      "answer": "premium",
       "scoring": "exact",
       "after_event": "E-08"
     },
     {
-      "id": "Q-06",
+      "id": "Q-05",
       "bucket": "single_fact",
-      "question": "What plan is customer C-089 (Saanvi Mathur) on?",
+      "question": "What plan is customer C-0370 (Vihaan Zaveri) on?",
       "answer": "basic",
       "scoring": "exact",
       "after_event": "E-09"
     },
     {
+      "id": "Q-06",
+      "bucket": "single_fact",
+      "question": "What plan is customer C-0355 (Kabir Bhatt) on?",
+      "answer": "basic",
+      "scoring": "exact",
+      "after_event": "E-10"
+    },
+    {
       "id": "Q-07",
       "bucket": "single_fact",
-      "question": "What plan is customer C-081 (Diya Deshpande) on?",
-      "answer": "premium",
+      "question": "What plan is customer C-0712 (Ishaan Deshpande) on?",
+      "answer": "basic",
       "scoring": "exact"
     },
     {
       "id": "Q-08",
       "bucket": "single_fact",
-      "question": "What plan is customer C-087 (Advait Dutta) on?",
+      "question": "What plan is customer C-0678 (Dhruv Gokhale) on?",
       "answer": "basic",
       "scoring": "exact"
     },
     {
       "id": "Q-09",
       "bucket": "single_fact",
-      "question": "Which segment is customer C-079 (Rohan Menon) in?",
-      "answer": "premium",
+      "question": "Which segment is customer C-0469 (Pranav Chawla) in?",
+      "answer": "retail",
       "scoring": "exact"
     },
     {
       "id": "Q-10",
       "bucket": "single_fact",
-      "question": "Which segment is customer C-060 (Aditi Gokhale) in?",
-      "answer": "retail",
+      "question": "Which segment is customer C-0113 (Meera Hegde) in?",
+      "answer": "premium",
       "scoring": "exact"
     },
     {
       "id": "Q-11",
       "bucket": "single_fact",
-      "question": "Which segment is customer C-095 (Kavya Dutta) in?",
-      "answer": "premium",
+      "question": "Which segment is customer C-0136 (Zara Yadav) in?",
+      "answer": "retail",
       "scoring": "exact"
     },
     {
       "id": "Q-12",
       "bucket": "single_fact",
-      "question": "Which segment is customer C-102 (Tanvi Mathur) in?",
-      "answer": "premium",
+      "question": "Which segment is customer C-0912 (Lakshmi Iyer) in?",
+      "answer": "retail",
       "scoring": "exact"
     },
     {
       "id": "Q-13",
       "bucket": "single_fact",
-      "question": "Which team owns issue I-02 (account locked after failed PIN attempts)?",
+      "question": "Which team owns issue I-05 (e-sign OTP failing)?",
       "answer": "onboarding",
       "scoring": "exact"
     },
     {
       "id": "Q-14",
       "bucket": "single_fact",
-      "question": "Which team owns issue I-07 (payment debited, funds not credited)?",
+      "question": "Which team owns issue I-08 (UPI mandate failure)?",
       "answer": "payments",
       "scoring": "exact"
     },
     {
       "id": "Q-15",
       "bucket": "single_fact",
-      "question": "Which team owns issue I-10 (order rejected for margin shortfall)?",
-      "answer": "trading",
+      "question": "Which team owns issue I-04 (KYC stuck in verification)?",
+      "answer": "onboarding",
       "scoring": "exact"
     },
     {
       "id": "Q-16",
       "bucket": "single_fact",
-      "question": "Which team owns issue I-12 (stop-loss not triggered)?",
-      "answer": "trading",
+      "question": "Which team owns issue I-18 (portfolio shows zero holdings)?",
+      "answer": "platform",
       "scoring": "exact"
     },
     {
       "id": "Q-17",
       "bucket": "single_fact",
-      "question": "How many hours does KB-19 (\"PIN policy FAQ\") promise for resolution?",
-      "answer": "8",
+      "question": "How many hours does KB-20 (\"e-sign FAQ\") promise for resolution?",
+      "answer": "4",
       "scoring": "exact"
     },
     {
       "id": "Q-18",
       "bucket": "single_fact",
-      "question": "How many hours does KB-07 (\"Funds debited but not credited\") promise for resolution?",
-      "answer": "24",
+      "question": "How many hours does KB-17 (\"Charts not loading\") promise for resolution?",
+      "answer": "8",
       "scoring": "exact"
     },
     {
       "id": "Q-19",
       "bucket": "single_fact",
-      "question": "How many hours does KB-23 (\"Order types FAQ\") promise for resolution?",
-      "answer": "8",
+      "question": "How many hours does KB-16 (\"App crash on launch\") promise for resolution?",
+      "answer": "48",
       "scoring": "exact"
     },
     {
       "id": "Q-20",
       "bucket": "single_fact",
-      "question": "How many hours does KB-02 (\"Unlocking an account after PIN lockout\") promise for resolution?",
-      "answer": "48",
+      "question": "How many hours does KB-06 (\"Accepted bank proof documents\") promise for resolution?",
+      "answer": "24",
       "scoring": "exact"
     },
     {
       "id": "Q-21",
       "bucket": "multi_hop",
-      "question": "Which release likely caused ticket T-0397?",
+      "question": "Which release likely caused ticket T-4257?",
       "answer": "none: I-06 was fixed in 3.7.0, so its INTRODUCED fact from 3.3.0 is retired",
       "scoring": "judge",
       "after_event": "E-01"
@@ -158,207 +158,207 @@
     {
       "id": "Q-22",
       "bucket": "multi_hop",
-      "question": "Which release likely caused ticket T-0299?",
-      "answer": "none: I-11 was fixed in 3.7.0, so its INTRODUCED fact from 3.2.0 is retired",
+      "question": "Which release likely caused ticket T-4284?",
+      "answer": "none: I-03 was fixed in 3.7.0, so its INTRODUCED fact from 3.1.0 is retired",
       "scoring": "judge",
       "after_event": "E-02"
     },
     {
       "id": "Q-23",
       "bucket": "multi_hop",
-      "question": "Which release likely caused ticket T-0391?",
-      "answer": "none: I-15 was fixed in 3.7.0, so its INTRODUCED fact from 3.6.0 is retired",
+      "question": "Which release likely caused ticket T-4259?",
+      "answer": "none: I-17 was fixed in 3.7.0, so its INTRODUCED fact from 3.5.0 is retired",
       "scoring": "judge",
       "after_event": "E-04"
     },
     {
       "id": "Q-24",
       "bucket": "multi_hop",
-      "question": "Which release likely caused ticket T-0393?",
-      "answer": "none: I-17 was fixed in 3.7.0, so its INTRODUCED fact from 3.5.0 is retired",
+      "question": "Which release likely caused ticket T-4207?",
+      "answer": "none: I-08 was fixed in 3.7.0, so its INTRODUCED fact from 3.2.0 is retired",
       "scoring": "judge",
-      "after_event": "E-10"
+      "after_event": "E-06"
     },
     {
       "id": "Q-25",
       "bucket": "multi_hop",
-      "question": "Which release likely caused ticket T-0091?",
+      "question": "Which release likely caused ticket T-2063?",
       "answer": "3.2.0",
       "scoring": "judge"
     },
     {
       "id": "Q-26",
       "bucket": "multi_hop",
-      "question": "Which release likely caused ticket T-0137?",
-      "answer": "3.2.0",
+      "question": "Which release likely caused ticket T-4218?",
+      "answer": "3.6.0",
       "scoring": "judge"
     },
     {
       "id": "Q-27",
       "bucket": "multi_hop",
-      "question": "Which release likely caused ticket T-0133?",
-      "answer": "3.1.0",
+      "question": "Which release likely caused ticket T-3696?",
+      "answer": "3.6.0",
       "scoring": "judge"
     },
     {
       "id": "Q-28",
       "bucket": "multi_hop",
-      "question": "Which agent has solved the most tickets about issue I-16 (app crashes on launch)?",
-      "answer": "Zoya Contractor (A-6), 13 tickets",
+      "question": "Which agent has solved the most tickets about issue I-13 (brokerage charged twice)?",
+      "answer": "Neha Kulkarni (A-3), 10 tickets",
       "scoring": "judge"
     },
     {
       "id": "Q-29",
       "bucket": "multi_hop",
-      "question": "Which agent has solved the most tickets about issue I-13 (brokerage charged twice)?",
-      "answer": "Arjun Pillai (A-4), 14 tickets",
+      "question": "Which agent has solved the most tickets about issue I-06 (bank proof rejected)?",
+      "answer": "Farhan Qadri (A-2), 3 tickets",
       "scoring": "judge"
     },
     {
       "id": "Q-30",
       "bucket": "multi_hop",
-      "question": "Which agent has solved the most tickets about issue I-11 (order stuck in pending)?",
-      "answer": "Kabir Rao (A-5), 12 tickets",
+      "question": "Which agent has solved the most tickets about issue I-01 (OTP not received at login)?",
+      "answer": "Devika Sharma (A-7), 7 tickets",
       "scoring": "judge"
     },
     {
       "id": "Q-31",
       "bucket": "multi_hop",
-      "question": "Which agent has solved the most tickets about issue I-12 (stop-loss not triggered)?",
-      "answer": "Kabir Rao (A-5), 9 tickets",
+      "question": "Which agent has solved the most tickets about issue I-02 (account locked after failed PIN attempts)?",
+      "answer": "Ritika Venkatesan (A-1), 3 tickets",
       "scoring": "judge"
     },
     {
       "id": "Q-32",
       "bucket": "multi_hop",
-      "question": "What resolution most often fixed tickets about the same issue as ticket T-0234?",
-      "answer": "Released payout from held batch (R-09), used on 10 tickets",
+      "question": "What resolution most often fixed tickets about the same issue as ticket T-2978?",
+      "answer": "Forced holdings resync (R-18), used on 12 tickets",
       "scoring": "judge"
     },
     {
       "id": "Q-33",
       "bucket": "multi_hop",
-      "question": "What resolution most often fixed tickets about the same issue as ticket T-0067?",
-      "answer": "Reversed duplicate brokerage (R-13), used on 21 tickets",
+      "question": "What resolution most often fixed tickets about the same issue as ticket T-1190?",
+      "answer": "Pushed KYC file from the verification queue (R-04), used on 19 tickets",
       "scoring": "judge"
     },
     {
       "id": "Q-34",
       "bucket": "multi_hop",
-      "question": "What resolution most often fixed tickets about the same issue as ticket T-0129?",
-      "answer": "Cancelled stuck order from dealer terminal (R-11), used on 17 tickets",
+      "question": "What resolution most often fixed tickets about the same issue as ticket T-2553?",
+      "answer": "Escalated to payments L2 (R-29), used on 5 tickets",
       "scoring": "judge"
     },
     {
       "id": "Q-35",
       "bucket": "multi_hop",
-      "question": "What resolution most often fixed tickets about the same issue as ticket T-0369?",
-      "answer": "Workaround: ask the customer to clear app data and reinstall (R-33), used on 11 tickets",
+      "question": "What resolution most often fixed tickets about the same issue as ticket T-2028?",
+      "answer": "Cancelled stuck order from dealer terminal (R-11), used on 18 tickets",
       "scoring": "judge"
     },
     {
       "id": "Q-36",
       "bucket": "multi_hop",
       "question": "For release 3.1.0, how many distinct customers raised tickets about the issues it introduced, and how many of those tickets are still open?",
-      "answer": "13 customers, 0 open tickets",
+      "answer": "16 customers, 4 open tickets",
       "scoring": "judge"
     },
     {
       "id": "Q-37",
       "bucket": "multi_hop",
       "question": "For release 3.2.0, how many distinct customers raised tickets about the issues it introduced, and how many of those tickets are still open?",
-      "answer": "35 customers, 13 open tickets",
+      "answer": "49 customers, 13 open tickets",
       "scoring": "judge"
     },
     {
       "id": "Q-38",
       "bucket": "multi_hop",
       "question": "For release 3.3.0, how many distinct customers raised tickets about the issues it introduced, and how many of those tickets are still open?",
-      "answer": "15 customers, 8 open tickets",
+      "answer": "10 customers, 4 open tickets",
       "scoring": "judge"
     },
     {
       "id": "Q-39",
       "bucket": "multi_hop",
       "question": "For release 3.5.0, how many distinct customers raised tickets about the issues it introduced, and how many of those tickets are still open?",
-      "answer": "41 customers, 12 open tickets",
+      "answer": "39 customers, 14 open tickets",
       "scoring": "judge"
     },
     {
       "id": "Q-40",
       "bucket": "multi_hop",
       "question": "For release 3.6.0, how many distinct customers raised tickets about the issues it introduced, and how many of those tickets are still open?",
-      "answer": "15 customers, 7 open tickets",
+      "answer": "20 customers, 7 open tickets",
       "scoring": "judge"
     },
     {
       "id": "Q-41",
       "bucket": "structural",
       "question": "Which release was followed by the biggest ticket spike on the issues it introduced (week after vs week before shipping)?",
-      "answer": "3.2.0: 0 → 28 tickets",
+      "answer": "3.2.0: 0 → 33 tickets",
       "scoring": "judge"
     },
     {
       "id": "Q-42",
       "bucket": "structural",
       "question": "Which releases introduced issues whose tickets at least tripled, to 10 or more, in the week after shipping?",
-      "answer": "3.2.0, 3.5.0",
+      "answer": "3.2.0, 3.5.0, 3.6.0",
       "scoring": "judge"
     },
     {
       "id": "Q-43",
       "bucket": "structural",
       "question": "Which repeat-contact (FOLLOWS) chain is the longest?",
-      "answer": "T-0041 → T-0153 → T-0263 → T-0296 → T-0363 (customer C-133, issue I-02, 5 tickets)",
+      "answer": "T-1119 → T-2302 → T-3398 (customer C-0527, issue I-09, 3 tickets); T-1476 → T-2272 → T-3986 (customer C-0591, issue I-04, 3 tickets); T-1489 → T-1615 → T-4238 (customer C-0345, issue I-03, 3 tickets); T-1525 → T-1606 → T-2708 (customer C-0717, issue I-13, 3 tickets); T-1586 → T-4150 → T-4242 (customer C-0462, issue I-04, 3 tickets); T-1922 → T-2571 → T-3329 (customer C-0714, issue I-08, 3 tickets); T-2063 → T-2727 → T-3708 (customer C-0050, issue I-11, 3 tickets); T-2740 → T-2893 → T-3775 (customer C-0455, issue I-01, 3 tickets); T-2760 → T-3276 → T-3733 (customer C-0003, issue I-06, 3 tickets); T-2978 → T-3252 → T-4176 (customer C-0320, issue I-18, 3 tickets); T-3459 → T-3639 → T-3696 (customer C-0230, issue I-15, 3 tickets); T-3806 → T-4179 → T-4183 (customer C-0784, issue I-04, 3 tickets)",
       "scoring": "judge"
     },
     {
       "id": "Q-44",
       "bucket": "structural",
       "question": "Which KB articles promise a turnaround that resolved tickets do not meet?",
-      "answer": "KB-04 (promised 24h, measured median 72.3h), KB-07 (promised 24h, measured median 73.4h), KB-13 (promised 24h, measured median 72.6h)",
+      "answer": "KB-04 (promised 24h, measured median 69.6h), KB-07 (promised 24h, measured median 69.2h), KB-13 (promised 24h, measured median 67.3h)",
       "scoring": "judge"
     },
     {
       "id": "Q-45",
       "bucket": "structural",
       "question": "Which product areas rely on a widely used workaround that appears in no KB article?",
-      "answer": "login (19 tickets), app (11 tickets)",
+      "answer": "login (15 tickets), app (11 tickets)",
       "scoring": "judge"
     },
     {
       "id": "Q-46",
       "bucket": "structural",
       "question": "Which issue has the most tickets overall?",
-      "answer": "I-13 (brokerage charged twice), 32 tickets",
+      "answer": "I-04 (KYC stuck in verification), 40 tickets",
       "scoring": "judge"
     },
     {
       "id": "Q-47",
       "bucket": "structural",
       "question": "Which product area had the most tickets in the last 7 days?",
-      "answer": "charges, 12 tickets",
+      "answer": "kyc, 12 tickets",
       "scoring": "judge"
     },
     {
       "id": "Q-48",
       "bucket": "structural",
       "question": "Which agent has solved the most tickets overall?",
-      "answer": "Ritika Venkatesan (A-1), 56 tickets",
+      "answer": "Neha Kulkarni (A-3), 39 tickets",
       "scoring": "judge"
     },
     {
       "id": "Q-49",
       "bucket": "structural",
       "question": "Which team owns the most open tickets?",
-      "answer": "payments, 42 open tickets",
+      "answer": "onboarding, 37 open tickets",
       "scoring": "judge"
     },
     {
       "id": "Q-50",
       "bucket": "structural",
       "question": "Which customer has raised the most tickets?",
-      "answer": "C-014 (Siddharth Patil), 14 tickets",
+      "answer": "C-0527 (Riya Hegde), 5 tickets",
       "scoring": "judge"
     }
   ],
@@ -369,29 +369,27 @@
       "kb_id": "KB-04",
       "area": "kyc",
       "promised": 24,
-      "measured": 72.3,
+      "measured": 69.6,
       "ticket_ids": [
-        "T-0010",
-        "T-0016",
-        "T-0020",
-        "T-0024",
-        "T-0034",
-        "T-0038",
-        "T-0047",
-        "T-0049",
-        "T-0082",
-        "T-0084",
-        "T-0101",
-        "T-0102",
-        "T-0124",
-        "T-0152",
-        "T-0158",
-        "T-0198",
-        "T-0200",
-        "T-0266",
-        "T-0285",
-        "T-0297",
-        "T-0319"
+        "T-1143",
+        "T-1197",
+        "T-1304",
+        "T-1476",
+        "T-1586",
+        "T-1624",
+        "T-1626",
+        "T-1870",
+        "T-1900",
+        "T-2195",
+        "T-2272",
+        "T-2511",
+        "T-2552",
+        "T-2738",
+        "T-2744",
+        "T-2933",
+        "T-3577",
+        "T-3806",
+        "T-3986"
       ]
     },
     {
@@ -400,29 +398,25 @@
       "kb_id": "KB-07",
       "area": "funds",
       "promised": 24,
-      "measured": 73.4,
+      "measured": 69.2,
       "ticket_ids": [
-        "T-0009",
-        "T-0013",
-        "T-0029",
-        "T-0061",
-        "T-0081",
-        "T-0100",
-        "T-0145",
-        "T-0151",
-        "T-0160",
-        "T-0174",
-        "T-0192",
-        "T-0220",
-        "T-0225",
-        "T-0231",
-        "T-0250",
-        "T-0270",
-        "T-0287",
-        "T-0301",
-        "T-0324",
-        "T-0330",
-        "T-0356"
+        "T-1020",
+        "T-1182",
+        "T-1206",
+        "T-1217",
+        "T-1231",
+        "T-1593",
+        "T-1612",
+        "T-1868",
+        "T-2420",
+        "T-2477",
+        "T-2478",
+        "T-3082",
+        "T-3173",
+        "T-3253",
+        "T-3411",
+        "T-3841",
+        "T-3941"
       ]
     },
     {
@@ -431,29 +425,26 @@
       "kb_id": "KB-13",
       "area": "charges",
       "promised": 24,
-      "measured": 72.6,
+      "measured": 67.3,
       "ticket_ids": [
-        "T-0006",
-        "T-0026",
-        "T-0040",
-        "T-0052",
-        "T-0054",
-        "T-0059",
-        "T-0063",
-        "T-0064",
-        "T-0067",
-        "T-0087",
-        "T-0089",
-        "T-0128",
-        "T-0154",
-        "T-0156",
-        "T-0215",
-        "T-0217",
-        "T-0241",
-        "T-0290",
-        "T-0313",
-        "T-0321",
-        "T-0350"
+        "T-1237",
+        "T-1255",
+        "T-1269",
+        "T-1389",
+        "T-1525",
+        "T-1531",
+        "T-1566",
+        "T-1606",
+        "T-1880",
+        "T-2515",
+        "T-2708",
+        "T-2749",
+        "T-2769",
+        "T-2841",
+        "T-2894",
+        "T-3070",
+        "T-3259",
+        "T-3771"
       ]
     },
     {
@@ -464,25 +455,21 @@
       "promised": null,
       "measured": null,
       "ticket_ids": [
-        "T-0012",
-        "T-0021",
-        "T-0028",
-        "T-0030",
-        "T-0050",
-        "T-0068",
-        "T-0075",
-        "T-0077",
-        "T-0139",
-        "T-0162",
-        "T-0180",
-        "T-0184",
-        "T-0214",
-        "T-0232",
-        "T-0246",
-        "T-0303",
-        "T-0306",
-        "T-0354",
-        "T-0357"
+        "T-1070",
+        "T-1201",
+        "T-1275",
+        "T-1341",
+        "T-1444",
+        "T-1543",
+        "T-1578",
+        "T-2736",
+        "T-2740",
+        "T-2967",
+        "T-3065",
+        "T-3775",
+        "T-3873",
+        "T-4001",
+        "T-4019"
       ]
     },
     {
@@ -493,17 +480,17 @@
       "promised": null,
       "measured": null,
       "ticket_ids": [
-        "T-0001",
-        "T-0011",
-        "T-0042",
-        "T-0062",
-        "T-0074",
-        "T-0144",
-        "T-0191",
-        "T-0208",
-        "T-0243",
-        "T-0286",
-        "T-0359"
+        "T-1225",
+        "T-1397",
+        "T-1480",
+        "T-1507",
+        "T-2006",
+        "T-2394",
+        "T-2490",
+        "T-2610",
+        "T-2833",
+        "T-3562",
+        "T-3567"
       ]
     }
   ]

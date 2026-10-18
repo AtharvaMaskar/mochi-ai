@@ -126,11 +126,11 @@ export function buildEval(ds: Dataset, seed: number): Eval {
   const name = (id: string) => issue.get(id)!.name;
   const ti = top(countBy(ds.tickets, (t) => t.issue_id));
   structural('Which issue has the most tickets overall?', `${ti.keys.map((k) => `${k} (${name(k)})`).join(', ')}, ${ti.n} tickets`);
-  const ta = top(countBy(ds.tickets.filter((t) => t.created_at >= now - 7 * DAY), (t) => issue.get(t.issue_id!)!.area));
+  const ta = top(countBy(ds.tickets.filter((t) => t.created_at >= now - 7 * DAY), (t) => (t.issue_id ? issue.get(t.issue_id)!.area : null)));
   structural('Which product area had the most tickets in the last 7 days?', `${ta.keys.join(', ')}, ${ta.n} tickets`);
   const tg = top(countBy(ds.tickets, (t) => t.solved_by));
   structural('Which agent has solved the most tickets overall?', `${tg.keys.map((k) => `${agent.get(k)!.name} (${k})`).join(', ')}, ${tg.n} tickets`);
-  const tt = top(countBy(ds.tickets.filter(isOpen), (t) => teamOf.get(issue.get(t.issue_id!)!.area)!));
+  const tt = top(countBy(ds.tickets.filter(isOpen), (t) => (t.issue_id ? teamOf.get(issue.get(t.issue_id)!.area)! : null)));
   structural('Which team owns the most open tickets?', `${tt.keys.join(', ')}, ${tt.n} open tickets`);
   const tc = top(countBy(ds.tickets, (t) => t.customer_id));
   structural('Which customer has raised the most tickets?', `${tc.keys.map((k) => `${k} (${cust.get(k)!.name})`).join(', ')}, ${tc.n} tickets`);

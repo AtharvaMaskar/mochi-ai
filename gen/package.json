@@ -6,7 +6,8 @@
     ".": "./index.ts"
   },
   "scripts": {
-    "gen": "node generate.ts",
+    "gen": "node derive.ts",
+    "listen": "node listen.ts",
     "load": "node load.ts",
     "test": "node --test --test-timeout=120000",
     "check": "tsc -p . && npm test"

@@ -4,11 +4,15 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { EDGE_AS_OF, VALID_FOREVER, type Eval } from '@mochi/contracts';
 import { connect } from '../contracts/testdb.ts';
-import { loadDataset, readDataset } from './load.ts';
+import { loadDataset, replayStart } from './load.ts';
+import { validateDataset, type ValidDataset } from '@mochi/contracts';
 import { applyEvent } from './events.ts';
 import { embed } from './embed.ts';
 
-const d = readDataset();
+// The bench slice: eval.json is computed over it, and 400 tickets keep the test fast.
+const d = (validateDataset(JSON.parse(readFileSync(new URL('../data/bench/dataset.json', import.meta.url), 'utf8'))) as { value: ValidDataset }).value;
+const start = replayStart(d);
+const before = d.tickets.filter((t) => t.created_at < start);
 const ev: Eval = JSON.parse(readFileSync(new URL('../data/eval.json', import.meta.url), 'utf8'));
 const db = await connect();
 const name = `test_gen_${process.pid}`;
@@ -19,18 +23,26 @@ const now = d.generated_at;
 
 let first: Record<string, number>;
 test('fresh load: node counts equal dataset record counts', async () => {
-  first = await loadDataset(d, db, { graph: name, fresh: true });
+  first = await loadDataset(d, db, { graph: name, fresh: true, until: start }); // what `npm run load` does
   assert.deepEqual(
     [first.Customer, first.Ticket, first.Issue, first.ProductArea, first.Team, first.AgentUser, first.Resolution, first.KBArticle, first.Release, first.Plan],
-    [d.customers.length, d.tickets.length, d.issues.length, d.product_areas.length, d.teams.length, d.agents.length, d.resolutions.length, d.kb_articles.length, d.releases.length, d.plans.length]);
+    [d.customers.length, before.length, d.issues.length, d.product_areas.length, d.teams.length, d.agents.length, d.resolutions.length, d.kb_articles.length, d.releases.length, d.plans.length]);
+  assert.equal(first.Policy, d.sla_policies.length);
   assert.equal(first.ON_PLAN, d.customers.flatMap((c) => c.plan_history).length);
-  assert.equal(first.RAISED, d.tickets.length);
+  assert.equal(first.RAISED, before.length);
+  const merged = before.filter((t) => t.merged_into);
+  assert.ok(merged.length >= 1);
+  assert.equal(first.MERGED_INTO, merged.length);
+  const [{ f }] = await rows<{ f: number }>('MATCH (a:Ticket)-[:MERGED_INTO]->(b:Ticket) MATCH (a)-[x:FOLLOWS]-(b) RETURN count(x) AS f');
+  assert.equal(f, 0, 'a merge is not a follow-up');
+  const [p] = await rows<{ h: number }>('MATCH (p:Policy {id: $id}) RETURN p.promised_tat_hours AS h', { id: d.sla_policies[0].id });
+  assert.equal(p.h, d.sla_policies[0].resolve_within_ms / 3_600_000);
   const [{ n }] = await rows<{ n: number }>("MATCH (n) WHERE coalesce(n.source, '') <> 'seed' OR n.created_at IS NULL RETURN count(n) AS n");
   assert.equal(n, 0, 'every node carries source and created_at');
 });
 
 test('second load leaves node and edge counts unchanged', async () => {
-  assert.deepEqual(await loadDataset(d, db, { graph: name }), first);
+  assert.deepEqual(await loadDataset(d, db, { graph: name, until: start }), first);
 });
 
 test('every live temporal edge carries VALID_FOREVER', async () => {
@@ -47,8 +59,11 @@ test('vector query returns 5 tickets', async () => {
   assert.equal(r.length, 5);
 });
 
-test('exactly the demo-day tickets lack ingested_at', async () => {
+test('demo window is held back; when it arrives it lacks ingested_at', async () => {
   const demo = d.tickets.filter((t) => t.created_at >= now - 86_400_000).map((t) => t.id).sort();
+  assert.ok(demo.length >= 1);
+  assert.equal((await rows('MATCH (t:Ticket) WHERE t.created_at >= $s RETURN t', { s: start })).length, 0, 'no demo-window ticket before the replay');
+  await loadDataset(d, db, { graph: name, until: Infinity }); // stand-in for the live ingest of the replay window
   const r = await rows<{ id: string }>('MATCH (t:Ticket) WHERE t.ingested_at IS NULL RETURN t.id AS id ORDER BY id');
   assert.deepEqual(r.map((x) => x.id), demo);
   const [{ n }] = await rows<{ n: number }>('MATCH (t:Ticket)-[e:ABOUT|RESOLVED_BY]->() WHERE t.ingested_at IS NULL RETURN count(e) AS n');
