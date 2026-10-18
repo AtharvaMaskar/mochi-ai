@@ -44,6 +44,20 @@
     --fs-caption: 12px;
     --fs-eyebrow: 12px; --fw-eyebrow: 500;
     --fs-data: 12px; --fs-data-xs: 11px;
+    --on-ink: #FFFFFF;
+    --agent-sky: #7FAEE6;
+    --agent-ube: #A99BE0;
+    --shadow-seg: 0 1px 2px rgba(16,24,40,0.12);
+    --shadow-pop: 0 8px 24px -12px rgba(16,24,40,0.25);
+    /* Mixed from the tokens above. Night = the landing's night keyframe: ink with ube at 10/20/30/48%. */
+    --night-0: color-mix(in srgb, var(--agent-ube) 10%, var(--ink));
+    --night-1: color-mix(in srgb, var(--agent-ube) 20%, var(--ink));
+    --night-2: color-mix(in srgb, var(--agent-ube) 30%, var(--ink));
+    --night-glow: color-mix(in srgb, var(--agent-ube) 48%, var(--ink));
+    --on-night-dim: color-mix(in srgb, var(--on-ink) 80%, var(--agent-ube));
+    --on-night-line: color-mix(in srgb, var(--on-ink) 22%, transparent);
+    /* Arm D, the one series the charts are about. The six agent hues fail the categorical checks on white. */
+    --arm-d: color-mix(in srgb, var(--agent-ube) 55%, var(--ink));
   }
   * { box-sizing: border-box; }
   html { -webkit-text-size-adjust: 100%; }
@@ -53,7 +67,34 @@
     padding: 0 16px; overflow-x: hidden;
   }
   #paper { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: -1; display: block; pointer-events: none; }
-  main { max-width: 44rem; margin: 0 auto; padding: 64px 0 96px; }
+  main { max-width: 44rem; margin: 0 auto; padding: 0 0 32px; }
+
+  /* Night bands: the landing's night sky behind the masthead and the sign-off, fading into paper. */
+  .band { position: relative; isolation: isolate; margin: 0 -16px; padding: 0 16px; color: var(--on-ink); }
+  .band-in { max-width: 44rem; margin: 0 auto; }
+  .band-sky { position: absolute; inset: 0; z-index: -1; overflow: hidden;
+    background: radial-gradient(62% 58% at 80% 96%, var(--night-glow), transparent 72%),
+                linear-gradient(180deg, var(--night-0) 0%, var(--night-0) 26%, var(--night-1) 62%, var(--night-2) 100%);
+    -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 120px), transparent);
+            mask-image: linear-gradient(to bottom, black calc(100% - 120px), transparent); }
+  .band-close .band-sky { -webkit-mask-image: linear-gradient(to bottom, transparent, black 120px);
+                                  mask-image: linear-gradient(to bottom, transparent, black 120px); }
+  .band-sky canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; filter: blur(1.6px); }
+  .band-tint { position: absolute; inset: -20%; opacity: .16; mix-blend-mode: screen;
+    background: radial-gradient(40% 50% at 30% 40%, var(--agent-ube), transparent 70%),
+                radial-gradient(40% 50% at 72% 60%, var(--agent-sky), transparent 70%); }
+  @media (prefers-reduced-motion: no-preference) { .band-tint { animation: hue 28s ease-in-out infinite alternate; } }
+  @keyframes hue { 0% { transform: translateX(-6%); opacity: .10; } 50% { opacity: .2; } 100% { transform: translateX(6%); opacity: .12; } }
+  .band-top .band-in { padding: 72px 0 152px; }
+  .band-close { margin-top: 32px; }
+  .band-close .band-in { padding: 152px 0 48px; }
+  .band h1, .band h2, .band strong, .band .memo dd { color: var(--on-ink); }
+  .band p { color: var(--on-night-dim); }
+  .band .memo { border-color: var(--on-night-line); margin-bottom: 0; }
+  .band .memo dt { color: var(--on-night-dim); }
+  .band a { color: var(--on-ink); text-decoration-color: var(--on-night-dim); }
+  .band p code { background: var(--on-night-line); border-color: var(--on-night-line); color: var(--on-ink); }
+  .band footer { border-color: var(--on-night-line); color: var(--on-night-dim); }
   h1 { font-size: var(--fs-display); line-height: var(--lh-display); font-weight: var(--fw-display);
        letter-spacing: var(--ls-display); color: var(--ink); margin: 0 0 var(--space-6); }
   .mochi { font-family: var(--font-serif); font-weight: 400; letter-spacing: -0.01em; }
@@ -149,11 +190,72 @@
   @keyframes scan { 0%, 100% { opacity: .45; } 8%, 14% { opacity: 1; fill: var(--border-strong); } }
   @keyframes retire { 0%, 30% { opacity: 1; } 55%, 100% { opacity: .35; } }
   @keyframes arrive { 0%, 40% { opacity: 0; } 65%, 100% { opacity: 1; } }
+
+  /* Charts. Motion explains data and runs once, on first view: transform, opacity, stroke-dashoffset only. */
+  .seg { position: relative; display: inline-grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 2px; padding: 2px;
+         border-radius: var(--radius-md); background: var(--bg-subtle); margin: 0 0 var(--space-2); }
+  .seg button { position: relative; z-index: 1; height: 32px; padding: 0 var(--space-4); border: 0; border-radius: var(--radius-sm);
+                background: none; color: var(--ink-muted); font: inherit; font-size: var(--fs-label); font-weight: var(--fw-label); cursor: pointer; }
+  .seg button[aria-pressed="true"] { color: var(--ink); }
+  .seg button:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+  .seg-ind { position: absolute; left: 2px; top: 2px; bottom: 2px; width: calc((100% - (var(--n) + 1) * 2px) / var(--n));
+             transform: translateX(calc(var(--i) * (100% + 2px))); border-radius: var(--radius-sm); background: var(--bg-surface);
+             box-shadow: var(--shadow-seg); transition: transform .32s cubic-bezier(.3, 1.25, .45, 1); }
+  .bars { display: grid; gap: 6px; font-size: var(--fs-caption); line-height: 1.3; }
+  .bar-row { display: grid; grid-template-columns: minmax(6.5rem, 10.5rem) minmax(0, 1fr) minmax(9rem, auto); align-items: center; gap: var(--space-3); }
+  .bar-row .lab { color: var(--ink-muted); }
+  .bar-row .lab.strong { color: var(--ink); font-weight: 600; }
+  .bar-group { color: var(--ink); font-weight: var(--fw-label); margin-top: var(--space-2); }
+  .bar-group:first-child { margin-top: 0; }
+  .track { position: relative; height: 12px; overflow: hidden; cursor: pointer; }
+  .track:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--radius-xs); }
+  .bar, .whisk, .cap { position: absolute; left: 0; width: 100%; transform-origin: 0 50%; transition: transform .4s cubic-bezier(.3, .8, .3, 1); }
+  .bar { top: 1px; bottom: 1px; border-radius: 0 2px 2px 0; }
+  .whisk { top: 50%; height: 1px; }
+  .cap { top: 1px; bottom: 1px; border-left: 1px solid; }
+  .val { font-family: var(--font-mono); font-size: var(--fs-data-xs); color: var(--ink-secondary); white-space: nowrap; }
+  .val.nm { color: var(--ink-faint); }
+  @media (max-width: 560px) { .bar-row { grid-template-columns: minmax(0, 1fr) auto; row-gap: 2px; } .bar-row .lab { grid-column: 1 / -1; } }
+  .roll { display: inline-flex; position: relative; }
+  .roll-d { display: inline-block; height: 1.3em; line-height: 1.3em; overflow: hidden; vertical-align: bottom; }
+  .roll-col { display: flex; flex-direction: column; transition: transform .6s cubic-bezier(.3, 1.25, .45, 1); }
+  .roll-col > span { height: 1.3em; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .pend { border: 1px dashed var(--border-dashed); border-radius: var(--radius-sm); padding: 28px var(--space-3); text-align: center; font-size: var(--fs-caption); color: var(--ink-muted); }
+  .fx .grid { stroke: var(--border); stroke-width: 1; }
+  .fx .mark { cursor: pointer; outline: none; }
+  .fx .mark:focus-visible .dot { stroke: var(--focus); }
+  .fx .hit { fill: transparent; }
+  .fx .dot-in { opacity: 0; transform: translateY(-10px); transition: opacity .3s ease, transform .45s cubic-bezier(.3, 1.3, .5, 1); }
+  .fx.on .dot-in { opacity: 1; transform: none; }
+  .fx .front { fill: none; stroke: var(--ink-secondary); stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round;
+               stroke-dasharray: var(--len); stroke-dashoffset: var(--len); transition: stroke-dashoffset .9s cubic-bezier(.4, 0, .2, 1); }
+  .fx.on .front { stroke-dashoffset: 0; }
+  .fx.static * { transition: none !important; }
+  .legend i.ring { border: 2px solid var(--ink-secondary); border-radius: 50%; width: 9px; height: 9px; background: none; }
+  .legend i.dot { border: 0; border-radius: 50%; width: 9px; height: 9px; background: var(--ink-secondary); }
+  .legend i.d { border: 0; border-radius: 50%; width: 9px; height: 9px; background: var(--arm-d); }
+  .rv-rows tr.rv { opacity: 0; transform: translateY(4px); transition: opacity .3s ease, transform .3s ease; }
+  .rv-rows.on tr.rv { opacity: 1; transform: none; }
+  .pop { position: fixed; z-index: 50; width: min(320px, calc(100vw - 32px)); padding: var(--space-3) var(--space-4);
+         border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-surface); box-shadow: var(--shadow-pop);
+         font-size: var(--fs-caption); line-height: 1.5; animation: pop .18s cubic-bezier(.2, .8, .2, 1) both; }
+  .pop[hidden] { display: none; }
+  .pop b { display: block; font-size: var(--fs-label); color: var(--ink); margin-bottom: var(--space-2); }
+  .pop dl { display: grid; grid-template-columns: 5.5rem minmax(0, 1fr); gap: 2px var(--space-3); margin: 0; }
+  .pop dt { color: var(--ink-muted); }
+  .pop dd { margin: 0; font-family: var(--font-mono); color: var(--ink); overflow-wrap: anywhere; }
+  @keyframes pop { from { opacity: 0; transform: scale(.94); } }
+  @media (prefers-reduced-motion: reduce) {
+    .bar, .whisk, .cap, .roll-col, .seg-ind, .fx *, .rv-rows tr.rv, .pop { transition: none !important; animation: none !important; }
+  }
 </style>
 </head>
 <body>
 <canvas id="paper" aria-hidden="true"></canvas>
-<main>
+<header class="band band-top">
+<div class="band-sky" aria-hidden="true"><div class="band-tint"></div><canvas></canvas></div>
+<div class="band-in">
 
 <h1><span class="mochi">mochi</span> Brain</h1>
 
@@ -163,6 +265,10 @@
   <div><dt>To</dt><dd>Graph Hacks judges, and anyone building agent memory</dd></div>
   <div><dt>Subject</dt><dd>One build day, logged: what we chose, what we rejected, what it cost</dd></div>
 </dl>
+
+</div>
+</header>
+<main>
 
 <p>This is the decision log of one build day. The repo got its first commit at 10:35 IST. Each entry below has a timestamp from the git history, the question we faced, what we rejected, and what it cost. Every figure on this page is read from <code>bench/results.json</code>. Figures the benchmark has not produced yet say <span class="num pending">pending</span>. The code is at <a href="https://github.com/AtharvaMaskar/mochi-ai">github.com/AtharvaMaskar/mochi-ai</a>.</p>
 
@@ -409,7 +515,12 @@ ORDER BY r.shipped_at DESC, r.version LIMIT 3</code></pre>
 <p class="want">One task: one question, answered the way the agent would answer it. Answer model <span class="num" data-fig="model"></span>, priced at <span class="num" data-fig="price"></span>. Judge <span class="num" data-fig="judge"></span>. Run <span class="num" data-fig="run_at"></span>.</p>
 
 <figure>
-  <div class="legend" aria-hidden="true"><span><i class="solid"></i>claude-haiku-5-5</span><span><i></i>claude-sonnet-5-5</span><span>arm D in ink, the rest grey</span></div>
+  <div class="legend" aria-hidden="true"><span><i class="dot"></i>claude-haiku-5-5</span><span><i class="ring"></i>claude-sonnet-5-5</span><span><i class="d"></i>arm D, the rest grey</span></div>
+  <div class="frame" id="chart-frontier"></div>
+  <figcaption>Headline. Accuracy against mean cost per task, one dot per arm and model. Cost is on a log scale. The line joins the dots that no other dot beats on both cost and accuracy. Tap a dot for its receipt. Source: <code>per_task[].cost_usd_mean</code>, <code>accuracy</code>.</figcaption>
+</figure>
+
+<figure>
   <div class="frame" id="chart-cost"></div>
   <figcaption>Fig 3. Mean cost per task in USD, by arm and model. Lower is cheaper. The percentage is accuracy on the same tasks. Source: <code>per_task[].cost_usd_mean</code>, <code>accuracy</code>.</figcaption>
 </figure>
@@ -480,6 +591,12 @@ ORDER BY r.shipped_at DESC, r.version LIMIT 3</code></pre>
 <div class="table-wrap" id="table-conc"></div>
 <p>Torn reads during the dream: <span class="num" data-fig="torn"></span>. Append-only writes and single-query batches are what make that checkable.</p>
 
+</main>
+
+<section class="band band-close">
+<div class="band-sky" aria-hidden="true"><div class="band-tint"></div><canvas></canvas></div>
+<div class="band-in">
+
 <h2>How this was built</h2>
 <p>AI coding assistants built most of this repo, as the rules allow, and we disclose it here and in the README. We used Claude Code on Claude Opus 5.5. Parallel agents each worked in their own git worktree, one OpenSpec change per worktree: propose, apply, archive. Contracts froze first, and every later contract change was serial. This post was drafted by an agent from the archived changes and the git log, then reviewed by us. We can explain every graph model, query and decision on this page. The figures come from <code>bench/results.json</code> through <code>blog/fill-bench.ts</code>, which refuses to fill the page while any marker is left.</p>
 
@@ -487,7 +604,8 @@ ORDER BY r.shipped_at DESC, r.version LIMIT 3</code></pre>
   Repo: <a href="https://github.com/AtharvaMaskar/mochi-ai">github.com/AtharvaMaskar/mochi-ai</a> · Tracks entered: 01 Agents That Act on Connected Data, 02 Agent Memory and Coordination, 03 Company Brain · Built with AI coding assistants, disclosed above · Graph Hacks, WeMakeDevs × FalkorDB, Oct 2026 · Synthetic data only.
 </footer>
 
-</main>
+</div>
+</section>
 
 <!-- bench/results.json, injected by blog/fill-bench.ts. Null sections render "pending". -->
 <script type="application/json" id="bench">{"run_at":null,"seed":null,"model":null,"judge":null,"records":null,"per_task":null,"summary":null,"ingestion":null,"staleness":null,"mismatch_ablation":null,"concurrency":null,"clusters_ablation":null,"tier_isolation":null,"server":null,"ledger":null}</script>
@@ -553,89 +671,235 @@ ORDER BY r.shipped_at DESC, r.version LIMIT 3</code></pre>
     s.appendChild(e); return e;
   }
   function pending(box, label) {
-    const s = svg(640, 90, label + ", pending");
-    el(s, "rect", { x: 0.5, y: 0.5, width: 639, height: 89, rx: 6, fill: "none", stroke: "var(--border-dashed)", "stroke-dasharray": "4 4" });
-    el(s, "text", { x: 320, y: 50, "text-anchor": "middle" }, "pending: bench/results.json has not been filled yet");
-    box.replaceChildren(s);
+    const d = h("div", "pend", "pending: bench/results.json has not been filled yet");
+    d.setAttribute("role", "img"); d.setAttribute("aria-label", label + ", pending");
+    box.replaceChildren(d);
   }
-  const ink = (arch) => (arch === "D" ? "var(--ink)" : "var(--ink-faint)");
+  // Motion explains data and runs once, when a chart first scrolls into view. Reduced motion gets the final state.
+  const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const armInk = (a) => (a === "D" ? "var(--arm-d)" : "var(--ink-faint)");
+  const fam = (m) => { const f = (String(m).match(/haiku|sonnet|opus/) || [short(m)])[0]; return f[0].toUpperCase() + f.slice(1); };
+  const solid = (m) => models.length < 2 || /haiku/.test(m);
+  function onView(node, fn) {
+    if (still || !("IntersectionObserver" in window)) return fn(true);
+    const io = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) { io.disconnect(); fn(false); } }, { threshold: 0.25 });
+    io.observe(node);
+  }
+  function h(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (has(text)) e.textContent = text; return e; }
 
-  // rows: [{label, arch, bars:[{model, value, whisker?, text}]}]
-  function hbars(box, label, rows, max) {
-    const L = 150, W = 640, R = 210, bh = 9, gap = 3;
-    let y = 8;
-    const heights = rows.map((r) => Math.max(1, r.bars.length) * (bh + gap) + 12);
-    const s = svg(W, sum(heights) + 8, label);
-    rows.forEach((r, i) => {
-      el(s, "text", { x: 0, y: y + 11, class: r.arch === "D" ? "strong" : "" }, r.label);
-      if (!r.bars.length) el(s, "text", { x: L, y: y + 11, class: "v" }, "not measured");
-      r.bars.forEach((b, j) => {
-        const by = y + j * (bh + gap) + 2;
-        const w = max > 0 ? Math.max(1, (b.value / max) * (W - L - R)) : 1;
-        const solid = b.model.includes("haiku") || models.length === 1;
-        el(s, "rect", { x: L, y: by, width: w, height: bh, rx: 1, fill: solid ? ink(r.arch) : "none", stroke: ink(r.arch), "stroke-width": 1 });
-        let end = L + w;
-        if (has(b.whisker)) {
-          const wx = L + (b.whisker / max) * (W - L - R);
-          el(s, "line", { x1: L + w, y1: by + bh / 2, x2: wx, y2: by + bh / 2, stroke: ink(r.arch), "stroke-width": 1 });
-          el(s, "line", { x1: wx, y1: by, x2: wx, y2: by + bh, stroke: ink(r.arch), "stroke-width": 1 });
-          end = wx;
-        }
-        el(s, "text", { x: end + 6, y: by + bh - 1, class: "v" }, b.text);
-      });
-      y += heights[i];
+  // The product's RollingNumber: one 0-9 column per digit, keyed from the right, so a changed value rolls.
+  // mode "zero" parks every column at 0, "roll" moves from what the column showed, "set" jumps.
+  function roll(node, str, mode) {
+    const before = [...node.querySelectorAll(".roll-col")].reverse().map((c) => +c.dataset.d);
+    node.replaceChildren(h("span", "sr", str));
+    const cols = [];
+    for (const ch of str) {
+      if (!/[0-9]/.test(ch)) { const s = h("span", "", ch); s.setAttribute("aria-hidden", "true"); node.appendChild(s); continue; }
+      const d = h("span", "roll-d"), col = h("span", "roll-col");
+      d.setAttribute("aria-hidden", "true");
+      for (let n = 0; n < 10; n++) col.appendChild(h("span", "", String(n)));
+      d.appendChild(col); node.appendChild(d); cols.push([col, +ch]);
+    }
+    cols.reverse().forEach(([col, d], k) => {
+      const from = mode === "set" ? d : mode === "zero" ? 0 : (before[k] || 0);
+      col.style.transform = `translateY(${-from * 10}%)`; col.dataset.d = mode === "zero" ? 0 : d;
     });
-    box.replaceChildren(s);
+    if (mode === "roll") { void node.offsetWidth; cols.forEach(([col, d]) => (col.style.transform = `translateY(${-d * 10}%)`)); }
   }
 
-  function perTaskChart(id, label, pick, whisker, fmt) {
+  // ---- receipts: every mark opens the field path that produced it -------------
+  const pop = h("div", "pop"); pop.hidden = true; pop.setAttribute("role", "dialog"); pop.setAttribute("aria-label", "Receipt");
+  document.body.appendChild(pop);
+  let pinned = null;
+  function showRec(mark) {
+    const r = mark.rec;
+    if (!r) return;
+    const rows = [["arm", r.arm], ["model", r.model], ["n", has(r.n) ? String(r.n) : "not recorded"]]
+      .concat(r.row ? [["cost / task", usd(r.row.cost_usd_mean)], ["latency", ms(r.row.p50_ms) + " p50 · " + ms(r.row.p95_ms) + " p95"]] : [["cost / task", "not measured"]]);
+    pop.innerHTML = `<b>Receipt</b><dl><dt>field</dt><dd>bench/results.json · ${esc(r.path)}</dd>` +
+      rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("") + "</dl>";
+    pop.hidden = false;
+    const b = mark.getBoundingClientRect(), pw = pop.offsetWidth, ph = pop.offsetHeight;
+    const x = Math.max(16, Math.min(b.left + b.width / 2 - pw / 2, innerWidth - pw - 16));
+    const y = b.bottom + 8 + ph > innerHeight - 16 ? Math.max(16, b.top - ph - 8) : b.bottom + 8;
+    pop.style.left = x + "px"; pop.style.top = y + "px";
+  }
+  function hideRec() { pop.hidden = true; pinned = null; }
+  function receipt(mark) {
+    mark.setAttribute("tabindex", "0"); mark.setAttribute("role", "button");
+    mark.addEventListener("pointerenter", (e) => { if (e.pointerType === "mouse" && !pinned) showRec(mark); });
+    mark.addEventListener("pointerleave", (e) => { if (e.pointerType === "mouse" && !pinned) hideRec(); });
+    mark.addEventListener("focus", () => { if (!pinned) showRec(mark); });
+    mark.addEventListener("blur", () => { if (!pinned) hideRec(); });
+    const toggle = (e) => { e.stopPropagation(); if (pinned === mark) return hideRec(); showRec(mark); pinned = mark.rec ? mark : null; };
+    mark.addEventListener("click", toggle);
+    mark.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(e); } });
+  }
+  document.addEventListener("click", (e) => { if (!pop.contains(e.target)) hideRec(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") hideRec(); });
+  addEventListener("scroll", () => { if (!pop.hidden) hideRec(); }, { passive: true });
+  const taskRec = (i, field) => { const r = per[i]; return { arm: ARMS[r.arch], model: r.model_id, n: r.n, row: r, path: `per_task[${i}].${field}` }; };
+
+  // ---- bars: grow from zero, 60ms apart; the model toggle morphs them over 400ms --
+  function barRow(list, label, strong) {
+    const row = h("div", "bar-row"), track = h("div", "track"), val = h("span", "val");
+    const lab = h("span", "lab" + (strong ? " strong" : ""), label);
+    const whisk = h("i", "whisk"), cap = h("i", "cap"), bar = h("i", "bar");
+    track.append(whisk, cap, bar); row.append(lab, track, val); list.appendChild(row);
+    receipt(track);
+    return { track, val, whisk, cap, bar, set(k, wk, color, text, delay) {
+      bar.style.background = whisk.style.background = cap.style.color = color;
+      for (const [e, v] of [[bar, k], [whisk, has(wk) ? wk : 0]]) { e.style.transitionDelay = delay + "ms"; e.style.transform = `scaleX(${v})`; }
+      cap.style.transitionDelay = delay + "ms"; cap.style.opacity = has(wk) ? 1 : 0;
+      cap.style.transform = `translateX(calc(${has(wk) ? wk : 0} * 100% - 1px))`;
+      val.classList.toggle("nm", text === "not measured");
+      track.setAttribute("aria-label", label + ": " + text);
+    } };
+  }
+  function zero(rows) { rows.forEach((r) => { r.bar.style.transform = r.whisk.style.transform = "scaleX(0)"; r.cap.style.transform = "translateX(-1px)"; }); }
+
+  let model = models.includes(BENCH.model && BENCH.model.id) ? BENCH.model.id : models[0];
+  const onModel = [];
+  function seg(box) {
+    if (models.length < 2) return;
+    const s = h("div", "seg"), ind = h("span", "seg-ind");
+    s.setAttribute("role", "group"); s.setAttribute("aria-label", "Answer model");
+    s.style.setProperty("--n", models.length); ind.setAttribute("aria-hidden", "true"); s.appendChild(ind);
+    const btns = models.map((m) => { const b = h("button", "", fam(m)); b.type = "button"; b.addEventListener("click", () => setModel(m)); s.appendChild(b); return b; });
+    const sync = () => { ind.style.setProperty("--i", models.indexOf(model)); btns.forEach((b, i) => b.setAttribute("aria-pressed", String(models[i] === model))); };
+    sync(); onModel.push(sync);
+    box.parentNode.insertBefore(s, box);
+  }
+  function setModel(m) { if (m === model) return; model = m; onModel.forEach((f) => f(true)); }
+
+  function perTaskChart(id, label, pick, whisker, fmt, field) {
     const box = document.getElementById(id);
     if (!per || !per.length) return pending(box, label);
-    const rows = Object.keys(ARMS).map((a) => ({
-      arch: a, label: ARMS[a],
-      bars: models.map((m) => per.find((r) => r.arch === a && r.model_id === m)).filter(Boolean).map((r) => ({
-        model: r.model_id, value: pick(r), whisker: whisker ? whisker(r) : null,
-        text: short(r.model_id) + " · " + fmt(pick(r)) + (whisker ? " / " + fmt(whisker(r)) : "") + " · " + pct(r.accuracy),
-      })),
-    }));
-    const max = Math.max(...per.map((r) => (whisker ? whisker(r) : pick(r))));
-    hbars(box, label, rows, max);
+    const max = Math.max(...per.map((r) => (whisker ? whisker(r) : pick(r)))) || 1;
+    const list = h("div", "bars"); list.setAttribute("role", "group"); list.setAttribute("aria-label", label);
+    box.replaceChildren(list);
+    const arms = Object.keys(ARMS), rows = arms.map((a) => barRow(list, ARMS[a], a === "D"));
+    let shown = false;
+    function draw(mode) {
+      void list.offsetWidth;
+      arms.forEach((a, i) => {
+        const idx = per.findIndex((r) => r.arch === a && r.model_id === model), r = per[idx], R = rows[i];
+        const text = r ? fmt(pick(r)) + (whisker ? " / " + fmt(whisker(r)) : "") + " · " + pct(r.accuracy) : "not measured";
+        R.set(r ? pick(r) / max : 0, r && whisker ? whisker(r) / max : null, armInk(a), text, mode === "grow" ? i * 60 : 0);
+        R.track.rec = r ? taskRec(idx, field) : null;
+        roll(R.val, text, mode === "set" ? "set" : "roll");
+      });
+    }
+    zero(rows);
+    arms.forEach((a, i) => roll(rows[i].val, "not measured", "set"));
+    seg(box);
+    onModel.push(() => { if (shown) draw("morph"); });
+    onView(box, (final) => { shown = true; draw(final ? "set" : "grow"); });
   }
-  perTaskChart("chart-cost", "Mean cost per task by arm and model", (r) => r.cost_usd_mean, null, usd);
-  perTaskChart("chart-latency", "Latency per task by arm and model, p50 and p95", (r) => r.p50_ms, (r) => r.p95_ms, ms);
+  perTaskChart("chart-cost", "Mean cost per task by arm", (r) => r.cost_usd_mean, null, usd, "cost_usd_mean");
+  perTaskChart("chart-latency", "Latency per task by arm, p50 and p95", (r) => r.p50_ms, (r) => r.p95_ms, ms, "p50_ms, p95_ms");
 
   (function accChart() {
     const box = document.getElementById("chart-acc");
     const S = BENCH.summary;
     if (!S || !Object.keys(S).length) return pending(box, "Accuracy by bucket");
-    const arms = Object.keys(ARMS).filter((a) => S[a]);
-    const rows = Object.keys(BUCKETS).map((b) => ({
-      arch: "", label: BUCKETS[b],
-      bars: arms.filter((a) => S[a][b]).map((a) => ({ model: "haiku", value: S[a][b].accuracy, text: a + " · " + pct(S[a][b].accuracy) })),
-    }));
-    // colour per arm inside a bucket: D ink, others faint
-    const L = 150, W = 640, R = 210, bh = 9, gap = 3;
-    const s = svg(W, sum(rows.map((r) => r.bars.length * (bh + gap) + 14)) + 8, "Accuracy by bucket and arm");
-    let y = 8;
-    rows.forEach((r) => {
-      el(s, "text", { x: 0, y: y + 11 }, r.label);
-      r.bars.forEach((b, j) => {
-        const a = b.text[0], by = y + j * (bh + gap) + 2, w = Math.max(1, b.value * (W - L - R));
-        el(s, "rect", { x: L, y: by, width: w, height: bh, rx: 1, fill: ink(a) });
-        el(s, "text", { x: L + w + 6, y: by + bh - 1, class: "v" + (a === "D" ? " strong" : "") }, b.text);
+    const def = BENCH.model && BENCH.model.id;
+    const list = h("div", "bars"); list.setAttribute("role", "group"); list.setAttribute("aria-label", "Accuracy by bucket and arm");
+    box.replaceChildren(list);
+    const marks = [];
+    for (const b of Object.keys(BUCKETS)) {
+      const arms = Object.keys(ARMS).filter((a) => S[a] && S[a][b]);
+      if (!arms.length) continue;
+      list.appendChild(h("div", "bar-group", BUCKETS[b]));
+      arms.forEach((a) => {
+        const R = barRow(list, ARMS[a], a === "D"), v = S[a][b].accuracy;
+        const idx = per ? per.findIndex((r) => r.arch === a && r.model_id === def) : -1;
+        const n = BENCH.records ? BENCH.records.filter((x) => x.arch === a && x.bucket === b && (!x.model_id || x.model_id === def)).length : null;
+        R.track.rec = { arm: ARMS[a], model: def || "default", n, row: idx >= 0 ? per[idx] : null, path: `summary.${a}.${b}.accuracy` };
+        marks.push([R, v, a]);
       });
-      y += r.bars.length * (bh + gap) + 14;
+    }
+    zero(marks.map((m) => m[0]));
+    marks.forEach(([R]) => roll(R.val, "0%", "set"));
+    onView(box, (final) => {
+      void list.offsetWidth;
+      marks.forEach(([R, v, a], i) => { R.set(v, null, armInk(a), pct(v), final ? 0 : i * 60); roll(R.val, pct(v), final ? "set" : "roll"); });
     });
-    box.replaceChildren(s);
   })();
 
-  // ---- tables --------------------------------------------------------------
-  function table(id, head, rows, emptyText) {
+  // ---- cost vs accuracy: dots land, then the frontier draws left to right -------
+  (function frontier() {
+    const box = document.getElementById("chart-frontier");
+    if (!per || !per.length) return pending(box, "Accuracy against cost per task");
+    let on = false, lastW = 0;
+    function draw(state) {
+      const final = state === "final";
+      const W = Math.max(280, Math.round(box.clientWidth - 26)), H = Math.round(Math.min(340, Math.max(240, W * 0.5)));
+      lastW = W;
+      const m = { l: 40, r: 18, t: 14, b: 34 }, pw = W - m.l - m.r, ph = H - m.t - m.b;
+      const costs = per.map((r) => r.cost_usd_mean).filter((c) => c > 0);
+      const lo = costs.length ? Math.min(...costs) / 1.6 : 1e-4, hi = costs.length ? Math.max(...costs) * 1.6 : 1e-2;
+      const L0 = Math.log10(lo), L1 = Math.log10(hi);
+      const x = (c) => m.l + ((Math.log10(Math.max(c, lo)) - L0) / (L1 - L0)) * pw, y = (a) => m.t + (1 - a) * ph;
+      const s = svg(W, H, "Accuracy against mean cost per task, one dot per arm and model");
+      s.classList.add("fx"); if (final) s.classList.add("on", "static");
+      [0, 0.25, 0.5, 0.75, 1].forEach((a) => { el(s, "line", { x1: m.l, x2: W - m.r, y1: y(a), y2: y(a), class: "grid" }); el(s, "text", { x: m.l - 6, y: y(a) + 4, "text-anchor": "end" }, pct(a)); });
+      let ticks = [];
+      for (let d = Math.floor(L0); d <= Math.ceil(L1); d++) for (const f of [1, 2, 5]) { const v = f * 10 ** d; if (v >= lo && v <= hi) ticks.push([v, f]); }
+      if (ticks.length > pw / 56) ticks = ticks.filter((t) => t[1] === 1);
+      ticks.forEach(([v]) => { el(s, "line", { x1: x(v), x2: x(v), y1: m.t, y2: H - m.b, class: "grid" }); el(s, "text", { x: x(v), y: H - m.b + 16, "text-anchor": "middle", class: "v" }, "$" + String(+v.toPrecision(1))); });
+      el(s, "text", { x: W - m.r, y: H - 4, "text-anchor": "end" }, "mean cost per task, log scale →");
+      // the frontier: walking up in cost, keep each dot more accurate than every cheaper dot
+      const order = per.map((r, i) => i).sort((a, b) => per[a].cost_usd_mean - per[b].cost_usd_mean || per[b].accuracy - per[a].accuracy);
+      let best = -1; const front = order.filter((i) => (per[i].accuracy > best ? ((best = per[i].accuracy), true) : false));
+      if (front.length > 1) {
+        const p = el(s, "path", { class: "front", d: front.map((i, k) => (k ? "L" : "M") + x(per[i].cost_usd_mean).toFixed(1) + " " + y(per[i].accuracy).toFixed(1)).join(" ") });
+        box.replaceChildren(s);
+        const len = Math.ceil(p.getTotalLength()); p.style.setProperty("--len", len); p.style.transitionDelay = per.length * 60 + 450 + "ms";
+      }
+      // Labels: D first, then each tries right, below, above, left until it clears the dots and earlier labels.
+      const taken = per.map((r) => { const cx = x(r.cost_usd_mean), cy = y(r.accuracy); return [cx - 6, cy - 6, cx + 6, cy + 6]; });
+      const place = {};
+      [...order].sort((a, b) => (per[b].arch === "D") - (per[a].arch === "D")).forEach((i) => {
+        const r = per[i], cx = x(r.cost_usd_mean), cy = y(r.accuracy), t = r.arch === "D" ? "D · " + fam(r.model_id) : r.arch, tw = t.length * 6.4;
+        const tries = (r.arch === "D" ? [[8, 18], [8, 4], [8, -9]] : [[8, 4], [8, 17], [8, -9]]).concat([[-8 - tw, 4], [-8 - tw, 17], [-8 - tw, -9]]);
+        const box4 = ([dx, dy]) => [cx + dx, cy + dy - 9, cx + dx + tw, cy + dy + 2];
+        const hit = (b) => taken.some((o) => b[0] < o[2] && b[2] > o[0] && b[1] < o[3] && b[3] > o[1]) || b[0] < m.l || b[2] > W;
+        const pick = tries.find((o) => !hit(box4(o))) || tries[0];
+        taken.push(box4(pick)); place[i] = { x: pick[0], y: pick[1], t };
+      });
+      order.forEach((i, k) => {
+        const r = per[i], cx = x(r.cost_usd_mean), cy = y(r.accuracy), c = armInk(r.arch);
+        const g = el(s, "g", { class: "mark", transform: `translate(${cx.toFixed(1)} ${cy.toFixed(1)})`, "aria-label": `${ARMS[r.arch]}, ${r.model_id}: ${pct(r.accuracy)} at ${usd(r.cost_usd_mean)} per task` });
+        const inner = el(g, "g", { class: "dot-in" }); inner.style.transitionDelay = k * 60 + "ms";
+        el(inner, "circle", { class: "hit", r: 12 });
+        el(inner, "circle", solid(r.model_id) ? { class: "dot", r: 5, fill: c, stroke: "var(--bg-surface)", "stroke-width": 2 } : { class: "dot", r: 4.5, fill: "var(--bg-surface)", stroke: c, "stroke-width": 2 });
+        el(inner, "text", { x: place[i].x, y: place[i].y, class: r.arch === "D" ? "strong" : "" }, place[i].t);
+        g.rec = taskRec(i, "cost_usd_mean, accuracy"); receipt(g);
+      });
+      if (s.parentNode !== box) box.replaceChildren(s);
+    }
+    draw("pre");
+    onView(box, (final) => {
+      on = true;
+      if (final) return draw("final");
+      const s = box.querySelector("svg"); void s.getBoundingClientRect(); s.classList.add("on");
+    });
+    if ("ResizeObserver" in window) new ResizeObserver(() => { if (on && Math.abs(Math.round(box.clientWidth - 26) - lastW) > 2) draw("final"); }).observe(box);
+  })();
+
+  // ---- tables: rows reveal one by one; a "not measured" row is never hidden ------
+  function table(id, head, rows, emptyText, reveal) {
     const box = document.getElementById(id);
     if (!rows) { box.innerHTML = `<table><tr><td class="muted">pending</td></tr></table>`; return; }
     if (!rows.length) { box.innerHTML = `<table><tr><td class="muted">${esc(emptyText)}</td></tr></table>`; return; }
     box.innerHTML = "<table><tr>" + head.map((h) => `<th class="${h.r ? "r" : ""}">${esc(h.t)}</th>`).join("") + "</tr>" +
       rows.map((r) => "<tr>" + r.map((c, i) => `<td class="${head[i].r ? "r" : ""}">${c}</td>`).join("") + "</tr>").join("") + "</table>";
+    if (!reveal || still) return;
+    const trs = [...box.querySelectorAll("tr")].slice(1).filter((tr) => !tr.textContent.includes("not measured"));
+    trs.forEach((tr, i) => { tr.classList.add("rv"); tr.style.transitionDelay = i * 60 + "ms"; });
+    box.classList.add("rv-rows");
+    onView(box, () => box.classList.add("on"));
   }
 
   (function staleTable() {
@@ -648,12 +912,12 @@ ORDER BY r.shipped_at DESC, r.version LIMIT 3</code></pre>
       const s = st.find((x) => x.event_id === e && x.arch === a);
       return s ? (s.answer_fresh ? "fresh" : "<strong>stale</strong>") + " · " + s.maintenance_tokens.toLocaleString("en-US") : "not measured";
     })));
-    table("table-stale", head, rows, "no events replayed");
+    table("table-stale", head, rows, "no events replayed", true);
   })();
 
   table("table-ledger", [{ t: "feature" }, { t: "graph mechanism" }, { t: "measured against" }, { t: "result" }],
     BENCH.ledger && BENCH.ledger.map((l) => [esc(l.feature), esc(l.mechanism), esc(l.measured_against),
-      esc(l.result) + (l.status === "demonstrated" ? " <span class=\"muted\">(demonstrated)</span>" : "")]), "no ledger rows");
+      esc(l.result) + (l.status === "demonstrated" ? " <span class=\"muted\">(demonstrated)</span>" : "")]), "no ledger rows", true);
 
   table("table-conc", [{ t: "parallel conversations", r: true }, { t: "p50", r: true }, { t: "p95", r: true }, { t: "throughput / s", r: true }, { t: "torn reads", r: true }],
     BENCH.concurrency && BENCH.concurrency.runs.map((r) => [r.n, ms(r.p50_ms), ms(r.p95_ms), r.throughput_per_s.toFixed(1), r.torn_reads]).map((r) => r.map((c) => `<span class="num">${esc(c)}</span>`)),
@@ -732,6 +996,77 @@ ORDER BY r.shipped_at DESC, r.version LIMIT 3</code></pre>
   }
   resize(); addEventListener("resize", resize);
   if (!still) (function frame(now) { draw(now); if (!document.hidden) requestAnimationFrame(frame); else document.addEventListener("visibilitychange", () => requestAnimationFrame(frame), { once: true }); })(t0);
+})();
+
+// ---- night bands -------------------------------------------------------------
+// The landing's star engine (landing/src/sky/stars.ts), ported: a seeded field with per-star twinkle and
+// shooting stars with an eight-segment tail. 30fps cap; paused off-screen and on hidden tabs; one still
+// frame with no shooting stars under prefers-reduced-motion; the CSS gradient alone without canvas.
+(function night() {
+  const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const light = getComputedStyle(document.documentElement).getPropertyValue("--on-ink").trim();
+  window.__nightFrames = [];
+  document.querySelectorAll(".band-sky canvas").forEach((canvas, bi) => {
+    const ctx = canvas.getContext && canvas.getContext("2d");
+    if (!ctx) { canvas.remove(); return; }
+    let w = 0, h = 0, field = [], streaks = [], spawnIn = 1.5 + bi * 3, last = 0, raf = 0, seen = !("IntersectionObserver" in window);
+    window.__nightFrames[bi] = 0;
+    function resize() {
+      const dpr = Math.min(devicePixelRatio || 1, 1.5);
+      w = canvas.clientWidth; h = canvas.clientHeight;
+      canvas.width = Math.ceil(w * dpr); canvas.height = Math.ceil(h * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const n = Math.min(240, Math.floor(w * h * 0.00012));
+      let s = 7 + bi; const rnd = () => ((s = (s * 16807) % 2147483647) / 2147483647); // seeded, so stills match
+      field = Array.from({ length: n }, () => ({ x: rnd() * w, y: rnd() * h, r: 0.6 + rnd() * 1.1, phase: rnd() * 6.28, period: 1.6 + rnd() * 1.6 }));
+      draw(performance.now(), 0);
+    }
+    function draw(now, dt) {
+      window.__nightFrames[bi]++;
+      ctx.clearRect(0, 0, w, h);
+      ctx.fillStyle = light;
+      for (const st of field) {
+        ctx.globalAlpha = still ? 0.8 : 0.55 + Math.abs(Math.sin(now / 1000 / st.period + st.phase)) * 0.45;
+        ctx.beginPath(); ctx.arc(st.x, st.y, st.r, 0, 6.283); ctx.fill();
+      }
+      if (!still) {
+        spawnIn -= dt;
+        if (spawnIn <= 0 && streaks.length < 2) {
+          const ang = Math.PI * (0.78 + Math.random() * 0.1), speed = 520 + Math.random() * 260; // down and to the left
+          streaks.push({ x: w * (0.45 + Math.random() * 0.6), y: -10 + Math.random() * h * 0.25, vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed, life: 0, dist: 0 });
+          spawnIn = 3 + Math.random() * 5; // occasional, not a shower
+        }
+        ctx.strokeStyle = light; ctx.lineWidth = 1.6; ctx.lineCap = "round";
+        streaks = streaks.filter((s) => {
+          s.x += s.vx * dt; s.y += s.vy * dt; s.dist += Math.hypot(s.vx, s.vy) * dt; s.life += dt;
+          const len = Math.min(220, 12 * (1 + s.dist / 100)), sp = Math.hypot(s.vx, s.vy);
+          const tx = s.x - (s.vx / sp) * len, ty = s.y - (s.vy / sp) * len;
+          const fade = s.life > 1.6 ? Math.max(0, 1 - (s.life - 1.6) / 0.6) : 1;
+          for (let k = 0; k < 8; k++) { // tail: eight segments fading toward the back
+            const a0 = k / 8, a1 = (k + 1) / 8;
+            ctx.globalAlpha = fade * a1 * a1;
+            ctx.beginPath(); ctx.moveTo(tx + (s.x - tx) * a0, ty + (s.y - ty) * a0); ctx.lineTo(tx + (s.x - tx) * a1, ty + (s.y - ty) * a1); ctx.stroke();
+          }
+          return fade > 0 && s.x > -400 && s.y < h + 40;
+        });
+      }
+      ctx.globalAlpha = 1;
+    }
+    function loop(now) {
+      raf = requestAnimationFrame(loop);
+      if (now - last < 33) return; // 30fps cap
+      const dt = Math.min(0.1, (now - last) / 1000); last = now;
+      draw(now, dt);
+    }
+    const start = () => { if (still || !seen || document.hidden || raf) return; last = performance.now(); raf = requestAnimationFrame(loop); };
+    const stop = () => { cancelAnimationFrame(raf); raf = 0; };
+    resize();
+    addEventListener("resize", resize);
+    if (still) return;
+    if (!seen) new IntersectionObserver((es) => { seen = es[es.length - 1].isIntersecting; seen ? start() : stop(); }).observe(canvas);
+    document.addEventListener("visibilitychange", () => (document.hidden ? stop() : start()));
+    start();
+  });
 })();
 </script>
 </body>
