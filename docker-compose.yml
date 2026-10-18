@@ -4,7 +4,7 @@
 services:
   falkordb:
     image: falkordb/falkordb:v4.22.1
-    ports: ["6379:6379", "3000:3000"]
+    ports: ["127.0.0.1:6379:6379", "127.0.0.1:3000:3000"] # dev: localhost only
     environment:
       FALKORDB_PASSWORD: ${FALKORDB_PASSWORD:?}   # read by the healthcheck
       REDIS_ARGS: >-

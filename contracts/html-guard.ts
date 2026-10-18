@@ -10,6 +10,7 @@ export type SandboxHtml = { html: string; css: string };
 
 const LITERAL_COLOR = /#[0-9a-f]{3,8}\b|\b(?:rgba?|hsla?|oklch|oklab|lab|lch|hwb|color)\s*\(/i;
 const CSS_RULES: [RegExp, string][] = [
+  [/</, '"<" is not allowed in CSS (it could close the <style> block and escape the guard)'],
   [/font-family\s*:(?!\s*var\(--font-)/i, 'font-family must be var(--font-…)'],
   [/(^|[;{\s])font\s*:(?![^;}]*var\(--font-)/i, 'font shorthand must use var(--font-…)'],
   [/url\s*\(/i, 'url() is not allowed'],

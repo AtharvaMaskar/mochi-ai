@@ -18,6 +18,11 @@ test('tokens-only CSS', () => {
   assert.match(errs('<p>Hi</p>', 'p::after { content: "7" }'), /CSS content/);
 });
 
+test('CSS cannot close its style block', () => {
+  assert.match(errs('<p>Hi</p>', '</style><p>Median 7.2h</p><style>'), /not allowed in CSS/);
+  assert.match(errs('<p style="color:var(--ink)</p>">Hi</p>'), /not allowed in CSS|literal numbers|disallowed/);
+});
+
 test('no network, no scripts', () => {
   assert.match(errs('<script src="https://cdn.example/x.js"></script>'), /disallowed element/);
   assert.match(errs('<div onclick="x()">Hi</div>'), /event handler/);
