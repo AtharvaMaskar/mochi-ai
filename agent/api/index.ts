@@ -3,9 +3,19 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Pi } from '../harness.ts';
 import type { Db } from '../queries/index.ts';
 import { SimError } from './sim.ts';
-import { answerTicket, listDesk, ticketBrief, ticketDetail } from './tickets.ts';
+import { answerTicket, claimTicket, draftTicket, listDesk, ticketBrief, ticketDetail, type Complete } from './tickets.ts';
 import { overview, storyList } from './overview.ts';
-import { cookieVid } from './visitor.ts';
+import { cookieVid, ipOf, overLimit } from './visitor.ts';
+
+/** One plain completion on MOCHI_MODEL (no tools, no thinking). */
+const completeWith = (pi: Pi): Complete => async (systemPrompt, user) => {
+  const model = pi.models.getModel(pi.model.provider as never, pi.model.modelId);
+  if (!model) throw new Error(`unknown model ${pi.model.provider}/${pi.model.modelId}`);
+  const msg = await pi.models.complete(model, { systemPrompt, messages: [{ role: 'user', content: user, timestamp: Date.now() }] },
+    { maxTokens: 400, thinkingEnabled: false } as never);
+  if (msg.stopReason === 'error') throw new SimError(502, 'The model didn’t answer. Try again.');
+  return msg.content.flatMap((c) => (c.type === 'text' ? [c.text] : [])).join('').trim();
+};
 
 // Same-origin only: no CORS headers (the deploy serves the ui from this process; dev proxies /api through Vite).
 export const json = (res: ServerResponse, status: number, body: unknown, headers: Record<string, string> = {}) => {
@@ -33,12 +43,19 @@ export async function routeApi(req: IncomingMessage, res: ServerResponse, url: U
   if (get && p === '/api/tickets') {
     const view = url.searchParams.get('view') ?? 'ready', order = url.searchParams.get('order') ?? 'newest';
     if (!['ready', 'done', 'all'].includes(view) || !['newest', 'oldest'].includes(order)) return reply(async () => { throw new SimError(400, 'view is ready|done|all, order is newest|oldest'); });
-    return reply(async () => listDesk(await db(), pi.graph, view, order));
+    return reply(async () => listDesk(await db(), pi.graph, view, order, mem.user));
   }
-  const m = p.match(/^\/api\/tickets\/([^/]+)(?:\/(brief|answer))?$/);
+  const m = p.match(/^\/api\/tickets\/([^/]+)(?:\/(brief|answer|draft|claim))?$/);
   if (m) {
     const id = decodeURIComponent(m[1]);
-    if (get && !m[2]) return reply(async () => ticketDetail(await db(), pi.graph, id));
+    if (get && !m[2]) return reply(async () => ticketDetail(await db(), pi.graph, id, mem.user));
+    if (post && m[2] === 'draft') {
+      // Every draft spends the model key: it counts against the same per-IP cap as a chat run.
+      const wait = overLimit(ipOf(req));
+      if (wait) { json(res, 429, { error: `You’ve asked a lot in a short time. Try again in ${Math.ceil(wait / 60)} min.` }, { 'retry-after': String(wait) }); return true; }
+      return reply(async () => draftTicket(await db(), pi.graph, id, await readJson(req), completeWith(pi)));
+    }
+    if (post && m[2] === 'claim') return reply(async () => claimTicket(await db(), pi.graph, id, mem.user));
     if (post && m[2] === 'brief') return reply(async () => ticketBrief(await db(), pi.graph, id, mem));
     if (post && m[2] === 'answer') return reply(async () => answerTicket(id, await readJson(req) as { requestId?: string; text?: string }, mem));
   }

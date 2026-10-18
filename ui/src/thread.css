@@ -1,27 +1,44 @@
-/* The ticket as a conversation (components/thread.tsx). Tokens only. */
-.mb-tt { position: relative; list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-3); }
+/* The ticket as a conversation (components/thread.tsx). Tokens only.
+   Motion: a ticket switch is a 120 ms opacity crossfade of the pane; only content new to the view rises in. */
+@keyframes mb-tt-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes mb-tt-blur { from { opacity: 0; filter: blur(6px); } to { opacity: 1; filter: none; } }
+
+.mb-tt { position: relative; list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-3); animation: mb-tt-fade .12s ease-out both; }
+.mb-ticket-head { animation: mb-tt-fade .12s ease-out both; }
+/* switching: the last ticket dims in place (no skeleton, no reflow) until the next one lands */
+.mb-ticket > * { transition: opacity .12s ease-out; }
+.mb-ticket[data-stale] > * { opacity: .55; pointer-events: none; }
 /* the spine: one thin line through the avatars' centres */
 .mb-tt::before { content: ""; position: absolute; left: 15.5px; top: var(--space-4); bottom: var(--space-8); width: 1px; background: var(--border-strong); }
 
-.mb-tt-item { position: relative; display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: var(--space-3); animation: mb-in .4s cubic-bezier(.2,.7,.2,1) both; }
+.mb-tt-item { position: relative; display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: var(--space-3); }
+.mb-tt-item[data-new] { animation: mb-in .4s cubic-bezier(.2,.7,.2,1) both; }
 .mb-tt-av { position: relative; z-index: 1; width: 32px; height: 32px; border-radius: var(--radius-pill); display: grid; place-items: center;
   background: var(--bg-surface); border: 1px solid var(--border-strong); color: var(--ink-secondary); font-size: var(--fs-caption); font-weight: var(--fw-label); }
 .mb-tt-item[data-kind="reply"] .mb-tt-av { background: var(--ink); border-color: var(--ink); color: var(--on-ink); }
 .mb-tt-item[data-kind="note"] .mb-tt-av { border-style: dashed; border-color: var(--border-dashed); color: var(--ink-muted); }
 .mb-tt-item[data-kind="next"] .mb-tt-av { background: var(--bg-page); border-color: transparent; color: var(--ink-muted); }
 
-.mb-tt-msg { min-width: 0; display: flex; flex-direction: column; gap: var(--space-1\.5); padding: var(--space-3) var(--space-4); border-radius: var(--radius-md);
+.mb-tt-msg { position: relative; min-width: 0; display: flex; flex-direction: column; gap: var(--space-1\.5); padding: var(--space-3) var(--space-4); border-radius: var(--radius-md);
   background: var(--bg-surface); border: 1px solid var(--border); }
 .mb-tt-item[data-kind="reply"] .mb-tt-msg { background: var(--bg-subtle); border-color: transparent; }
 .mb-tt-item[data-kind="note"] .mb-tt-msg { background: transparent; border-style: dashed; border-color: var(--border-dashed); }
 .mb-tt-item[data-kind="next"] .mb-tt-msg { border-color: var(--border-strong); box-shadow: var(--shadow-seg); gap: var(--space-2); }
+
+/* Mochi's draft: a 1px conic ring of agent tints, masked to the border. It turns while Mochi drafts and rests faint when done. */
+.mb-tt-msg[data-ai] { border-color: transparent; }
+.mb-tt-msg[data-ai]::before { content: ""; position: absolute; inset: -1px; border-radius: inherit; padding: 1px; pointer-events: none; opacity: .5;
+  background: conic-gradient(from var(--mb-ang), color-mix(in srgb, var(--agent-sky) 40%, transparent), color-mix(in srgb, var(--agent-ube) 40%, transparent),
+    color-mix(in srgb, var(--agent-sakura) 40%, transparent), color-mix(in srgb, var(--agent-sky) 40%, transparent));
+  -webkit-mask: linear-gradient(var(--ink) 0 0) content-box, linear-gradient(var(--ink) 0 0); -webkit-mask-composite: xor; mask-composite: exclude; transition: opacity .4s; }
+.mb-tt-msg[data-ai][data-working]::before { opacity: 1; animation: mb-ang 3.2s linear infinite; }
 
 .mb-tt-head { display: flex; align-items: center; gap: var(--space-1\.5) var(--space-2); flex-wrap: wrap; font-size: var(--fs-caption); color: var(--ink-muted); }
 .mb-tt-head b { font-size: var(--fs-label); font-weight: var(--fw-body-strong); color: var(--ink); }
 .mb-tt-chan { display: inline-flex; align-items: center; gap: var(--space-1); }
 .mb-tt-at { margin-left: auto; }
 .mb-tt-text, .mb-tt-noise { white-space: pre-wrap; overflow-wrap: anywhere; color: var(--ink-body); }
-.mb-tt-noise { color: var(--ink-muted); animation: mb-in .24s ease-out both; }
+.mb-tt-noise { color: var(--ink-muted); animation: mb-tt-fade .12s ease-out both; }
 
 /* the fold: a small "…" pill, Gmail-style */
 .mb-tt-fold { align-self: flex-start; display: inline-grid; place-items: center; height: 16px; padding: 0 var(--space-1\.5); border: 0; border-radius: var(--radius-pill);
@@ -32,17 +49,57 @@
 .mb-tt-fold:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
 /* marks on the spine: the day, and the time between messages */
-.mb-tt-mark { position: relative; padding-left: 44px; font-size: var(--fs-caption); color: var(--ink-muted); animation: mb-in .4s ease-out both; }
+.mb-tt-mark { position: relative; padding-left: 44px; font-size: var(--fs-caption); color: var(--ink-muted); }
 .mb-tt-mark::before { content: ""; position: absolute; left: 12.5px; top: 50%; width: 7px; height: 7px; margin-top: -3.5px; border-radius: var(--radius-pill);
   background: var(--bg-page); border: 1px solid var(--border-strong); }
 .mb-tt-day { font-size: var(--fs-eyebrow); font-weight: var(--fw-eyebrow); color: var(--ink-secondary); }
 
 /* the next reply */
 .mb-tt-say { font-size: var(--fs-caption); color: var(--ink-muted); }
-.mb-tt-input { width: 100%; box-sizing: border-box; resize: vertical; min-height: 120px; padding: var(--space-2\.5) var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-sm);
+.mb-tt-src { margin: 0; display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; font-size: var(--fs-caption); color: var(--ink-secondary); }
+/* The field and its reveal and skeleton share one fixed height, so nothing below moves while the draft loads. */
+.mb-tt-input { display: block; width: 100%; box-sizing: border-box; resize: vertical; height: 200px; min-height: 120px; padding: var(--space-2\.5) var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-sm);
   background: var(--bg-surface); color: var(--ink-body); font: inherit; line-height: inherit; }
 .mb-tt-input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
-.mb-tt-act { display: flex; justify-content: flex-end; }
+.mb-tt-input[readonly] { color: var(--ink-muted); }
+.mb-tt-reveal { overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; resize: none; cursor: text; }
+.mb-tt-reveal span { display: inline; animation: mb-tt-blur .3s ease-out both; }
+
+.mb-tt-skel { display: flex; flex-direction: column; gap: var(--space-2); }
+/* skeleton rows sized like the finished draft: KB line 22 · legend + four steps 131 · field 200 · tone chips 24 */
+.mb-tt-skel > .mb-skel:not(.mb-tt-skel-box) { padding: 0; }
+.mb-tt-skel-src { height: 22px; justify-content: center; }
+.mb-tt-skel-plan { height: 131px; box-sizing: border-box; justify-content: space-around; }
+.mb-tt-skel-box { height: 200px; box-sizing: border-box; padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.mb-tt-skel-tone { height: 24px; }
+
+/* the fix plan: a flat checklist the agent ticks (nothing here runs a system action) */
+.mb-tt-plan { margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
+.mb-tt-plan legend { padding: 0 0 var(--space-1); font-size: var(--fs-caption); color: var(--ink-muted); }
+.mb-tt-step { position: relative; display: grid; grid-template-columns: 16px minmax(0, 1fr); align-items: start; gap: var(--space-2); padding: 2px 0; cursor: pointer; color: var(--ink-body); }
+.mb-tt-step[data-last] { cursor: default; }
+.mb-tt-step input { position: absolute; opacity: 0; width: 16px; height: 16px; margin: 2px 0 0; cursor: inherit; }
+.mb-tt-box { width: 16px; height: 16px; margin-top: 2px; box-sizing: border-box; display: grid; place-items: center; border: 1px solid var(--border-strong); border-radius: var(--radius-xs); background: var(--bg-surface); transition: border-color .15s, transform .26s cubic-bezier(.3,1.6,.5,1); }
+.mb-tt-box .mb-check { width: 14px; height: 14px; }
+.mb-tt-step:active .mb-tt-box { transform: scale(.9); transition-duration: .06s; }
+.mb-tt-step[data-on] .mb-tt-box { border-color: var(--success-border); background: var(--success-bg); }
+.mb-tt-step[data-on]:not([data-last]) > span:last-child { color: var(--ink-muted); }
+.mb-tt-step input:focus-visible + .mb-tt-box { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+.mb-tt-tone { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+.mb-tt-chip { height: 24px; padding: 0 var(--space-2\.5); border: 1px solid var(--border); border-radius: var(--radius-pill); background: var(--bg-surface); color: var(--ink-secondary);
+  font: inherit; font-size: var(--fs-caption); cursor: pointer; transition: background .15s, transform .26s cubic-bezier(.3,1.6,.5,1); }
+.mb-tt-chip:hover { background: var(--bg-subtle); }
+.mb-tt-chip:active { transform: scale(.95); transition-duration: .06s; }
+.mb-tt-chip:disabled { cursor: default; color: var(--ink-muted); }
+.mb-tt-chip:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+.mb-tt-act { display: flex; justify-content: flex-end; min-height: 32px; align-items: center; }
+.mb-tt-confirm { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; justify-content: flex-end; font-size: var(--fs-label); color: var(--ink-body); animation: mb-tt-fade .12s ease-out both; }
+
+/* ticket header claim state, and the queue's "You" mark (TicketRow mine) */
+.mb-claimed { display: inline-flex; align-items: center; gap: var(--space-1); height: var(--control-sm); font-size: var(--fs-caption); color: var(--ink-secondary); }
+.mb-row-you { margin-left: auto; padding: 0 var(--space-1\.5); border: 1px solid var(--border); border-radius: var(--radius-pill); font-size: var(--fs-caption); color: var(--ink-secondary); line-height: 12px; }
 
 @media (max-width: 767px) {
   .mb-tt::before { left: 13.5px; }
@@ -53,7 +110,8 @@
   .mb-tt-mark::before { left: 10.5px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .mb-tt-item, .mb-tt-mark, .mb-tt-noise { animation: none; }
-  .mb-tt-fold { transition: none; }
-  .mb-tt-fold:active { transform: none; }
+  .mb-tt, .mb-ticket-head, .mb-tt-item[data-new], .mb-tt-noise, .mb-tt-confirm, .mb-tt-reveal span { animation: none; }
+  .mb-tt-msg[data-ai][data-working]::before { animation: none; }
+  .mb-tt-fold, .mb-tt-box, .mb-tt-chip { transition: none; }
+  .mb-tt-fold:active, .mb-tt-step:active .mb-tt-box, .mb-tt-chip:active { transform: none; }
 }
