@@ -23,7 +23,7 @@ test('checkCypherNames finds zero drift in agent/ and bench/', () => {
       if (!CYPHER.test(m[1])) continue;
       scanned++;
       // ${…} interpolations become a contract label (interpolated labels come from VECTOR_LABELS, checked in deps.test.ts).
-      const bad = checkCypherNames(m[1].replace(/\$\{[^}]*\}/g, 'Ticket'));
+      const bad = checkCypherNames(m[1].replace(/(\[\w*:)\$\{[^}]*\}/g, '$1ABOUT').replace(/\$\{[^}]*\}/g, 'Ticket')); // edge-position interpolations become a contract edge
       if (bad.length) drift.push(`${f.slice(ROOT.length)}: ${bad.join(', ')}`);
     }
   }

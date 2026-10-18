@@ -296,7 +296,7 @@ query_graph examples:
 - open tickets for a release: MATCH (r:Release {version: '3.2.0'})-[x:INTRODUCED]->(i:Issue)<-[:ABOUT]-(t:Ticket) WHERE ${EDGE_AS_OF('x')} AND ${N('t')} AND t.status IN ['open', 'pending'] RETURN t.id AS ticket, t.subject AS subject, i.name AS issue ORDER BY t.created_at DESC
 - who solved most in an area: MATCH (a:AgentUser)-[s:SOLVED]->(t:Ticket)-[:ABOUT]->(:Issue)-[:IN]->(:ProductArea {name: 'kyc'}) WHERE ${N('t')} RETURN a.name AS agent, count(s) AS solved ORDER BY solved DESC, agent LIMIT 5
 - tickets per day this week: MATCH (t:Ticket) WHERE ${N('t')} AND t.created_at > $as_of - 604800000 RETURN t.created_at - ((t.created_at + 19800000) % 86400000) AS day, count(t) AS tickets ORDER BY day
-graph_algorithm (params: source/target {label, id}, labels, relTypes, maxLen, depth, top, area):
+graph_algorithm, params source/target {label, id}, labels, relTypes, maxLen, depth, top, area:
 - shortest_path: how two things are connected (≤4 hops, path receipt). Release ids are versions.
 - pagerank: whose fixes sit at the centre (solvers ranked over the ticket-similarity graph; area narrows it). With one label + relType, rank goes to the edge target.
 - communities: groups of similar tickets (label propagation over SIMILAR_TO), across issue labels.
