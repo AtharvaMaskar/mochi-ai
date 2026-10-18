@@ -74,7 +74,7 @@ A prompt-injected write from a user conversation fails at FalkorDB with `NOPERM`
 
 ### Labels
 
-`Customer`, `Ticket`, `Issue`, `ProductArea`, `Team`, `AgentUser`, `Resolution`, `KBArticle`, `Release`, `Plan`, `Policy`, `ObservedPattern`, `Suggestion`, `DoctrineCandidate`, `Cluster`.
+`Customer`, `Ticket`, `Issue`, `ProductArea`, `Team`, `AgentUser`, `Resolution`, `KBArticle`, `Release`, `Plan`, `Policy`, `ObservedPattern`, `Suggestion`, `DoctrineCandidate`, `Cluster, Episode`.
 
 Doctrine (what the company claims) lives on `KBArticle` and `Policy` (`promised_tat_hours`, `steps`). Practice (what happens) lives on `ObservedPattern` (`measured_tat_hours`, `support_count`, `last_seen`), which the dream distills from tickets.
 
