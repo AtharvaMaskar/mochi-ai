@@ -20,6 +20,8 @@
 .mb-login-pw input { padding-right: 40px; }
 .mb-login-pw .mb-icon-btn { position: absolute; right: 4px; top: 4px; }
 .mb-login-error { font-size: var(--fs-label); color: var(--critical); animation: mb-in .2s ease both; }
+.mb-login-hint { text-align: center; font-size: var(--fs-caption); color: var(--ink-muted); }
+.mb-login-hint code { font-family: var(--font-mono); color: var(--ink-body); }
 .mb-login-card .mb-btn { width: 100%; height: 36px; margin-top: var(--space-1); }
 
 @media (prefers-reduced-motion: reduce) {

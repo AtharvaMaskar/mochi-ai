@@ -8,12 +8,12 @@ import { useInView } from '../parts/ui';
 // Keep in step with public/chapters.vtt.
 export const CHAPTERS = [
   { id: 'problem', label: 'Problem', at: 0, line: 'Every ticket starts from zero today.' },
-  { id: 'briefing', label: 'Briefing', at: 48, line: 'A brief waiting on the ticket: likely cause and the fix that worked.' },
-  { id: 'receipts', label: 'Receipts', at: 61, line: 'The path it walked, and the Cypher behind a number.' },
-  { id: 'draft', label: 'Draft', at: 72, line: 'Mochi drafts the reply from the fix; you claim and work the steps.' },
-  { id: 'dream', label: 'Dream', at: 81, line: 'The morning report: retired facts, KB-07 against practice, clusters.' },
-  { id: 'chat', label: 'Chat', at: 114, line: 'Who knows this issue, and a graph algorithm as a tool.' },
-  { id: 'bench', label: 'Benchmark', at: 158, line: 'Five memory designs, the same questions.' },
+  { id: 'briefing', label: 'Briefing', at: 40, line: 'A brief waiting on the ticket: likely cause and the fix that worked.' },
+  { id: 'receipts', label: 'Receipts', at: 53, line: 'The path it walked, and the Cypher behind a number.' },
+  { id: 'draft', label: 'Draft', at: 64, line: 'Mochi drafts the reply from the fix; you claim and work the steps.' },
+  { id: 'dream', label: 'Dream', at: 70, line: 'The morning report: retired facts, KB-07 against practice, clusters.' },
+  { id: 'chat', label: 'Chat', at: 102, line: 'Who knows this issue, and a graph algorithm as a tool.' },
+  { id: 'bench', label: 'Benchmark', at: 144, line: 'Five memory designs, the same questions.' },
 ];
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 

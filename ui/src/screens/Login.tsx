@@ -52,6 +52,7 @@ export function Login() {
         </label>
         {error && <p id="login-error" className="mb-login-error" role="alert">{error}</p>}
         <Button variant="primary" type="submit" loading={busy}>Sign in</Button>
+        <p className="mb-login-hint">Demo login: <code>admin</code> / <code>admin@1234</code></p>
       </form>
     </main>
   );
