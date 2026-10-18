@@ -9,11 +9,12 @@ import { InMemoryAgentRunner, type AgentRunnerConnectRequest } from '@copilotkit
 import { Observable } from 'rxjs';
 import { ACTIVITY } from '@mochi/contracts';
 import { READ_TOOLS, type Pi } from './harness.ts';
+import { scopedThread } from './api/visitor.ts';
 
 type Block = { type: string; text?: string; id?: string; name?: string; arguments?: unknown };
 type ToolMsg = { toolCallId?: string; toolName?: string; isError?: boolean; details?: Record<string, unknown>; content?: unknown };
 
-// AG-UI threadId -> Pi conversation id; session-scoped so the mapping survives restarts.
+// `<visitor id>:<AG-UI threadId>` -> Pi conversation id; session-scoped so the mapping survives restarts.
 export const Threads = defineDoc<{ map: Record<string, number> }>({
   kind: 'mochi.agui-threads', version: 1, scope: 'session', initial: () => ({ map: {} }),
 });
@@ -31,7 +32,8 @@ export function activityOf(m: ToolMsg | undefined): { activityType: string; cont
   return null;
 }
 
-export async function conversationFor(pi: Pi, threadId: string) {
+export async function conversationFor(pi: Pi, raw: string) {
+  const threadId = scopedThread(raw); // a threadId only names a thread inside this visitor's scope
   const id = await pi.root.commit(async (tx) => {
     const doc = await tx.doc(Threads);
     if (doc.map[threadId] === undefined) {
@@ -48,7 +50,7 @@ export async function conversationFor(pi: Pi, threadId: string) {
 
 /** The thread's transcript as AG-UI messages: user text, assistant text + tool calls, tool results and their activities. */
 export async function history(pi: Pi, threadId: string): Promise<Message[]> {
-  const id = (await pi.harness.snapshot(Threads, ctx))?.map[threadId];
+  const id = (await pi.harness.snapshot(Threads, ctx))?.map[scopedThread(threadId)];
   if (id === undefined) return [];
   const conv = (await pi.harness.conversation(id as unknown as ConversationId, ctx))!;
   const messages: Message[] = [];

@@ -35,4 +35,4 @@ COPY --from=build /srv/ui/dist ui/dist
 RUN mkdir -p /data
 VOLUME /data
 EXPOSE 4000
-CMD ["node", "deploy/start.ts"]
+CMD ["node", "agent/server.ts"]

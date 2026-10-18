@@ -100,13 +100,3 @@ docker compose -f docker-compose.prod.yml down                     # add -v to d
 ```
 
 Host ports are 6380 (FalkorDB) and 4100 (app), so it runs alongside the dev stack on 6379 and 3000.
-
-## For wire-ui: retiring `deploy/start.ts`
-
-`deploy/start.ts` wraps `agent/server.ts`'s request handler, so this change does not edit that file. Add one line before the final 404 in `handle` in `agent/server.ts`:
-
-```ts
-if (serveStatic(req, res)) return;   // import { serveStatic } from '../deploy/static.ts';
-```
-
-Then point `CMD` in `Dockerfile` and the root `start` script at `agent/server.ts`, and delete `deploy/start.ts`.

@@ -88,6 +88,55 @@ WITH node AS t, score WHERE ${N('t')}
 OPTIONAL MATCH (t)-[:ABOUT]->(i:Issue)
 RETURN t.id AS ticket, t.subject AS subject, t.status AS status, i.name AS issue, score
 ORDER BY score, ticket LIMIT $k`,
+  customerProfile: {
+    profile: `/* mochi:customer_profile.profile@v1 */
+MATCH (c:Customer {id: $customerId}) WHERE ${N('c')}
+OPTIONAL MATCH (c)-[op:ON_PLAN]->(p:Plan) WHERE ${E('op')}
+RETURN c.id AS customer_id, c.name AS name, c.segment AS segment, p.name AS plan, c.city AS city`,
+    history: `/* mochi:customer_profile.history@v1 */
+MATCH (c:Customer {id: $customerId})-[:RAISED]->(t:Ticket)
+WHERE ${N('t')} AND t.status IN ['resolved', 'closed'] AND NOT (t)-[:MERGED_INTO]->(:Ticket)
+OPTIONAL MATCH (t)-[:RESOLVED_BY]->(r:Resolution) WHERE ${N('r')}
+RETURN t.id AS ticket, t.subject AS subject, t.created_at AS created_at, t.status AS status,
+       r.kind AS resolution_kind, coalesce(r.summary, 'Closed with no recorded fix') AS ended
+ORDER BY t.created_at DESC, t.id LIMIT 10`,
+    open: `/* mochi:customer_profile.open@v1 */
+MATCH (c:Customer {id: $customerId})-[:RAISED]->(t:Ticket)
+WHERE ${N('t')} AND NOT t.status IN ['resolved', 'closed']
+RETURN t.id AS ticket, t.subject AS subject, t.created_at AS created_at, t.status AS status
+ORDER BY t.created_at DESC, t.id LIMIT 10`,
+    merged: `/* mochi:customer_profile.merged@v1 */
+MATCH (c:Customer {id: $customerId})-[:RAISED]->(d:Ticket)-[:MERGED_INTO]->(p:Ticket)
+WHERE ${N('d')} AND ${N('p')}
+RETURN d.id AS ticket, d.subject AS subject, p.id AS merged_into
+ORDER BY d.created_at DESC, d.id LIMIT 10`,
+  },
+  // Mochi's guess on desk tickets. Confidence is evidence, never seeded: of the Issue's resolved tickets, the share
+  // whose resolution is the top one (its support_count over all resolved support).
+  deskGuess: `/* mochi:desk.guess@v1 */
+UNWIND $ids AS tid
+MATCH (t:Ticket {id: tid}) WHERE ${N('t')}
+OPTIONAL MATCH (t)-[:ABOUT]->(i:Issue) WHERE ${N('i')}
+OPTIONAL MATCH (i)<-[:ABOUT]-(s:Ticket)-[:RESOLVED_BY]->(r:Resolution)
+WHERE s.id <> t.id AND ${N('s')} AND ${N('r')} AND s.resolved_at <= $as_of
+WITH t, i, r, count(s) AS support
+ORDER BY support DESC, r.id
+WITH t, i, collect(CASE WHEN r IS NULL THEN null ELSE [r.id, r.summary, support] END) AS fixes, sum(support) AS resolved
+RETURN t.id AS ticket, t.ingested_at IS NOT NULL AS ingested, i.id AS issue_id, i.name AS issue,
+       fixes[0][0] AS resolution_id, fixes[0][1] AS resolution, coalesce(fixes[0][2], 0) AS support_count, resolved,
+       CASE WHEN resolved > 0 THEN toFloat(fixes[0][2]) / resolved ELSE null END AS confidence
+ORDER BY ticket, issue_id`,
+  deskCounts: `/* mochi:desk.counts@v1 */
+OPTIONAL MATCH (t:Ticket) WHERE t.ingested_at > $as_of - $window_ms AND t.ingested_at <= $as_of
+WITH count(t) AS ingested
+OPTIONAL MATCH (p:Ticket) WHERE ${N('p')} AND p.ingested_at IS NULL
+WITH ingested, count(p) AS pending
+OPTIONAL MATCH (:Ticket)-[m:IN_CLUSTER]->(c:Cluster) WHERE ${E('m')}
+WITH ingested, pending, count(DISTINCT c) AS clustered
+OPTIONAL MATCH ()-[x]->() WHERE x.valid_until > $as_of - $window_ms AND x.valid_until <= $as_of
+WITH ingested, pending, clustered, count(x) AS retired
+OPTIONAL MATCH (:ObservedPattern)-[y:CONTRADICTS|UNDOCUMENTED]->() WHERE ${E('y')}
+RETURN ingested, pending, clustered, retired, count(y) AS mismatches`,
 } as const;
 
 /** Every Cypher string, flattened (README export, name checks). */
@@ -244,6 +293,39 @@ export async function blastRadius(db: Db, args: { version: string }, as_of: numb
       { type: 'kpi', query_id: 'q_2', label: 'Open tickets', column: 'open_tickets' },
       { type: 'bars', query_id: 'q_1', label: 'Affected customers by segment', x: 'segment', y: 'customers' },
       { type: 'table', query_id: 'q_3', label: 'Affected tickets', columns: ['customer', 'segment', 'ticket', 'state'] },
+    ],
+  };
+  return { card, queries };
+}
+
+/** Who the customer is (segment, live plan, city), how earlier tickets ended, what is open, and merged duplicates. */
+export async function customerProfile(db: Db, args: { customerId: string }, as_of: number, graph: string = GRAPH.company): Promise<Result> {
+  const p = { customerId: args.customerId };
+  const C = CYPHER.customerProfile;
+  const q_1 = await runStored(db, graph, C.profile, p, as_of);
+  const q_2 = await runStored(db, graph, C.history, p, as_of);
+  const q_3 = await runStored(db, graph, C.open, p, as_of);
+  const q_4 = await runStored(db, graph, C.merged, p, as_of);
+  const queries = { q_1, q_2, q_3, q_4 };
+  const c = q_1.rows[0], last = q_2.rows[0] ?? q_3.rows[0];
+  let path: PathReceipt | null = null;
+  if (c) {
+    const nodes = [{ id: args.customerId, label: 'Customer', name: str(c.name) }];
+    const edges: PathReceipt['edges'] = [];
+    if (c.plan) { nodes.push({ id: `plan:${str(c.plan)}`, label: 'Plan', name: str(c.plan) }); edges.push({ type: 'ON_PLAN', from: args.customerId, to: `plan:${str(c.plan)}` }); }
+    if (last) { nodes.push({ id: str(last.ticket), label: 'Ticket', name: str(last.subject) }); edges.push({ type: 'RAISED', from: args.customerId, to: str(last.ticket) }); }
+    path = { query_id: 'q_1', nodes, edges };
+  }
+  // ponytail: the contract has no 'customer' card kind yet; 'briefing' until contracts gain one.
+  const card: ToolCard = {
+    kind: 'briefing',
+    title: c ? `${str(c.name)} · ${str(c.segment)} · ${str(c.plan) || 'no live plan'}` : `Customer ${args.customerId} not found`,
+    queries, path,
+    blocks: [
+      { type: 'table', query_id: 'q_1', label: 'Customer', columns: ['name', 'segment', 'plan', 'city'] },
+      { type: 'table', query_id: 'q_2', label: 'Earlier tickets and how they ended', columns: ['ticket', 'subject', 'ended'] },
+      { type: 'table', query_id: 'q_3', label: 'Open tickets', columns: ['ticket', 'subject', 'status'] },
+      { type: 'table', query_id: 'q_4', label: 'Merged duplicates', columns: ['ticket', 'merged_into'] },
     ],
   };
   return { card, queries };

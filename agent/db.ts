@@ -16,12 +16,20 @@ export function connect(username: string | undefined, passwordEnv: string): Prom
     socket: { host: process.env.FALKORDB_HOST ?? 'localhost', port: Number(process.env.FALKORDB_PORT ?? 6379) },
     ...(username ? { username } : {}),
     password: env(passwordEnv),
+  }).then((db) => {
+    // A dropped socket reconnects on its own; without a listener the 'error' event would crash the process.
+    db.on('error', (e: Error) => console.error(`[db] ${username ?? 'default'}: ${e.message}`));
+    return db;
   });
 }
 
 const pool = new Map<string, Promise<FalkorDB>>();
 const cached = (u: { user: string; passwordEnv: string }) => {
-  if (!pool.has(u.user)) pool.set(u.user, connect(u.user, u.passwordEnv));
+  if (!pool.has(u.user)) {
+    const p = connect(u.user, u.passwordEnv);
+    p.catch(() => pool.delete(u.user)); // a failed connect is retried on the next call, not cached
+    pool.set(u.user, p);
+  }
   return pool.get(u.user)!;
 };
 

@@ -12,6 +12,7 @@
     "check": "node check-tokens.ts && node ../contracts/type-lint.ts src && tsc -p . && vite build && node --test \"fixtures/*.test.ts\""
   },
   "dependencies": {
+    "@copilotkit/react-core": "^1.79.0",
     "@mochi/contracts": "*",
     "lucide-react": "^1.59.0",
     "react": "^18.3.1",

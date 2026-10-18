@@ -1,6 +1,7 @@
 // Shell: hash router, top bar (brand, ScreenNav, MochiIsland), width hook.
 import { useEffect, useState } from 'react';
 import { Mochi } from './ds.tsx';
+import { api, fmtClock, useData, useDream } from '../data/api.ts';
 
 export type Route =
   | { name: 'tickets' } | { name: 'overview' } | { name: 'chat' } | { name: 'preview' }
@@ -37,7 +38,7 @@ export function useWidth(): number {
 export const SCREENS = [
   { id: 'tickets', label: 'Tickets', href: '#/' },
   { id: 'overview', label: 'Overview', href: '#/overview' },
-  { id: 'report', label: 'Reports', href: '#/r/r7KxQ2mVn8LpT4sW' },
+  { id: 'report', label: 'Reports', href: '#/r/latest' },
   { id: 'chat', label: 'Chat', href: '#/chat' },
 ];
 
@@ -62,7 +63,22 @@ export function MochiIsland(p: { state?: 'compact'; working?: boolean; line: str
   );
 }
 
-export function TopBar({ current, working }: { current: string; working?: boolean }) {
+const STEP_WORD: Record<string, string> = { ingest: 'reading tickets', cluster: 'clustering', retire: 'retiring old facts', mismatch: 'checking the docs', report: 'writing the report' };
+/** The island follows the dream's progress, then new tickets waiting in memory, then the last dream. */
+function useIsland(): { working: boolean; line: string } {
+  const dream = useDream();
+  const o = useData(() => api.overview(), [dream.running]);
+  useEffect(() => { const id = setInterval(o.reload, 30_000); return () => clearInterval(id); }, [o.reload]);
+  if (dream.running) return { working: true, line: `I’m dreaming: ${STEP_WORD[dream.step ?? 'ingest']}` };
+  const pending = Number(o.data?.queries.q_1?.rows[0]?.pending ?? 0);
+  if (pending > 0) return { working: true, line: 'I’m reading new tickets' };
+  const last = o.data?.dream.last_run;
+  if (last) return { working: false, line: `I dreamed at ${fmtClock(last)}. The morning report is ready.` };
+  return { working: false, line: o.error ? 'I can’t reach the agent right now.' : 'I haven’t dreamed yet.' };
+}
+
+export function TopBar({ current }: { current: string; working?: boolean }) {
+  const island = useIsland();
   return (
     <>
       <header className="mb-bar">
@@ -70,7 +86,7 @@ export function TopBar({ current, working }: { current: string; working?: boolea
           <a className="mb-brand" href="#/"><Mochi size="xs" still squishable={false} label="Mochi" />Mochi Brain</a>
           <ScreenNav items={SCREENS} current={current} />
         </div>
-        <MochiIsland working={working} line={working ? 'I’m reading new tickets' : 'I dreamed at 02:00. The morning report is ready.'} />
+        <MochiIsland working={island.working} line={island.line} />
         <div />
       </header>
       <div className="mb-navrow"><ScreenNav items={SCREENS} current={current} fill /></div>

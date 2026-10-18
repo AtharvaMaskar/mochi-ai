@@ -54,7 +54,8 @@ test('POST /api/dream/run runs the real dream; its morning report is served by G
   const s2 = await startServer(t.pi, { dream });
   try {
     const asOf = T0 + 45 * DAY;
-    const r = await fetch(`http://localhost:${s2.port}/api/dream/run?asOf=${asOf}`, { method: 'POST' });
+    process.env.MOCHI_ADMIN_TOKEN = 'test-admin';
+    const r = await fetch(`http://localhost:${s2.port}/api/dream/run?asOf=${asOf}`, { method: 'POST', headers: { 'x-mochi-admin': 'test-admin' } });
     assert.equal(r.status, 200);
     const report = await r.json() as { story_id: string; as_of: number; story_errors: string[] };
     assert.equal(report.as_of, asOf);

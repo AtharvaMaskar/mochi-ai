@@ -334,6 +334,81 @@ RETURN t.id AS ticket, t.subject AS subject, t.status AS status, i.name AS issue
 ORDER BY score, ticket LIMIT $k
 ```
 
+#### `customerProfile.profile`
+
+```cypher
+/* mochi:customer_profile.profile@v1 */
+MATCH (c:Customer {id: $customerId}) WHERE c.created_at <= $as_of
+OPTIONAL MATCH (c)-[op:ON_PLAN]->(p:Plan) WHERE op.valid_from <= $as_of AND op.valid_until > $as_of
+RETURN c.id AS customer_id, c.name AS name, c.segment AS segment, p.name AS plan, c.city AS city
+```
+
+#### `customerProfile.history`
+
+```cypher
+/* mochi:customer_profile.history@v1 */
+MATCH (c:Customer {id: $customerId})-[:RAISED]->(t:Ticket)
+WHERE t.created_at <= $as_of AND t.status IN ['resolved', 'closed'] AND NOT (t)-[:MERGED_INTO]->(:Ticket)
+OPTIONAL MATCH (t)-[:RESOLVED_BY]->(r:Resolution) WHERE r.created_at <= $as_of
+RETURN t.id AS ticket, t.subject AS subject, t.created_at AS created_at, t.status AS status,
+       r.kind AS resolution_kind, coalesce(r.summary, 'Closed with no recorded fix') AS ended
+ORDER BY t.created_at DESC, t.id LIMIT 10
+```
+
+#### `customerProfile.open`
+
+```cypher
+/* mochi:customer_profile.open@v1 */
+MATCH (c:Customer {id: $customerId})-[:RAISED]->(t:Ticket)
+WHERE t.created_at <= $as_of AND NOT t.status IN ['resolved', 'closed']
+RETURN t.id AS ticket, t.subject AS subject, t.created_at AS created_at, t.status AS status
+ORDER BY t.created_at DESC, t.id LIMIT 10
+```
+
+#### `customerProfile.merged`
+
+```cypher
+/* mochi:customer_profile.merged@v1 */
+MATCH (c:Customer {id: $customerId})-[:RAISED]->(d:Ticket)-[:MERGED_INTO]->(p:Ticket)
+WHERE d.created_at <= $as_of AND p.created_at <= $as_of
+RETURN d.id AS ticket, d.subject AS subject, p.id AS merged_into
+ORDER BY d.created_at DESC, d.id LIMIT 10
+```
+
+#### `deskGuess`
+
+```cypher
+/* mochi:desk.guess@v1 */
+UNWIND $ids AS tid
+MATCH (t:Ticket {id: tid}) WHERE t.created_at <= $as_of
+OPTIONAL MATCH (t)-[:ABOUT]->(i:Issue) WHERE i.created_at <= $as_of
+OPTIONAL MATCH (i)<-[:ABOUT]-(s:Ticket)-[:RESOLVED_BY]->(r:Resolution)
+WHERE s.id <> t.id AND s.created_at <= $as_of AND r.created_at <= $as_of AND s.resolved_at <= $as_of
+WITH t, i, r, count(s) AS support
+ORDER BY support DESC, r.id
+WITH t, i, collect(CASE WHEN r IS NULL THEN null ELSE [r.id, r.summary, support] END) AS fixes, sum(support) AS resolved
+RETURN t.id AS ticket, t.ingested_at IS NOT NULL AS ingested, i.id AS issue_id, i.name AS issue,
+       fixes[0][0] AS resolution_id, fixes[0][1] AS resolution, coalesce(fixes[0][2], 0) AS support_count, resolved,
+       CASE WHEN resolved > 0 THEN toFloat(fixes[0][2]) / resolved ELSE null END AS confidence
+ORDER BY ticket, issue_id
+```
+
+#### `deskCounts`
+
+```cypher
+/* mochi:desk.counts@v1 */
+OPTIONAL MATCH (t:Ticket) WHERE t.ingested_at > $as_of - $window_ms AND t.ingested_at <= $as_of
+WITH count(t) AS ingested
+OPTIONAL MATCH (p:Ticket) WHERE p.created_at <= $as_of AND p.ingested_at IS NULL
+WITH ingested, count(p) AS pending
+OPTIONAL MATCH (:Ticket)-[m:IN_CLUSTER]->(c:Cluster) WHERE m.valid_from <= $as_of AND m.valid_until > $as_of
+WITH ingested, pending, count(DISTINCT c) AS clustered
+OPTIONAL MATCH ()-[x]->() WHERE x.valid_until > $as_of - $window_ms AND x.valid_until <= $as_of
+WITH ingested, pending, clustered, count(x) AS retired
+OPTIONAL MATCH (:ObservedPattern)-[y:CONTRADICTS|UNDOCUMENTED]->() WHERE y.valid_from <= $as_of AND y.valid_until > $as_of
+RETURN ingested, pending, clustered, retired, count(y) AS mismatches
+```
+
 ### Dream queries (the only writer of mochi_company)
 
 Source: `agent/dream/cypher.ts`.

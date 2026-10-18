@@ -103,9 +103,11 @@ export function Signal(p: { level: 'alarm' | 'warning' | 'clear'; children?: Rea
   return <span className={`mb-signal mb-signal-${p.level}`}><span className="mb-signal-dot">{p.level === 'alarm' && <i />}</span>{p.children ?? SIGNAL_WORD[p.level]}</span>;
 }
 
-export const confidenceWord = (p: number) => (p >= 0.75 ? 'Likely' : p >= 0.45 ? 'Possible' : 'Unsure');
+/** Where a computed confidence (evidence share, or cosine similarity) turns into a word. */
+export const ConfidenceBands = { likely: 0.75, possible: 0.45 } as const;
+export const confidenceWord = (p: number) => (p >= ConfidenceBands.likely ? 'Likely' : p >= ConfidenceBands.possible ? 'Possible' : 'Unsure');
 export function Confidence(p: { p: number; hidePct?: boolean }) {
-  const on = p.p >= 0.75 ? 3 : p.p >= 0.45 ? 2 : 1;
+  const on = p.p >= ConfidenceBands.likely ? 3 : p.p >= ConfidenceBands.possible ? 2 : 1;
   return (
     <span className="mb-conf">
       <span className="mb-conf-segs" aria-hidden="true">{[1, 2, 3].map((k) => <i key={k} data-on={k <= on} />)}</span>

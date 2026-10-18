@@ -12,6 +12,10 @@ import { DREAM_NOT_INSTALLED, loadDream, type DreamModule } from './dream-port.t
 import { openHarness, type Pi } from './harness.ts';
 import { commitStory, getStory, parseStoryRef, rerender } from './stories.ts';
 import { StoryDoc } from './story-doc.ts';
+import { json, routeApi } from './api/index.ts';
+import { dreamState, streamDream } from './api/overview.ts';
+import { isAdmin, ipOf, overLimit, visitor, visitorId } from './api/visitor.ts';
+import { serveStatic } from '../deploy/static.ts';
 
 /** Runtime options. Hard rule: openGenerativeUI is never set; ACTIVITY.card / ACTIVITY.html are the only rich UI. */
 export const runtimeOptions = (pi: Pi) => ({
@@ -20,21 +24,16 @@ export const runtimeOptions = (pi: Pi) => ({
 });
 
 /** Run the dream now through the port; its morning report lands in StoryDoc through `commitStory`. */
-export async function runDream(pi: Pi, dream: DreamModule, as_of?: number) {
+export async function runDream(pi: Pi, dream: DreamModule, as_of?: number, onStep?: (name: string) => void) {
   const model = pi.models.getModel(pi.model.provider as never, pi.model.modelId);
   if (!model) throw new Error(`unknown model ${pi.model.provider}/${pi.model.modelId}`);
   // A harness on another graph (tests) dreams there, with its own snapshot/scratch graphs and no team graphs.
   const graphs = pi.graph === GRAPH.company ? undefined : { company: pi.graph, prev: `${pi.graph}_prev`, scratch: `${pi.graph}_scratch`, teams: [] };
   return dream.runDreamNow({
-    db: await pi.writer(), as_of, graphs, model: { models: pi.models, model },
+    db: await pi.writer(), as_of, graphs, model: { models: pi.models, model }, onStep,
     commitStory: (story: Parameters<typeof commitStory>[1]) => commitStory(pi.harness, story),
   });
 }
-
-const json = (res: ServerResponse, status: number, body: unknown) => {
-  res.writeHead(status, { 'content-type': 'application/json', 'access-control-allow-origin': '*' });
-  res.end(JSON.stringify(body));
-};
 
 export async function startServer(pi: Pi, opts: { port?: number; dream?: DreamModule | null } = {}) {
   const dream = opts.dream ?? null;
@@ -46,10 +45,14 @@ export async function startServer(pi: Pi, opts: { port?: number; dream?: DreamMo
 
   const handle = async (req: IncomingMessage, res: ServerResponse) => {
     const url = new URL(req.url ?? '/', 'http://localhost');
-    if (url.pathname.startsWith('/api/copilotkit')) return copilot(req, res);
-    if (req.method === 'OPTIONS') {
-      res.writeHead(204, { 'access-control-allow-origin': '*', 'access-control-allow-methods': 'GET, POST', 'access-control-allow-headers': 'content-type' });
-      return res.end();
+    if (url.pathname.startsWith('/api/copilotkit')) {
+      // Every chat run spends the model key: cap runs per IP. Threads are scoped to this browser's visitor id.
+      if (req.method === 'POST' && /\/run$/.test(url.pathname)) {
+        const wait = overLimit(ipOf(req));
+        if (wait) return json(res, 429, { error: `You’ve asked a lot in a short time. Try again in ${Math.ceil(wait / 60)} min.` }, { 'retry-after': String(wait) });
+      }
+      const vid = visitorId(req, res);
+      return visitor.run(vid, () => copilot(req, res));
     }
     const story = url.pathname.match(/^\/api\/stories\/([^/]+)$/);
     if (story && req.method === 'GET') {
@@ -62,13 +65,23 @@ export async function startServer(pi: Pi, opts: { port?: number; dream?: DreamMo
     }
     if (url.pathname === '/api/dream/run' && req.method === 'POST') {
       if (!dream) return json(res, 503, { error: DREAM_NOT_INSTALLED });
-      const asOf = url.searchParams.get('asOf');
-      return json(res, 200, await runDream(pi, dream, asOf ? Number(asOf) : undefined));
+      if (!isAdmin(req)) return json(res, 403, { error: 'Running the dream needs the admin token.' });
+      if (dreamState.running) return json(res, 409, { error: 'The dream is already running.' });
+      const asOf = url.searchParams.get('asOf') ? Number(url.searchParams.get('asOf')) : undefined;
+      // SSE progress for the UI (Accept: text/event-stream); plain JSON for scripts and the deploy smoke.
+      if (req.headers.accept?.includes('text/event-stream')) return streamDream(res, (onStep) => runDream(pi, dream, asOf, onStep));
+      dreamState.running = true;
+      try { return json(res, 200, await runDream(pi, dream, asOf)); } finally { dreamState.running = false; }
     }
+    if (await routeApi(req, res, url, pi)) return;
+    if (serveStatic(req, res)) return;
     json(res, 404, { error: 'not found' });
   };
   const server = createServer((req, res) => {
-    handle(req, res).catch((e) => { if (!res.headersSent) json(res, 500, { error: (e as Error).message }); else res.end(); });
+    handle(req, res).catch((e) => {
+      console.error('[mochi]', req.method, req.url, e);
+      if (!res.headersSent) json(res, 500, { error: 'Something went wrong on the server.' }); else res.end();
+    });
   });
 
   // Live stories: one doc watch fans out to every socket on a story; late joiners get the current version on connect.
@@ -110,9 +123,10 @@ export async function startServer(pi: Pi, opts: { port?: number; dream?: DreamMo
 
 if (import.meta.main) {
   const dream = await loadDream();
-  const pi = await openHarness({ dream });
+  // MOCHI_GRAPH points the whole stack at another graph (the e2e smoke dreams on a team_* copy, which both tiers reach).
+  const pi = await openHarness({ dream, graph: process.env.MOCHI_GRAPH || undefined });
   const s = await startServer(pi, { port: Number(process.env.PORT ?? 4000), dream });
-  console.error(`[mochi] http://localhost:${s.port}/api/copilotkit · stories /api/stories/:id · dream ${dream ? 'installed' : 'not installed'}`);
+  console.error(`[mochi] http://localhost:${s.port}/ · /app · /blog · /api (graph ${pi.graph}, sim ${process.env.SIM_URL ?? 'http://localhost:4010'}) · dream ${dream ? 'installed' : 'not installed'}`);
   for (const sig of ['SIGINT', 'SIGTERM'] as const)
     process.once(sig, async () => { await s.close(); await pi.close(); process.exit(0); });
 }

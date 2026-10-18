@@ -34,6 +34,7 @@ test('root conversation: every read tool returns a contract-valid card', async (
         fauxToolCall('briefing', { ticketId: 'T-2' }), fauxToolCall('likely_cause', { ticketId: 'T-2' }),
         fauxToolCall('who_knows', { issueId: 'I-1' }), fauxToolCall('emerging_clusters', { days: 7 }),
         fauxToolCall('blast_radius', { version: '2.4.0' }), fauxToolCall('search_similar', { text: 'order not placed', k: 2 }),
+        fauxToolCall('customer_profile', { customerId: 'C-1' }),
       ], { stopReason: 'toolUse' }),
       fauxAssistantMessage('done'),
     ]);
@@ -46,7 +47,7 @@ test('root conversation: every read tool returns a contract-valid card', async (
       const v = validateCard(r.details);
       assert.ok(v.ok, `${r.toolName}: ${v.ok ? '' : v.errors.join('; ')}`);
     }
-    // ids are conversation-wide: six tools, ten stored queries, no collisions
+    // ids are conversation-wide: seven tools, fourteen stored queries, no collisions
     const ids = results.flatMap((r) => Object.keys((r.details as { queries: object }).queries));
     assert.equal(new Set(ids).size, ids.length);
   } finally { await t.close(); }

@@ -170,6 +170,7 @@ export type FlowStep = { label: string; icon: IconName | 'mochi'; count: ReactNo
 export function PipelineFlow(p: { steps: FlowStep[]; summary: { text: string; tone?: 'ok' | 'warn' }; rail: { at: number; mood?: Mood; line: string };
   /** Replays the dream: Mochi walks the rail step by step and each step's check draws as it finishes. Bump to replay. */ run?: number }) {
   const [at, setAt] = useState(p.rail.at);
+  useEffect(() => { if (!p.run) setAt(p.rail.at); }, [p.rail.at]); // live progress (the dream's SSE) drives the rail
   useEffect(() => {
     if (!p.run) return;
     setAt(0);
