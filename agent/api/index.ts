@@ -5,7 +5,7 @@ import type { Db } from '../queries/index.ts';
 import { SimError } from './sim.ts';
 import { answerTicket, claimTicket, draftTicket, listDesk, prewarmDrafts, ticketBrief, ticketDetail, type Complete } from './tickets.ts';
 import { overview, storyList } from './overview.ts';
-import { cookieVid, ipOf, overLimit } from './visitor.ts';
+import { ipOf, overLimit, viewer } from './visitor.ts';
 import { entityCard, entitySearch } from './entity.ts';
 
 /** One plain completion on MOCHI_MODEL (no tools, no thinking). */
@@ -72,6 +72,6 @@ export async function routeApi(req: IncomingMessage, res: ServerResponse, url: U
     return reply(async () => entityCard(await db(), pi.graph, decodeURIComponent(ent[1])));
   }
   if (get && p === '/api/overview') return reply(async () => overview(pi, await db()));
-  if (get && p === '/api/stories') return reply(async () => storyList(pi, cookieVid(req)));
+  if (get && p === '/api/stories') return reply(async () => storyList(pi, viewer(req)));
   return false;
 }

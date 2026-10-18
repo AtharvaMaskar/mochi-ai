@@ -28,6 +28,12 @@ npm run check                 # typecheck + tests; run after npm run load (compa
 npm run dev                   # agent: harness + chat endpoint + story API
 ```
 
+**Sign-in.** The platform (`/app`) and every `/api` route sit behind a login: user `admin`, password `admin@1234`.
+These are **demo credentials**: change them in deploy with `MOCHI_LOGIN_USER` / `MOCHI_LOGIN_PASSWORD`, and set
+`MOCHI_SESSION_SECRET`. Open without signing in: the landing page, `/blog`, `POST /api/login`, `GET /api/health`, and
+reads of published stories and dashboards (`GET /api/stories/<id>`, its live socket, `/story/<id>`, `/dashboard/<id>`),
+so shared links keep working. `agent/auth.test.ts` needs a private FalkorDB on `:6400` and skips without one.
+
 Tests create and drop throwaway graphs. Point them at your own FalkorDB, never a shared one (set `FALKORDB_PORT` in `.env`).
 
 | what | where |
@@ -38,8 +44,8 @@ Tests create and drop throwaway graphs. Point them at your own FalkorDB, never a
 | CopilotKit / AG-UI chat endpoint | http://localhost:4000/api/copilotkit |
 | Story API | `GET http://localhost:4000/api/stories/<id>?asOf=<epoch ms>` |
 | Live story updates (WebSocket) | `ws://localhost:4000/api/stories/<id>/live` |
-| Run the dream now | `POST http://localhost:4000/api/dream/run[?asOf=<epoch ms>]` |
-| Desk UI | `npm run dev -w ui`, then http://localhost:5173 |
+| Run the dream now | `POST http://localhost:4000/api/dream/run[?asOf=<epoch ms>]` (signed in, or `x-mochi-admin: $MOCHI_ADMIN_TOKEN`) |
+| Desk UI | `npm run dev -w ui`, then http://localhost:5173/app/ (sign in as above) |
 | Landing page | `npm run landing` (Vite picks the next free port if 5173 is taken) |
 
 Other scripts: `npm run dream` (one dream now; stop `npm run dev` first, since one process owns the SQLite), `npm run bench`, `npm run check` (typecheck and tests in every workspace), `npm run crash-demo -w agent`.

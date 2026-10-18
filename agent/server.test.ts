@@ -24,7 +24,7 @@ before(async () => {
   await db.selectGraph(G).delete().catch(() => {});
   await loadFixture(db, G);
   t = await openTestHarness(G, `test_agent_${process.pid}`);
-  s = await startServer(t.pi, { dream: null });
+  s = await startServer(t.pi, { dream: null, auth: false });
 });
 after(async () => {
   await s.close();
@@ -54,7 +54,7 @@ test('POST /api/dream/run answers 503 without agent/dream/', async () => {
 
 test('POST /api/dream/run runs the real dream; its morning report is served by GET /api/stories/:id', { timeout: 60_000 }, async () => {
   const dream = (await loadDream())!;
-  const s2 = await startServer(t.pi, { dream });
+  const s2 = await startServer(t.pi, { dream, auth: false });
   try {
     const asOf = T0 + 45 * DAY;
     process.env.MOCHI_ADMIN_TOKEN = 'test-admin';

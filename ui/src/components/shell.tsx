@@ -1,7 +1,8 @@
 // Shell: hash router, top bar (brand, ScreenNav, MochiIsland), width hook.
 import { useEffect, useState } from 'react';
+import { LogOut } from 'lucide-react';
 import { Mochi } from './ds.tsx';
-import { api, fmtClock, useData, useDream } from '../data/api.ts';
+import { api, fmtClock, signOut, useData, useDream } from '../data/api.ts';
 import { useStories } from './chat/outputs-rail.tsx';
 
 export type Route =
@@ -93,7 +94,9 @@ export function TopBar({ current }: { current: string; working?: boolean }) {
           <ScreenNav items={items} current={current} />
         </div>
         <MochiIsland working={island.working} line={island.line} />
-        <div />
+        <div className="mb-bar-end">
+          <button type="button" className="mb-icon-btn mb-tip" data-tip="Sign out" aria-label="Sign out" onClick={() => void signOut()}><LogOut size={16} strokeWidth={1.5} aria-hidden="true" /></button>
+        </div>
       </header>
       <div className="mb-navrow"><ScreenNav items={items} current={current} fill /></div>
     </>

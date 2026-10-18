@@ -34,13 +34,15 @@ export function commitStory(on: Committer, draft: Draft, meta?: Meta) {
   return on.commit((tx) => appendStory(tx, draft, meta), ctx);
 }
 
-/** The version `vid` may read (`n`, or their default), or null. Owners and meta-less stories read every version;
- *  anyone else reads published versions only, and nothing while the story is a draft. */
+/** The viewer id of a signed-in session ("Signed-in people"): it reads, publishes and unpublishes every story. */
+export const SIGNED_IN = 'signed-in';
+/** The version `vid` may read (`n`, or their default), or null. Signed-in sessions, owners and meta-less stories read
+ *  every version; anyone else ("Anyone with the link") reads published versions only, and nothing while it is a draft. */
 export function visible(doc: Readonly<DocValue> | null | undefined, id: string, vid: string | null, n?: number) {
   const versions = doc?.stories[id];
   if (!versions?.length) return null;
   const m = doc!.meta?.[id] as unknown as Meta | undefined;
-  const owner = !!m && !!vid && m.owner === vid;
+  const owner = !!m && !!vid && (vid === SIGNED_IN || m.owner === vid);
   const open = !m || owner;
   const list = open ? versions.map((_, i) => i + 1) : m!.status === 'published' ? m!.published : [];
   const v = n ?? list.at(-1);
@@ -53,12 +55,12 @@ export async function readStory(on: Reader, id: string, vid: string | null, n?: 
   return visible(await on.snapshot(StoryDoc, ctx), id, vid, n);
 }
 
-/** Publish (the latest version) or unpublish; owner only. Returns the new meta, or null when `vid` doesn't own `id`. */
+/** Publish (the latest version) or unpublish; a signed-in session or the owner. Returns the new meta, or null otherwise. */
 export function setStoryStatus(on: Committer, id: string, vid: string | null, status: Meta['status']) {
   return on.commit(async (tx) => {
     const doc = await tx.doc(StoryDoc);
     const m = doc.meta?.[id] as unknown as Meta | undefined;
-    if (!m || !vid || m.owner !== vid) return null;
+    if (!m || !vid || (vid !== SIGNED_IN && m.owner !== vid)) return null;
     const latest = doc.stories[id]?.length ?? 0;
     if (status === 'published' && m.published.at(-1) !== latest) m.published = [...m.published, latest];
     m.status = status;

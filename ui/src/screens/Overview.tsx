@@ -7,7 +7,7 @@ import { BlockView } from '../components/blocks.tsx';
 import { StoryMarkdown } from '../components/markdown.tsx';
 import { MochiGreeting, PipelineFlow, type FlowStep } from '../components/desk.tsx';
 import { NeedsYou, Button } from '../components/ds.tsx';
-import { api, runDream, useData, useDream, DREAM_STEPS, ADMIN_TOKEN } from '../data/api.ts';
+import { api, runDream, useData, useDream, DREAM_STEPS } from '../data/api.ts';
 
 function MorningSummary({ id }: { id: string }) {
   const s = useData(() => api.story(id), [id]);
@@ -65,7 +65,7 @@ export function Overview() {
         <PipelineFlow key={dream.runs} steps={steps} summary={summary}
           rail={{ at, mood: dream.failed ? 'sorry' : 'done', line: dream.failed ? 'I stopped. The reason is above.' : 'I wrote the morning report. It’s below.' }} />
         <div className="mb-prev-row">
-          {ADMIN_TOKEN && <Button variant="primary" size="sm" loading={dream.running} onClick={() => void runDream()}>Run dream now</Button>}
+          <Button variant="primary" size="sm" loading={dream.running} onClick={() => void runDream()}>Run dream now</Button>
           {ds.next_run && <span className="t-caption muted">Next scheduled run {fmtTime(ds.next_run)}</span>}
         </div>
       </ReceiptProvider>

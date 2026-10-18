@@ -22,10 +22,12 @@ export const ago = (ms: number) => {
   return m < 60 ? `${m}m` : m < 1440 ? `${Math.round(m / 60)}h` : `${Math.round(m / 1440)}d`;
 };
 
+// Deploy wiring (SPEC §4b): `/` is this page, `/app/` the platform. In dev the landing runs on its own vite port, so
+// it points at the ui's dev server; VITE_APP_URL overrides either.
+const APP = import.meta.env.VITE_APP_URL || (import.meta.env.DEV ? 'http://localhost:5173/app/' : '/app/');
 export const LINKS = {
-  // Deploy wiring (SPEC §4b): `/` is this page, `/app` the desk. The blog path is set by the deploy change.
-  desk: '/app',
-  chat: (q: string) => `/app#/chat?q=${encodeURIComponent(q)}`,
+  desk: APP,
+  chat: (q: string) => `${APP}#/chat?q=${encodeURIComponent(q)}`,
   repo: 'https://github.com/AtharvaMaskar/mochi-ai',
   blog: '/blog',
   video: '#demo',

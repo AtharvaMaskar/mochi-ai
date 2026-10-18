@@ -34,7 +34,7 @@ before(async () => {
   stub = await startSimStub({ dataset: d });
   process.env.SIM_URL = stub.url;
   t = await openTestHarness(G, `test_agent_${process.pid}`);
-  s = await startServer(t.pi, { dream: null });
+  s = await startServer(t.pi, { dream: null, auth: false });
 });
 after(async () => {
   await s.close();
@@ -132,7 +132,7 @@ test('overview and story list answer 200', async () => {
 
 test('dream SSE: five steps in order, each running then done, ending with the report', { timeout: 60_000 }, async () => {
   const dream = (await loadDream())!;
-  const s2 = await startServer(t.pi, { dream });
+  const s2 = await startServer(t.pi, { dream, auth: false });
   try {
     process.env.MOCHI_ADMIN_TOKEN = 'secret';
     const r = await fetch(`http://localhost:${s2.port}/api/dream/run?asOf=${Date.UTC(2026, 6, 20) + 45 * 86_400_000}`, { method: 'POST', headers: { accept: 'text/event-stream', 'x-mochi-admin': 'secret' } });
@@ -171,7 +171,7 @@ test('chat threads are scoped to the visitor cookie; runs are capped per IP; the
     assert.match((await capped.json()).error, /Try again/);
   } finally { delete process.env.MOCHI_CHAT_LIMIT; }
 
-  const s2 = await startServer(t.pi, { dream: (await loadDream())! });
+  const s2 = await startServer(t.pi, { dream: (await loadDream())!, auth: false });
   try {
     const url = `http://localhost:${s2.port}/api/dream/run`;
     delete process.env.MOCHI_ADMIN_TOKEN;

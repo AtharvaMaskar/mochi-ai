@@ -14,7 +14,7 @@ import { commitStory, parseStoryRef, readStory, rerender, setStoryStatus, visibl
 import { StoryDoc } from './story-doc.ts';
 import { json, routeApi, startDraftPrewarm } from './api/index.ts';
 import { dreamState, streamDream } from './api/overview.ts';
-import { cookieVid, isAdmin, ipOf, overLimit, visitor, visitorId } from './api/visitor.ts';
+import { checkLogin, clearSession, hasSession, isAdmin, ipOf, overLimit, publicApi, sessionCookie, viewer, visitor, visitorId } from './api/visitor.ts';
 import { serveStatic } from '../deploy/static.ts';
 
 /** Runtime options. Hard rule: openGenerativeUI is never set; ACTIVITY.card / ACTIVITY.html are the only rich UI. */
@@ -35,8 +35,10 @@ export async function runDream(pi: Pi, dream: DreamModule, as_of?: number, onSte
   });
 }
 
-export async function startServer(pi: Pi, opts: { port?: number; dream?: DreamModule | null } = {}) {
+/** `auth: false` skips the sign-in gate, honoured only under `node --test` (NODE_TEST_CONTEXT); never in production. */
+export async function startServer(pi: Pi, opts: { port?: number; dream?: DreamModule | null; auth?: false } = {}) {
   const dream = opts.dream ?? null;
+  const gate = !(opts.auth === false && process.env.NODE_TEST_CONTEXT);
   const copilot = createCopilotNodeListener({
     runtime: new CopilotRuntime(runtimeOptions(pi)),
     basePath: '/api/copilotkit',
@@ -45,6 +47,20 @@ export async function startServer(pi: Pi, opts: { port?: number; dream?: DreamMo
 
   const handle = async (req: IncomingMessage, res: ServerResponse) => {
     const url = new URL(req.url ?? '/', 'http://localhost');
+    if (url.pathname === '/api/login' && req.method === 'POST') {
+      const wait = overLimit(`login:${ipOf(req)}`, 10);
+      if (wait) return json(res, 429, { error: `Too many sign-in attempts. Try again in ${Math.ceil(wait / 60)} min.` }, { 'retry-after': String(wait) });
+      let body: { username?: unknown; password?: unknown } = {};
+      try { let s = ''; for await (const c of req) { s += c; if (s.length > 10_000) break; } body = JSON.parse(s); } catch { /* bad body: wrong credentials */ }
+      if (!checkLogin(body.username, body.password)) return json(res, 401, { error: 'That username and password don’t match.' });
+      return json(res, 200, { ok: true }, { 'set-cookie': sessionCookie(req) });
+    }
+    if (url.pathname === '/api/logout' && req.method === 'POST') return json(res, 200, { ok: true }, { 'set-cookie': clearSession(req) });
+    if (url.pathname === '/api/health' && req.method === 'GET') return json(res, 200, { ok: true });
+    // Sign-in gate: every other /api route needs the session (the dream trigger also takes the admin token, for scripts).
+    if (gate && url.pathname.startsWith('/api/') && !publicApi(req.method, url.pathname) && !hasSession(req)
+      && !(url.pathname === '/api/dream/run' && isAdmin(req)))
+      return json(res, 401, { error: 'Sign in to use Mochi.' });
     if (url.pathname.startsWith('/api/copilotkit')) {
       // Every chat run spends the model key: cap runs per IP. Threads are scoped to this browser's visitor id.
       if (req.method === 'POST' && /\/(run|suggest)$/.test(url.pathname)) {
@@ -62,13 +78,13 @@ export async function startServer(pi: Pi, opts: { port?: number; dream?: DreamMo
     }
     const story = url.pathname.match(/^\/api\/stories\/([^/]+)(?:\/(publish|unpublish))?$/);
     if (story && req.method === 'POST' && story[2]) {
-      const m = await setStoryStatus(pi.harness, decodeURIComponent(story[1]), cookieVid(req), story[2] === 'publish' ? 'published' : 'draft');
+      const m = await setStoryStatus(pi.harness, decodeURIComponent(story[1]), viewer(req), story[2] === 'publish' ? 'published' : 'draft');
       return m ? json(res, 200, { kind: m.kind, status: m.status, published: m.published }) : json(res, 404, { error: 'story not found' });
     }
     if (story && req.method === 'GET' && !story[2]) {
       // A draft, or a version never published, is 404 to everyone but its owner: no hint that it exists.
       const ref = parseStoryRef(decodeURIComponent(story[1]));
-      const v = ref && (await readStory(pi.harness, ref.id, cookieVid(req), ref.version));
+      const v = ref && (await readStory(pi.harness, ref.id, viewer(req), ref.version));
       if (!v) return json(res, 404, { error: 'story not found' });
       const asOf = url.searchParams.has('asOf') ? Number(url.searchParams.get('asOf')) : Date.now();
       if (!Number.isFinite(asOf)) return json(res, 400, { error: 'asOf must be epoch ms' });
@@ -76,7 +92,7 @@ export async function startServer(pi: Pi, opts: { port?: number; dream?: DreamMo
     }
     if (url.pathname === '/api/dream/run' && req.method === 'POST') {
       if (!dream) return json(res, 503, { error: DREAM_NOT_INSTALLED });
-      if (!isAdmin(req)) return json(res, 403, { error: 'Running the dream needs the admin token.' });
+      if (!isAdmin(req) && !hasSession(req)) return json(res, 403, { error: 'Running the dream needs you signed in.' });
       if (dreamState.running) return json(res, 409, { error: 'The dream is already running.' });
       const asOf = url.searchParams.get('asOf') ? Number(url.searchParams.get('asOf')) : undefined;
       // SSE progress for the UI (Accept: text/event-stream); plain JSON for scripts and the deploy smoke.
@@ -123,7 +139,7 @@ export async function startServer(pi: Pi, opts: { port?: number; dream?: DreamMo
       const id = m[1];
       const subs = sockets.get(id) ?? new Map<WebSocket, Sub>();
       sockets.set(id, subs);
-      const vid = cookieVid(req);
+      const vid = viewer(req);
       const v = await readStory(pi.harness, id, vid);
       subs.set(ws, { sent: v ? `${v.story.version}:${v.meta.status}` : '', vid });
       if (v) send(ws, v.story, v.meta);

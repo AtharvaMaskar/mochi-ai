@@ -55,7 +55,7 @@ export function Hero() {
         <h1 className="t-display-xl"><span>No ticket starts from zero.</span> <span>Every answer shows its path.</span></h1>
         <p className="t-lead">A graph memory briefs every support agent, and every number opens the query behind it.</p>
         <div className="ctas">
-          <Button variant="primary" href={LINKS.desk} className="lift">Open the desk</Button>
+          <Button variant="primary" href={LINKS.desk} className="lift">Open the platform</Button>
           <a className="tlink t-label" href="#demo">Watch the demo</a>
         </div>
         <Clock />

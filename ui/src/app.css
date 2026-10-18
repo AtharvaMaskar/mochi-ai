@@ -29,8 +29,7 @@ h1, h2, h3, b, strong { font-weight: var(--fw-body-strong); }
   .mb-navrow { display: block; }
 }
 @media (max-width: 767px) {
-  .mb-bar { grid-template-columns: auto 1fr; }
-  .mb-bar > :last-child { display: none; }
+  .mb-bar { grid-template-columns: auto 1fr auto; }
   .mb-bar .mb-island-host { justify-content: flex-end; }
 }
 .mb-main { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow-y: auto; overflow-x: hidden; }
@@ -375,6 +374,9 @@ h1, h2, h3, b, strong { font-weight: var(--fw-body-strong); }
 .mb-icon-btn:hover { background: var(--bg-subtle); color: var(--ink); }
 .mb-icon-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 .mb-icon-btn:active { transform: scale(.94); transition-duration: .06s; }
+.mb-bar-end { display: flex; justify-content: flex-end; }
+.mb-tip { position: relative; }
+.mb-tip:is(:hover, :focus-visible)::after { content: attr(data-tip); position: absolute; top: calc(100% + 6px); right: 0; white-space: nowrap; font-size: var(--fs-caption); color: var(--ink-secondary); background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: var(--space-1) var(--space-2); box-shadow: var(--shadow-pop); z-index: 30; animation: mb-in .2s ease both; pointer-events: none; }
 .mb-chat-ai:hover .mb-chat-actions, .mb-chat-actions:focus-within { opacity: 1; }
 .mb-chat-empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: var(--space-2); padding: var(--space-8) var(--space-4); animation: mb-in .45s ease-out both; }
 .mb-chat-empty-title { font-size: var(--fs-headline); color: var(--ink); margin-top: var(--space-2); }
