@@ -3,7 +3,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Pi } from '../harness.ts';
 import type { Db } from '../queries/index.ts';
 import { SimError } from './sim.ts';
-import { answerTicket, claimTicket, draftTicket, listDesk, ticketBrief, ticketDetail, type Complete } from './tickets.ts';
+import { answerTicket, claimTicket, draftTicket, listDesk, prewarmDrafts, ticketBrief, ticketDetail, type Complete } from './tickets.ts';
 import { overview, storyList } from './overview.ts';
 import { cookieVid, ipOf, overLimit } from './visitor.ts';
 import { entityCard } from './entity.ts';
@@ -29,6 +29,9 @@ async function readJson(req: IncomingMessage): Promise<Record<string, unknown>> 
   for await (const c of req) { s += c; if (s.length > 100_000) throw new SimError(413, 'body too large'); }
   try { return s ? JSON.parse(s) : {}; } catch { throw new SimError(400, 'body must be JSON'); }
 }
+
+/** Start background drafting for the desk (see prewarmDrafts). Returns its stop function. */
+export const startDraftPrewarm = (pi: Pi) => prewarmDrafts(async () => (await pi.reader()) as unknown as Db, pi.graph, completeWith(pi));
 
 export async function routeApi(req: IncomingMessage, res: ServerResponse, url: URL, pi: Pi): Promise<boolean> {
   const p = url.pathname, get = req.method === 'GET', post = req.method === 'POST';

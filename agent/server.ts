@@ -12,7 +12,7 @@ import { DREAM_NOT_INSTALLED, loadDream, type DreamModule } from './dream-port.t
 import { openHarness, type Pi } from './harness.ts';
 import { commitStory, parseStoryRef, readStory, rerender, setStoryStatus, visible } from './stories.ts';
 import { StoryDoc } from './story-doc.ts';
-import { json, routeApi } from './api/index.ts';
+import { json, routeApi, startDraftPrewarm } from './api/index.ts';
 import { dreamState, streamDream } from './api/overview.ts';
 import { cookieVid, isAdmin, ipOf, overLimit, visitor, visitorId } from './api/visitor.ts';
 import { serveStatic } from '../deploy/static.ts';
@@ -132,10 +132,12 @@ export async function startServer(pi: Pi, opts: { port?: number; dream?: DreamMo
   });
 
   await new Promise<void>((r) => server.listen(opts.port ?? 0, r));
+  const stopPrewarm = startDraftPrewarm(pi);
   const port = (server.address() as { port: number }).port;
   return {
     server, port,
     async close() {
+      stopPrewarm();
       await watch?.stop();
       for (const ws of wss.clients) ws.terminate();
       await new Promise((r) => server.close(r));

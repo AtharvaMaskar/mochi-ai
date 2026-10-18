@@ -268,3 +268,31 @@ async function draftFresh(db: Db, graph: string, rawId: string, body: { hint?: u
   const steps = kbSteps.length ? [...kbSteps, `Reply to ${firstName(t.requester.name)}`] : [];
   return { ticket: t.id, text, steps, kb, resolution, queries: q_1 && kb ? { q_1 } : {} };
 }
+
+/** Mochi works first: draft the newest ready tickets in the background so a draft is waiting when someone opens one.
+ *  Fills the same cache the endpoint reads (a new customer message changes the key, so it re-drafts). Two at a time,
+ *  newest `max` only, every minute. About $0.0003 a draft on Haiku. MOCHI_PREWARM=0 turns it off; tests never run it. */
+export function prewarmDrafts(db: () => Promise<Db>, graph: string, complete: Complete, max = Number(process.env.MOCHI_PREWARM ?? 40)) {
+  if (!(max > 0) || process.env.NODE_TEST_CONTEXT) return () => {};
+  let running = false;
+  const tick = async () => {
+    if (running) return;
+    running = true;
+    try {
+      const ready = (await listTickets()).filter(isReady).sort((a, b) => ms(b.created_at) - ms(a.created_at)).slice(0, max);
+      const queue = ready.map((t) => String(t.id));
+      const worker = async () => {
+        for (let id = queue.shift(); id; id = queue.shift()) {
+          // a ticket not in memory yet (no likely fix) or a model hiccup just waits for the next tick
+          await draftTicket(await db(), graph, id, {}, complete).catch(() => {});
+        }
+      };
+      await Promise.all([worker(), worker()]);
+    } catch (e) { console.warn('[mochi] draft prewarm skipped:', (e as Error).message); }
+    finally { running = false; }
+  };
+  void tick();
+  const timer = setInterval(() => void tick(), 60_000);
+  timer.unref();
+  return () => clearInterval(timer);
+}
