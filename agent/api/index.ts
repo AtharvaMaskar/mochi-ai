@@ -6,6 +6,7 @@ import { SimError } from './sim.ts';
 import { answerTicket, claimTicket, draftTicket, listDesk, ticketBrief, ticketDetail, type Complete } from './tickets.ts';
 import { overview, storyList } from './overview.ts';
 import { cookieVid, ipOf, overLimit } from './visitor.ts';
+import { entityCard } from './entity.ts';
 
 /** One plain completion on MOCHI_MODEL (no tools, no thinking). */
 const completeWith = (pi: Pi): Complete => async (systemPrompt, user) => {
@@ -58,6 +59,13 @@ export async function routeApi(req: IncomingMessage, res: ServerResponse, url: U
     if (post && m[2] === 'claim') return reply(async () => claimTicket(await db(), pi.graph, id, mem.user));
     if (post && m[2] === 'brief') return reply(async () => ticketBrief(await db(), pi.graph, id, mem));
     if (post && m[2] === 'answer') return reply(async () => answerTicket(id, await readJson(req) as { requestId?: string; text?: string }, mem));
+  }
+  const ent = get && p.match(/^\/api\/entity\/([^/]+)$/);
+  if (ent) {
+    // Hover cards fire on pointer intent: their own per-IP budget, so they never eat the chat-run budget.
+    const wait = overLimit(`entity:${ipOf(req)}`, Number(process.env.MOCHI_ENTITY_LIMIT ?? 600));
+    if (wait) { json(res, 429, { error: `Too many previews in a short time. Try again in ${Math.ceil(wait / 60)} min.` }, { 'retry-after': String(wait) }); return true; }
+    return reply(async () => entityCard(await db(), pi.graph, decodeURIComponent(ent[1])));
   }
   if (get && p === '/api/overview') return reply(async () => overview(pi, await db()));
   if (get && p === '/api/stories') return reply(async () => storyList(pi, cookieVid(req)));

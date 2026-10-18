@@ -4,9 +4,19 @@ import { useRef, useState } from 'react';
 import type { Visual, ToolCard as ToolCardT } from '@mochi/contracts';
 import { useReceipts, QueryTag, NumPill, PathReceipt, ReceiptProvider } from './receipts.tsx';
 import { StoryMarkdown } from './markdown.tsx';
+import { ENTITY_ID, EntityLink } from './entity.tsx';
 import { Button, NeedsYou, DrawnCheck, RollingNumber } from './ds.tsx';
 
 const isNum = (v: unknown) => typeof v === 'number';
+// Dates in tables: a time-like column or an epoch-ms integer shows as "18 Oct 05:05" (IST), "18 Oct 2026" when not this
+// year; the raw value stays in the title so the receipt is still checkable. Rows are never changed.
+const TZ = 'Asia/Kolkata';
+const DAY_TIME = new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false, timeZone: TZ });
+const DAY_YEAR = new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: TZ });
+const YEAR = new Intl.DateTimeFormat('en-IN', { year: 'numeric', timeZone: TZ });
+export const isWhen = (c: string, v: unknown) => typeof v === 'number' && Number.isInteger(v) && ((/(_at|_on|date|time)$/i.test(c) && v > 1e11) || (v >= 1e12 && v < 1e13));
+export const fmtWhen = (ms: number, now = Date.now()) =>
+  (YEAR.format(ms) === YEAR.format(now) ? DAY_TIME : DAY_YEAR).format(ms).replace(',', '');
 const fmt = (v: unknown) => (v === null || v === undefined ? '—' : typeof v === 'boolean' ? (v ? 'Yes' : 'No') : String(v));
 
 function Head({ label, qid }: { label: string; qid: string }) {
@@ -107,14 +117,14 @@ export function Table(v: Extract<Visual, { type: 'table' }> & { brief?: boolean;
   const [open, setOpen] = useState(false);
   const rows = open ? all : all.slice(0, 10);
   const cols = v.brief ? v.columns.filter((c) => !internal(c)) : v.columns;
-  const numCol = (c: string) => rows.length > 0 && rows.every((r) => isNum(r[c]));
+  const numCol = (c: string) => rows.length > 0 && rows.every((r) => isNum(r[c]) && !isWhen(c, r[c]));
   return (
     <div className="mb-block" {...useFlash(v.query_id)}>
       {!v.bare && <Head label={v.label} qid={v.query_id} />}
       {all.length === 0 ? <None /> : <div className="mb-table-wrap">
         <table className="mb-table">
           <thead><tr>{cols.map((c) => <th key={c} data-num={numCol(c) || undefined}>{humanise(c)}</th>)}</tr></thead>
-          <tbody>{rows.map((r, i) => <tr key={i}>{cols.map((c) => <td key={c} data-num={numCol(c) || undefined} className={isTicket(c, r[c]) ? 'mb-tid' : undefined}>{isNum(r[c]) ? <RollingNumber value={fmt(r[c])} /> : fmt(r[c])}</td>)}</tr>)}</tbody>
+          <tbody>{rows.map((r, i) => <tr key={i}>{cols.map((c) => <td key={c} data-num={numCol(c) || undefined} className={isTicket(c, r[c]) ? 'mb-tid' : undefined}>{isWhen(c, r[c]) ? <span className="mono" title={String(r[c])}>{fmtWhen(r[c] as number)}</span> : isNum(r[c]) ? <RollingNumber value={fmt(r[c])} /> : ENTITY_ID.test(String(r[c])) ? <EntityLink id={String(r[c])} /> : fmt(r[c])}</td>)}</tr>)}</tbody>
         </table>
       </div>}
       {all.length > 10 && (
@@ -145,7 +155,7 @@ export function FixGroups({ query_id }: { query_id: string }) {
         <li key={f.resolution + f.kb}>
           <span className="mb-fix-what">{f.resolution} <span className="mb-fix-n">· {f.tickets.length} {f.tickets.length === 1 ? 'ticket' : 'tickets'}</span></span>
           {f.kb && <span className="mb-fix-sub" title={f.kb}>{f.kb}</span>}
-          <span className="mb-fix-ids">{f.tickets.map((t) => <span key={t} className="mb-tid">{t}</span>)}</span>
+          <span className="mb-fix-ids">{f.tickets.map((t) => <span key={t} className="mb-tid"><EntityLink id={t} /></span>)}</span>
         </li>
       ))}
     </ul>
@@ -168,7 +178,7 @@ export function HistoryList({ qids, exclude }: { qids: string[]; exclude: string
   if (!rows.length) return <None />;
   return (
     <ul className="mb-fixes">
-      {rows.map((r) => <li key={r.id}><span className="mb-fix-what"><span className="mb-tid">{r.id}</span> {r.text}</span>{r.end && <span className="mb-fix-sub">{r.end}</span>}</li>)}
+      {rows.map((r) => <li key={r.id}><span className="mb-fix-what"><span className="mb-tid"><EntityLink id={r.id} /></span> {r.text}</span>{r.end && <span className="mb-fix-sub">{r.end}</span>}</li>)}
     </ul>
   );
 }

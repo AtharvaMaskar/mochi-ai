@@ -75,6 +75,23 @@ test('detail: thread from the sim, customer profile from the graph; unknown tick
   assert.ok((await miss.json()).error);
 });
 
+test('entity cards: customer, ticket and KB fields come from their stored queries; bad id 400, unknown 404', async () => {
+  const c = await (await api('/api/entity/C-1')).json();
+  assert.equal(c.kind, 'customer');
+  assert.deepEqual([c.name, c.segment, c.plan, c.city, c.open_tickets, c.latest_ticket], ['Meera Iyer', 'premium', 'premium', 'Pune', 2, 'T-0003']);
+  assert.equal(c.last_contact, c.queries.q_2.rows[0].last_contact);
+  assert.match(c.queries.q_1.cypher, /mochi:customer_profile\.profile/);
+  const t1 = await (await api('/api/entity/T-0001')).json();
+  assert.deepEqual([t1.kind, t1.subject, t1.status, t1.resolution, t1.customer_id, t1.customer], ['ticket', 'Order not placed', 'resolved', 'Re-sync order callback', 'C-1', 'Meera Iyer']);
+  const kb = await (await api('/api/entity/KB-1')).json();
+  assert.deepEqual([kb.kind, kb.title, kb.team, kb.promised_tat_hours], ['kb', 'Orders stuck after payment', 'trading', 24]);
+  for (const r of [c, t1, kb]) for (const q of Object.values(r.queries) as { cypher: string }[]) assert.match(q.cypher, /\$as_of/);
+  assert.equal((await api('/api/entity/DROP')).status, 400);
+  const miss = await api('/api/entity/T-9999');
+  assert.equal(miss.status, 404);
+  assert.ok((await miss.json()).error);
+});
+
 test('brief: a validateCard card with a path receipt, every stored query takes $as_of', async () => {
   const card = await (await api('/api/tickets/T-0002/brief', { method: 'POST' })).json();
   assert.ok(validateCard(card).ok);
