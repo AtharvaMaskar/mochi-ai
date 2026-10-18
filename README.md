@@ -314,8 +314,9 @@ ORDER BY r.shipped_at DESC, r.version LIMIT 3
 
 ```cypher
 /* mochi:who_knows@v1 */
-MATCH (a:AgentUser)-[s:SOLVED]->(t:Ticket)-[:ABOUT]->(i:Issue {id: $issueId})
-WHERE a.created_at <= $as_of AND t.created_at <= $as_of AND i.created_at <= $as_of
+MATCH (i:Issue) WHERE (i.id = $issueId OR toLower(i.name) = toLower($issueId)) AND i.created_at <= $as_of
+MATCH (a:AgentUser)-[s:SOLVED]->(t:Ticket)-[:ABOUT]->(i)
+WHERE a.created_at <= $as_of AND t.created_at <= $as_of
 WITH a, i, count(s) AS solved, min(t.id) AS example_ticket
 OPTIONAL MATCH (a)-[:MEMBER_OF]->(tm:Team)
 RETURN a.id AS agent_id, a.name AS agent, tm.name AS team, solved, example_ticket, i.name AS issue

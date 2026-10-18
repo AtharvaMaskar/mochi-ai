@@ -86,6 +86,14 @@ test('whoKnows ranks A-1 first with count(s)', async () => {
   assert.deepEqual([card.queries.q_1.rows[0].agent_id, card.queries.q_1.rows[0].solved], ['A-1', 1]);
 });
 
+test('whoKnows finds the issue by name as well as id (chat passes the name)', async () => {
+  const byId = await whoKnows(db, { issueId: 'I-1' }, NOW, G);
+  const name = String(byId.card.queries.q_1.rows[0].issue);
+  const { card } = await whoKnows(db, { issueId: name.toUpperCase() }, NOW, G);
+  valid(card);
+  assert.deepEqual(card.queries.q_1.rows, byId.card.queries.q_1.rows);
+});
+
 test('emergingClusters reads live IN_CLUSTER, empty before the dream wrote them', async () => {
   const { card } = await emergingClusters(db, { days: 7 }, NOW, G);
   valid(card);
