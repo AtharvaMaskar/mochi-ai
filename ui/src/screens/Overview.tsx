@@ -24,7 +24,7 @@ function MorningSummary({ id }: { id: string }) {
         </div>
       </ReceiptProvider>
     ) : <NeedsYou mood="sorry" reason={parsed.errors.join('; ')} />}
-    <a href={`#/r/${story.id}`}>Read the full report</a>
+    <a href={`#/story/${story.id}`}>Read the full report</a>
   </>;
 }
 
@@ -41,7 +41,7 @@ export function Overview() {
     { label: 'Cluster', icon: 'cluster', count: d('clustered'), caption: 'Clusters live now' },
     { label: 'Retire', icon: 'retire', count: d('retired'), caption: 'Facts retired, last 24 h' },
     { label: 'Mismatch', icon: 'mismatch', count: d('mismatches'), caption: 'Docs that disagree with the desk', tone: 'warn' },
-    { label: 'Report', icon: 'report', count: mr ? <a href={`#/r/${mr.id}`}>@{mr.version}</a> : '—', caption: 'Morning report written' },
+    { label: 'Report', icon: 'report', count: mr ? <a href={`#/story/${mr.id}`}>@{mr.version}</a> : '—', caption: 'Morning report written' },
   ];
   const ready = 'ready' in desk ? desk.ready : null;
   const at = dream.running ? dream.at : DREAM_STEPS.length;

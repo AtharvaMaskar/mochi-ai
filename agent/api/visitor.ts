@@ -10,9 +10,11 @@ export const scopedThread = (threadId: string) => `${visitor.getStore() ?? 'loca
 
 const COOKIE = 'mochi_vid';
 /** The visitor id from the cookie, minting (and setting) one when absent. */
+/** The visitor id from the cookie, or null (read-only: story reads and publish never mint one). */
+export const cookieVid = (req: IncomingMessage) => (req.headers.cookie ?? '').match(new RegExp(`(?:^|;\\s*)${COOKIE}=([A-Za-z0-9-]{36})`))?.[1] ?? null;
 export function visitorId(req: IncomingMessage, res: ServerResponse): string {
-  const m = (req.headers.cookie ?? '').match(new RegExp(`(?:^|;\\s*)${COOKIE}=([A-Za-z0-9-]{36})`));
-  if (m) return m[1];
+  const known = cookieVid(req);
+  if (known) return known;
   const id = randomUUID();
   res.setHeader('set-cookie', `${COOKIE}=${id}; Path=/; HttpOnly; SameSite=Lax; Max-Age=31536000`);
   return id;

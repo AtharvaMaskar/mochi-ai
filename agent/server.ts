@@ -10,11 +10,11 @@ import { GRAPH, type Story } from '@mochi/contracts';
 import { PiDurableAgent, PiRunner } from './agui.ts';
 import { DREAM_NOT_INSTALLED, loadDream, type DreamModule } from './dream-port.ts';
 import { openHarness, type Pi } from './harness.ts';
-import { commitStory, getStory, parseStoryRef, rerender } from './stories.ts';
+import { commitStory, parseStoryRef, readStory, rerender, setStoryStatus, visible } from './stories.ts';
 import { StoryDoc } from './story-doc.ts';
 import { json, routeApi } from './api/index.ts';
 import { dreamState, streamDream } from './api/overview.ts';
-import { isAdmin, ipOf, overLimit, visitor, visitorId } from './api/visitor.ts';
+import { cookieVid, isAdmin, ipOf, overLimit, visitor, visitorId } from './api/visitor.ts';
 import { serveStatic } from '../deploy/static.ts';
 
 /** Runtime options. Hard rule: openGenerativeUI is never set; ACTIVITY.card / ACTIVITY.html are the only rich UI. */
@@ -54,14 +54,25 @@ export async function startServer(pi: Pi, opts: { port?: number; dream?: DreamMo
       const vid = visitorId(req, res);
       return visitor.run(vid, () => copilot(req, res));
     }
-    const story = url.pathname.match(/^\/api\/stories\/([^/]+)$/);
-    if (story && req.method === 'GET') {
+    // Public links: /story/:id and /dashboard/:id (with @n and ?asOf=) open the app's route of the same name.
+    const page = url.pathname.match(/^\/(story|dashboard|r)\/([A-Za-z0-9_@-]+)$/);
+    if (page && req.method === 'GET') {
+      res.writeHead(302, { location: `/app/#/${page[1]}/${page[2]}${url.search}` });
+      return res.end();
+    }
+    const story = url.pathname.match(/^\/api\/stories\/([^/]+)(?:\/(publish|unpublish))?$/);
+    if (story && req.method === 'POST' && story[2]) {
+      const m = await setStoryStatus(pi.harness, decodeURIComponent(story[1]), cookieVid(req), story[2] === 'publish' ? 'published' : 'draft');
+      return m ? json(res, 200, { kind: m.kind, status: m.status, published: m.published }) : json(res, 404, { error: 'story not found' });
+    }
+    if (story && req.method === 'GET' && !story[2]) {
+      // A draft, or a version never published, is 404 to everyone but its owner: no hint that it exists.
       const ref = parseStoryRef(decodeURIComponent(story[1]));
-      const s = ref && (await getStory(pi.harness, ref.id, ref.version));
-      if (!s) return json(res, 404, { error: 'story not found' });
+      const v = ref && (await readStory(pi.harness, ref.id, cookieVid(req), ref.version));
+      if (!v) return json(res, 404, { error: 'story not found' });
       const asOf = url.searchParams.has('asOf') ? Number(url.searchParams.get('asOf')) : Date.now();
       if (!Number.isFinite(asOf)) return json(res, 400, { error: 'asOf must be epoch ms' });
-      return json(res, 200, await rerender(await pi.reader(), s, asOf));
+      return json(res, 200, { ...(await rerender(await pi.reader(), v.story, asOf)), meta: v.meta });
     }
     if (url.pathname === '/api/dream/run' && req.method === 'POST') {
       if (!dream) return json(res, 503, { error: DREAM_NOT_INSTALLED });
@@ -84,15 +95,25 @@ export async function startServer(pi: Pi, opts: { port?: number; dream?: DreamMo
     });
   });
 
-  // Live stories: one doc watch fans out to every socket on a story; late joiners get the current version on connect.
+  // Live stories: one doc watch fans out to every socket on a story, each seeing only what its visitor may read (a
+  // stranger gets nothing until publish). Late joiners get their version on connect. A new dream report means the
+  // graph moved: every socket gets `refresh` so open dashboards and stories re-run their queries.
   const wss = new WebSocketServer({ noServer: true });
-  const sockets = new Map<string, Map<WebSocket, number>>(); // story id -> socket -> last version sent
-  const send = (ws: WebSocket, story: Story) => ws.send(JSON.stringify({ type: 'story', story }));
+  type Sub = { sent: string; vid: string | null };
+  const sockets = new Map<string, Map<WebSocket, Sub>>(); // story id -> socket -> what it was last sent
+  const send = (ws: WebSocket, story: Story, meta: unknown) => ws.send(JSON.stringify({ type: 'story', story, meta }));
+  let dreamSig = '';
   const watch = await pi.harness.watchDoc(StoryDoc, ctx);
   watch?.start(async (value) => {
-    for (const [id, subs] of sockets) {
-      const latest = value?.stories[id]?.at(-1) as Story | undefined;
-      if (latest) for (const [ws, sent] of subs) if (latest.version > sent) { send(ws, latest); subs.set(ws, latest.version); }
+    const dreams = Object.values(value?.stories ?? {}).map((v) => v.at(-1) as unknown as Story).filter((s) => s.generated_by === 'dream');
+    const sig = dreams.map((s) => `${s.id}@${s.version}`).sort().join();
+    const dreamt = dreamSig !== '' && sig !== dreamSig;
+    dreamSig = sig;
+    for (const [id, subs] of sockets) for (const [ws, sub] of subs) {
+      const v = visible(value, id, sub.vid);
+      const key = v ? `${v.story.version}:${v.meta.status}` : '';
+      if (v && key !== sub.sent) { send(ws, v.story, v.meta); sub.sent = key; }
+      else if (dreamt) ws.send(JSON.stringify({ type: 'refresh' }));
     }
   });
   server.on('upgrade', (req, socket, head) => {
@@ -100,11 +121,12 @@ export async function startServer(pi: Pi, opts: { port?: number; dream?: DreamMo
     if (!m) return socket.destroy();
     wss.handleUpgrade(req, socket, head, async (ws) => {
       const id = m[1];
-      const subs = sockets.get(id) ?? new Map<WebSocket, number>();
+      const subs = sockets.get(id) ?? new Map<WebSocket, Sub>();
       sockets.set(id, subs);
-      const latest = await getStory(pi.harness, id);
-      subs.set(ws, latest?.version ?? 0);
-      if (latest) send(ws, latest);
+      const vid = cookieVid(req);
+      const v = await readStory(pi.harness, id, vid);
+      subs.set(ws, { sent: v ? `${v.story.version}:${v.meta.status}` : '', vid });
+      if (v) send(ws, v.story, v.meta);
       ws.on('close', () => { subs.delete(ws); if (!subs.size) sockets.delete(id); });
     });
   });

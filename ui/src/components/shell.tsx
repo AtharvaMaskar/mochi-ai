@@ -5,14 +5,14 @@ import { api, fmtClock, useData, useDream } from '../data/api.ts';
 
 export type Route =
   | { name: 'tickets' } | { name: 'overview' } | { name: 'chat' } | { name: 'preview' }
-  | { name: 'report'; id: string; version?: number; asOf?: number };
+  | { name: 'report'; id: string; version?: number; asOf?: number; kind?: 'story' | 'dashboard' }; // kind absent: #/r/ (redirects)
 
 export function parseHash(hash: string): Route {
   const [path, query = ''] = hash.replace(/^#/, '').split('?');
   const asOfRaw = new URLSearchParams(query).get('asOf');
   const asOf = asOfRaw && /^\d+$/.test(asOfRaw) ? Number(asOfRaw) : undefined;
-  const r = path.match(/^\/r\/([A-Za-z0-9_-]+)(?:@(\d+))?$/);
-  if (r) return { name: 'report', id: r[1], version: r[2] ? Number(r[2]) : undefined, asOf };
+  const r = path.match(/^\/(r|story|dashboard)\/([A-Za-z0-9_-]+)(?:@(\d+))?$/);
+  if (r) return { name: 'report', id: r[2], version: r[3] ? Number(r[3]) : undefined, asOf, kind: r[1] === 'r' ? undefined : r[1] as 'story' | 'dashboard' };
   if (path === '/overview' || path === '/today') return { name: 'overview' };
   if (path === '/chat') return { name: 'chat' };
   if (path === '/preview') return { name: 'preview' };

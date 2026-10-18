@@ -5,6 +5,7 @@ import type { Db } from '../queries/index.ts';
 import { SimError } from './sim.ts';
 import { answerTicket, listDesk, ticketBrief, ticketDetail } from './tickets.ts';
 import { overview, storyList } from './overview.ts';
+import { cookieVid } from './visitor.ts';
 
 // Same-origin only: no CORS headers (the deploy serves the ui from this process; dev proxies /api through Vite).
 export const json = (res: ServerResponse, status: number, body: unknown, headers: Record<string, string> = {}) => {
@@ -42,6 +43,6 @@ export async function routeApi(req: IncomingMessage, res: ServerResponse, url: U
     if (post && m[2] === 'answer') return reply(async () => answerTicket(id, await readJson(req) as { requestId?: string; text?: string }, mem));
   }
   if (get && p === '/api/overview') return reply(async () => overview(pi, await db()));
-  if (get && p === '/api/stories') return reply(async () => storyList(pi));
+  if (get && p === '/api/stories') return reply(async () => storyList(pi, cookieVid(req)));
   return false;
 }

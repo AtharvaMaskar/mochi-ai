@@ -3,7 +3,10 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { WebSocket } from 'ws';
 import { admin, loadFixture, testGraph, T0, DAY } from './__test__/load-fixture.ts';
-import { openTestHarness } from './__test__/pi.ts';
+import { ctx, openTestHarness, toolResults } from './__test__/pi.ts';
+import { fauxAssistantMessage, fauxToolCall } from '@earendil-works/pi-ai/providers/faux';
+import { CallerDoc } from './harness.ts';
+import { activityOf, parseCommand } from './agui.ts';
 import { CYPHER, runStored } from './queries/index.ts';
 import { commitStory } from './stories.ts';
 import { runtimeOptions, startServer } from './server.ts';
@@ -103,4 +106,42 @@ test('two WebSocket clients get the current version on connect and the next one 
       assert.deepEqual([m.story.version, m.story.title], [2, 'live v2']);
     }
   } finally { c1.ws.close(); c2.ws.close(); }
+});
+
+test('story panel: build a draft, edit it by chat, a stranger gets 404 until the owner publishes', async () => {
+  const VID = '11111111-2222-3333-4444-555555555555', owner = { cookie: `mochi_vid=${VID}` };
+  const conv = await t.pi.createUserConversation();
+  // what agui.ts writes for a "/dashboard …" message from this browser
+  await t.pi.harness.commit(async (tx) => { Object.assign(await tx.doc(CallerDoc, conv.id), { vid: VID, kind: 'dashboard' }); }, ctx);
+  const bars = '<bars query_id="q_3" label="Fixes" x="ticket" y="ticket"/>';
+  const idOf = (c: unknown) => JSON.stringify(c).match(/saved draft dashboard ([A-Za-z0-9]+)@1/)![1];
+  t.faux.setResponses([
+    fauxAssistantMessage(fauxToolCall('briefing', { ticketId: 'T-2' }), { stopReason: 'toolUse' }),
+    fauxAssistantMessage(fauxToolCall('build_story', { topic: 'T-2', title: 'T-2', kind: 'story', body: `Plan <num query_id="q_1" column="plan">premium</num>.\n${bars}` }), { stopReason: 'toolUse' }),
+    (c) => fauxAssistantMessage(fauxToolCall('edit_story', { id: idOf(c.messages), edits: [{ old_str: 'nope', new_str: 'x' }] }), { stopReason: 'toolUse' }),
+    (c) => fauxAssistantMessage(fauxToolCall('edit_story', { id: idOf(c.messages), edits: [{ old_str: bars, new_str: '<line query_id="q_3" label="Fixes" x="ticket" series=\'["ticket"]\'/>' }] }), { stopReason: 'toolUse' }),
+    fauxAssistantMessage('done'),
+  ]);
+  assert.equal((await (await conv.submit({ type: 'input', content: 'dash', requestId: 'sp-1' }, ctx)).wait(ctx)).status, 'done');
+  const [, built, bad, edited] = await toolResults(conv);
+  assert.equal(built.isError, false, built.content.map((x) => x.text).join());
+  assert.equal(bad.isError, true);
+  assert.match(bad.content.map((x) => x.text).join(), /edit 1: old_str not found/);
+  assert.equal(edited.isError, false, edited.content.map((x) => x.text).join());
+  const { id, version } = edited.details as { id: string; version: number };
+  assert.equal(version, 2);
+  assert.equal(activityOf({ ...edited, toolName: 'edit_story' } as never)?.activityType, 'mochi.story');
+
+  const mine = await (await fetch(`${base()}/api/stories/${id}`, { headers: owner })).json();
+  assert.deepEqual([mine.story.version, mine.meta.kind, mine.meta.status, mine.meta.owner], [2, 'dashboard', 'draft', true]);
+  assert.match(mine.story.body, /<line /);
+  assert.equal((await fetch(`${base()}/api/stories/${id}`)).status, 404);
+  assert.equal((await fetch(`${base()}/api/stories/${id}/publish`, { method: 'POST' })).status, 404); // a stranger can't publish
+  assert.equal((await fetch(`${base()}/api/stories/${id}/publish`, { method: 'POST', headers: owner })).status, 200);
+  const pub = await (await fetch(`${base()}/api/stories/${id}`)).json();
+  assert.deepEqual([pub.story.version, pub.meta.status, pub.meta.owner], [2, 'published', false]);
+  assert.equal((await fetch(`${base()}/api/stories/${id}@1`)).status, 404); // v1 was never published
+  assert.equal((await fetch(`${base()}/api/stories/${id}/unpublish`, { method: 'POST', headers: owner })).status, 200);
+  assert.equal((await fetch(`${base()}/api/stories/${id}`)).status, 404);
+  assert.equal(parseCommand('/dashboard SLA breaches').kind, 'dashboard');
 });

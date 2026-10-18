@@ -6,6 +6,7 @@ import type { Story } from '@mochi/contracts';
 import { CYPHER, runStored, type Db } from '../queries/index.ts';
 import type { Pi } from '../harness.ts';
 import { StoryDoc } from '../story-doc.ts';
+import { visible } from '../stories.ts';
 import { isDone, isReady, listTickets, ms, simNow } from './sim.ts';
 
 const DAY = 86_400_000;
@@ -15,10 +16,11 @@ const DONE_ON: Record<string, (typeof DREAM_STEPS)[number]> = { ingest: 'ingest'
 
 export const dreamState = { running: false, last: null as null | { at: number; ms: number; story_id: string | null; ingested: number; retired: number; mismatches: number } };
 
-export async function storyList(pi: Pi) {
-  const all = (await pi.harness.snapshot(StoryDoc, ctx))?.stories ?? {};
-  return Object.values(all).map((v) => v.at(-1) as unknown as Story)
-    .map((s) => ({ id: s.id, title: s.title, version: s.version, generated_at: s.generated_at, generated_by: s.generated_by, topic: s.topic }))
+/** Stories `vid` may read, newest first (drafts only for their owner). */
+export async function storyList(pi: Pi, vid: string | null = null) {
+  const doc = await pi.harness.snapshot(StoryDoc, ctx);
+  return Object.keys(doc?.stories ?? {}).flatMap((id) => { const v = visible(doc, id, vid); return v ? [{ ...v.story, kind: v.meta.kind, status: v.meta.status } as Story & { kind: string; status: string }] : []; })
+    .map((s) => ({ kind: s.kind, status: s.status, id: s.id, title: s.title, version: s.version, generated_at: s.generated_at, generated_by: s.generated_by, topic: s.topic }))
     .sort((a, b) => b.generated_at - a.generated_at);
 }
 

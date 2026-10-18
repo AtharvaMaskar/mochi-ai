@@ -31,6 +31,16 @@ steps:  1. plan which questions answer the topic (max 6 visual tags)
 replay: "safe" (reads only; the document commit is idempotent per requestId)
 ```
 
+`build_story` also takes `kind: "story" | "dashboard"` (a `/story …` or `/dashboard …` chat command fixes it). It
+saves a draft only its author's browser can read. `edit_story({ id, edits: [{ old_str, new_str }] })` changes it by
+exact, unique search/replace and appends a version. Publish makes it public at a kind-specific link:
+
+```
+/story/<id>            the published story          /dashboard/<id>          the published dashboard (live)
+/story/<id>@2          version 2, if published      /dashboard/<id>?asOf=ms  frozen as the graph stood then
+/r/<id>                old links redirect to the kind's route
+```
+
 Stored document:
 
 ```jsonc

@@ -16,7 +16,15 @@ export type TicketDetail = {
   in_memory: boolean; ingested: boolean; guess: Guess | null; guess_queries: Record<string, StoredQuery>;
   customer: ToolCard | null; thread: Msg[];
 };
-export type StoryRow = { id: string; title: string; version: number; generated_at: number; generated_by: string; topic: string };
+export type StoryRow = { id: string; title: string; version: number; generated_at: number; generated_by: string; topic: string; kind?: Kind; status?: string };
+export type Kind = 'story' | 'dashboard';
+/** Publishing state from the agent. `versions` are the ones this browser may read; `owner` is true for the author. */
+export type StoryMeta = { kind: Kind; status: 'draft' | 'published'; published: number[]; versions: number[]; owner: boolean };
+export type StoryRead = { story: Story; as_of: number; meta: StoryMeta };
+/** The kind-specific public link (hash route under /app). */
+export const storyHref = (id: string, kind: Kind = 'story', version?: number, asOf?: number) =>
+  `#/${kind}/${id}${version ? `@${version}` : ''}${asOf !== undefined ? `?asOf=${asOf}` : ''}`;
+export const shareUrl = (id: string, kind: Kind) => `${location.origin}/${kind}/${id}`;
 export type Overview = {
   desk: { ready: number; done: number } | { error: string };
   queries: Record<string, StoredQuery>;
@@ -41,7 +49,8 @@ export const api = {
   overview: () => call<Overview>('/api/overview'),
   stories: () => call<StoryRow[]>('/api/stories'),
   story: (id: string, version?: number, asOf?: number) =>
-    call<{ story: Story; as_of: number }>(`/api/stories/${id}${version ? `@${version}` : ''}${asOf !== undefined ? `?asOf=${asOf}` : ''}`),
+    call<StoryRead>(`/api/stories/${id}${version ? `@${version}` : ''}${asOf !== undefined ? `?asOf=${asOf}` : ''}`),
+  publish: (id: string, on: boolean) => call<Pick<StoryMeta, 'kind' | 'status' | 'published'>>(`/api/stories/${id}/${on ? 'publish' : 'unpublish'}`, post()),
 };
 
 export type Loaded<T> = { data?: T; error?: string; loading: boolean; reload: () => void };
@@ -58,15 +67,38 @@ export function useData<T>(f: () => Promise<T>, deps: unknown[]): Loaded<T> {
   return { ...s, reload: useCallback(() => setN((k) => k + 1), []) };
 }
 
-/** The story's latest version over the live socket (null until the first message). Reconnects after a drop. */
-export function useLive(storyId: string | undefined, enabled = true): Story | null {
+/** A story as this browser may read it, kept live: refetched (queries re-run at now) on every socket push, every 60s
+ *  for a dashboard, and on `reload`. `?asOf=` or a pinned version freezes it. */
+export function useStory(id: string | undefined, version?: number, asOf?: number) {
+  const r = useData(() => (id ? api.story(id, version, asOf) : Promise.resolve(undefined)), [id, version, asOf]);
+  const frozen = asOf !== undefined;
+  const pushed = useLive(id, !frozen, true);
+  const [at, setAt] = useState(0);
+  useEffect(() => { if (r.data) setAt(Date.now()); }, [r.data]);
+  useEffect(() => { if (pushed && !frozen) r.reload(); }, [pushed]);
+  const kind = r.data?.meta.kind;
+  useEffect(() => {
+    if (kind !== 'dashboard' || frozen) return;
+    const t = setInterval(r.reload, 60_000);
+    return () => clearInterval(t);
+  }, [kind, frozen, id]);
+  return { ...r, updatedAt: at };
+}
+
+/** The story's latest version over the live socket (null until the first message). Reconnects after a drop.
+ *  With `everyMessage`, each message (a new version, a publish, a dream's `refresh`) yields a fresh object. */
+export function useLive(storyId: string | undefined, enabled = true, everyMessage = false): Story | null {
   const [story, setStory] = useState<Story | null>(null);
   useEffect(() => {
     if (!storyId || !enabled) return;
     let ws: WebSocket | null = null, stop = false, retry: ReturnType<typeof setTimeout>;
     const open = () => {
       ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/stories/${storyId}/live`);
-      ws.onmessage = (m) => { const v = JSON.parse(String(m.data)); if (v.type === 'story') setStory(v.story); };
+      ws.onmessage = (m) => {
+        const v = JSON.parse(String(m.data));
+        if (v.type === 'story') setStory(everyMessage ? { ...v.story } : v.story);
+        else if (v.type === 'refresh' && everyMessage) setStory((s) => (s ? { ...s } : ({} as Story)));
+      };
       ws.onclose = () => { if (!stop) retry = setTimeout(open, 3000); };
     };
     open();

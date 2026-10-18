@@ -3,9 +3,10 @@
 import { defineDoc, type JsonObject } from '@earendil-works/pi-durable';
 
 // Values are contract `Story` objects (parseStory-checked on commit); typed as JSON for the doc store.
-export const StoryDoc = defineDoc<{ stories: Record<string, JsonObject[]> }>({
+// `meta` is agent-side publishing state; a story without meta (dream reports, pre-panel builds) is public.
+export const StoryDoc = defineDoc<{ stories: Record<string, JsonObject[]>; meta?: Record<string, JsonObject> }>({
   kind: 'mochi.story',
   version: 1,
   scope: 'session',
-  initial: () => ({ stories: {} }),
+  initial: () => ({ stories: {}, meta: {} }),
 });

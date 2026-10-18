@@ -8,8 +8,9 @@ import { defineDoc, watchEvents, type ConversationId } from '@earendil-works/pi-
 import { InMemoryAgentRunner, type AgentRunnerConnectRequest } from '@copilotkit/runtime/v2';
 import { Observable } from 'rxjs';
 import { ACTIVITY } from '@mochi/contracts';
-import { READ_TOOLS, type Pi } from './harness.ts';
-import { scopedThread } from './api/visitor.ts';
+import { CallerDoc, READ_TOOLS, type Pi } from './harness.ts';
+import { scopedThread, visitor } from './api/visitor.ts';
+import { STORY_ACTIVITY } from './stories.ts';
 
 type Block = { type: string; text?: string; id?: string; name?: string; arguments?: unknown };
 type ToolMsg = { toolCallId?: string; toolName?: string; isError?: boolean; details?: Record<string, unknown>; content?: unknown };
@@ -29,8 +30,21 @@ export function activityOf(m: ToolMsg | undefined): { activityType: string; cont
   if (!m || m.isError || !m.details || !m.toolName) return null;
   if ((READ_TOOLS as readonly string[]).includes(m.toolName)) return { activityType: ACTIVITY.card, content: m.details };
   if (m.toolName === 'render_html') return { activityType: ACTIVITY.html, content: m.details };
+  // build_story / edit_story: {id, version, kind}; the chat opens (or advances) its story panel.
+  if ((m.toolName === 'build_story' || m.toolName === 'edit_story') && m.details.id) return { activityType: STORY_ACTIVITY, content: m.details };
   return null;
 }
+
+/** "/story …" or "/dashboard …" -> the kind it fixes and the text the model reads; anything else passes through. */
+export function parseCommand(raw: string): { kind?: 'story' | 'dashboard'; text: string } {
+  const m = raw.match(/^\/(story|dashboard)\b\s*([\s\S]*)$/);
+  if (!m) return { text: raw };
+  const kind = m[1] as 'story' | 'dashboard';
+  return { kind, text: `${m[2] || `Make a ${kind}.`}\n\n(Command: /${kind}. Gather the data, then call build_story with kind="${kind}".)` };
+}
+const COMMAND_NOTE = /\n\n\(Command: \/(story|dashboard)\.[^)]*\)$/;
+/** The user's words as typed: the command note goes back to its slash prefix. */
+const asTyped = (t: string) => { const m = t.match(COMMAND_NOTE); return m ? `/${m[1]} ${t.replace(COMMAND_NOTE, '')}` : t; };
 
 export async function conversationFor(pi: Pi, raw: string) {
   const threadId = scopedThread(raw); // a threadId only names a thread inside this visitor's scope
@@ -41,6 +55,8 @@ export async function conversationFor(pi: Pi, raw: string) {
       await pi.setCaller(tx, c.id);
       doc.map[threadId] = c.id as unknown as number;
     }
+    const caller = await tx.doc(CallerDoc, doc.map[threadId] as unknown as ConversationId);
+    if (!caller.vid && visitor.getStore()) caller.vid = visitor.getStore(); // the browser that owns this chat's stories
     return doc.map[threadId]!;
   }, ctx);
   const conv = (await pi.harness.conversation(id as unknown as ConversationId, ctx))!;
@@ -60,7 +76,7 @@ export async function history(pi: Pi, threadId: string): Promise<Message[]> {
     for (const e of page.items as unknown as Array<{ id: number; kind: string; model?: Array<Record<string, unknown>> }>) {
       const m = e.model?.[0];
       if (!m) continue;
-      if (e.kind === 'pi.user') messages.push({ id: `e${e.id}`, role: 'user', content: blocksText(m.content) });
+      if (e.kind === 'pi.user') messages.push({ id: `e${e.id}`, role: 'user', content: asTyped(blocksText(m.content)) });
       else if (e.kind === 'pi.assistant') {
         const blocks = (m.content as Block[]) ?? [];
         const toolCalls = blocks.filter((b) => b.type === 'toolCall')
@@ -186,7 +202,10 @@ export class PiDurableAgent extends AbstractAgent {
         });
 
         // Same thread + message ids -> same requestId -> one Pi submission, even when the POST is retried.
-        const submission = await conv.submit({ type: 'input', content: String(blocksText(user.content)), requestId: `agui:${threadId}:${user.id}` }, ctx);
+        const cmd = parseCommand(String(blocksText(user.content)));
+        // The command's kind is fixed in the conversation's caller doc, so build_story never relies on the model's guess.
+        await this.pi.harness.commit(async (tx) => { (await tx.doc(CallerDoc, conv.id)).kind = cmd.kind ?? ''; }, ctx);
+        const submission = await conv.submit({ type: 'input', content: cmd.text, requestId: `agui:${threadId}:${user.id}` }, ctx);
         submissionId = submission.id;
         const settled = await submission.wait(ctx);
         // The settle can land before the last event batch is delivered; wait for run_end briefly.

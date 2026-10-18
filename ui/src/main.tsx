@@ -21,7 +21,7 @@ function App() {
       <div className="mb-main">
         {r.name === 'tickets' && <Tickets />}
         {r.name === 'overview' && <Overview />}
-        {r.name === 'report' && <Report key={`${r.id}@${r.version}`} id={r.id} version={r.version} asOf={r.asOf} />}
+        {r.name === 'report' && <Report key={`${r.id}@${r.version}`} id={r.id} version={r.version} asOf={r.asOf} kind={r.kind} />}
         {r.name === 'chat' && <Chat />}
         {r.name === 'preview' && <Preview />}
       </div>
