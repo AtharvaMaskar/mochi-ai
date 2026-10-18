@@ -7746,7 +7746,7 @@ ORDER BY r.shipped_at DESC, r.version LIMIT 3</code></pre>
     },
     {
       "feature": "emerging clusters",
-      "mechanism": "community detection (CDLP) over the dream's SIMILAR_TO kNN edges (no seeded issue links read; dream tokens counted, embedding tokens not)",
+      "mechanism": "benchmark: community detection (CDLP) over SIMILAR_TO kNN edges, no seeded issue links read (the product's nightly clusters group tickets by issue); dream tokens counted, embedding tokens not",
       "measured_against": "LLM clustering of the same week's raw ticket text vs planted bad-release spikes",
       "result": "graph 5/7 spikes, 0 spurious, 2854 tokens vs LLM 5/7 spikes, 9 spurious, 25219 tokens",
       "status": "measured"
