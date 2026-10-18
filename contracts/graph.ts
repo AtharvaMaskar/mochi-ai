@@ -106,13 +106,15 @@ export const ACL = {
 } as const;
 
 // Reports labels / rel types in a Cypher string that are not in the contract.
-export function checkCypherNames(cypher: string): string[] {
+/** Labels/edges in `cypher` outside the vocabulary: the company contract by default, or another graph's (the journal). */
+export function checkCypherNames(cypher: string, vocab: { labels: Iterable<string>; edges: Iterable<string> } = { labels: Object.keys(L), edges: Object.keys(E) }): string[] {
+  const labels = new Set(vocab.labels), edges = new Set(vocab.edges);
   const src = cypher.replace(/'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"/g, "''").replace(/\/\*[\s\S]*?\*\//g, '');
   const bad = new Set<string>();
   for (const m of src.matchAll(/\(\s*\w*((?:\s*:\s*\w+)+)/g))
-    for (const l of m[1].split(':').map((s) => s.trim()).filter(Boolean)) if (!(l in L)) bad.add(`label ${l}`);
+    for (const l of m[1].split(':').map((s) => s.trim()).filter(Boolean)) if (!labels.has(l)) bad.add(`label ${l}`);
   for (const m of src.matchAll(/\[\s*\w*\s*:\s*([\w|:\s]+?)\s*(?:[*{\]])/g))
-    for (const t of m[1].split(/[|:]/).map((s) => s.trim()).filter(Boolean)) if (!(t in E)) bad.add(`edge ${t}`);
+    for (const t of m[1].split(/[|:]/).map((s) => s.trim()).filter(Boolean)) if (!edges.has(t)) bad.add(`edge ${t}`);
   return [...bad];
 }
 

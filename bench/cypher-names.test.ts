@@ -4,7 +4,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { checkCypherNames } from '@mochi/contracts';
+import { checkCypherNames, JOURNAL_EDGES, JOURNAL_LABELS } from '@mochi/contracts';
+
+// The Pi Durable journal lives in its own graph with its own names; its code is checked against those.
+const JOURNAL = { labels: JOURNAL_LABELS, edges: JOURNAL_EDGES };
+const journalFile = (f: string) => f.includes('/agent/storage/') || f.endsWith('/agent/queries/trace.ts');
 
 const ROOT = new URL('..', import.meta.url).pathname;
 const CYPHER = /\b(MATCH|MERGE|CREATE|UNWIND|CALL)\b/;
@@ -23,7 +27,8 @@ test('checkCypherNames finds zero drift in agent/ and bench/', () => {
       if (!CYPHER.test(m[1])) continue;
       scanned++;
       // ${…} interpolations become a contract label (interpolated labels come from VECTOR_LABELS, checked in deps.test.ts).
-      const bad = checkCypherNames(m[1].replace(/(\[\w*:)\$\{[^}]*\}/g, '$1ABOUT').replace(/\$\{[^}]*\}/g, 'Ticket')); // edge-position interpolations become a contract edge
+      const j = journalFile(f); // interpolations become a name from the file's own vocabulary (edge position: an edge)
+      const bad = checkCypherNames(m[1].replace(/(\[\w*:)\$\{[^}]*\}/g, j ? '$1OF' : '$1ABOUT').replace(/\$\{[^}]*\}/g, j ? 'Entry' : 'Ticket'), j ? JOURNAL : undefined);
       if (bad.length) drift.push(`${f.slice(ROOT.length)}: ${bad.join(', ')}`);
     }
   }
