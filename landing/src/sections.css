@@ -115,8 +115,15 @@ section .t-lead { color: var(--fg-2); }
 .slider input::-webkit-slider-runnable-track { height: 8px; border-radius: 4px; background: linear-gradient(to right, var(--fg) calc(var(--v) * 100%), var(--line) 0); }
 .slider input::-moz-range-track { height: 8px; border-radius: 4px; background: var(--border-strong); }
 .slider input::-moz-range-progress { height: 8px; border-radius: 4px; background: var(--ink); }
-.slider input::-webkit-slider-thumb { -webkit-appearance: none; width: 32px; height: 32px; margin-top: -12px; border-radius: var(--radius-sm); background: var(--agent-yuzu); border: 2px solid var(--ink); transition: transform .26s var(--ease-spring); }
-.slider input::-moz-range-thumb { width: 28px; height: 28px; border-radius: var(--radius-sm); background: var(--agent-yuzu); border: 2px solid var(--ink); }
+/* The handle is the moon: its crescent shadow shrinks toward Morning (--v 0 to 1) and its glow warms from sky to dawn. */
+.slider input { --moon-glow: color-mix(in srgb, var(--agent-yuzu) calc(var(--v, 0) * 100%), var(--agent-sky)); --moon-shade: calc((1 - var(--v, 0)) * -11px); }
+.slider input::-webkit-slider-thumb { -webkit-appearance: none; width: 30px; height: 30px; margin-top: -11px; border-radius: 50%; border: 0; background: var(--bg-surface);
+  box-shadow: inset var(--moon-shade) -3px 0 0 color-mix(in srgb, var(--ink) 30%, var(--bg-surface)), 0 0 18px 4px color-mix(in srgb, var(--moon-glow) 60%, transparent); transition: transform .26s var(--ease-spring); }
+.slider input::-moz-range-thumb { width: 28px; height: 28px; border-radius: 50%; border: 0; background: var(--bg-surface);
+  box-shadow: inset var(--moon-shade) -3px 0 0 color-mix(in srgb, var(--ink) 30%, var(--bg-surface)), 0 0 18px 4px color-mix(in srgb, var(--moon-glow) 60%, transparent); }
+.slider input:focus-visible { outline: none; }
+.slider input:focus-visible::-webkit-slider-thumb { outline: 2px solid var(--focus); outline-offset: 3px; }
+.slider input:focus-visible::-moz-range-thumb { outline: 2px solid var(--focus); outline-offset: 3px; }
 .slider input:active::-webkit-slider-thumb { transform: scale(.9); }
 .stops { position: relative; height: 40px; margin: var(--space-2) 16px 0; }
 .stop { position: absolute; left: calc(var(--i) * 25%); transform: translateX(-50%); border: 0; background: transparent; padding: 8px 4px; color: var(--fg-2); cursor: pointer; white-space: nowrap; transition: color .2s, transform .26s var(--ease-spring); }
