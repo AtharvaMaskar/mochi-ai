@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { validateDataset, validateEval } from './data.ts';
-import { tinyDataset, tinyEval } from './fixtures.ts';
+import { tinyDataset, tinyEval, tinyHelpdeskDataset } from './fixtures.ts';
 
 test('valid dataset and eval pass', () => {
   const d = validateDataset(tinyDataset());
@@ -34,7 +34,7 @@ test('eval references are checked against the dataset', () => {
 
 test('helpdesk fields: merge, waiting status, conversations, SLA', async () => {
   const { FD_STATUS, FD_SOURCE, Dataset } = await import('./data.ts');
-  const d = validateDataset(tinyDataset());
+  const d = validateDataset(tinyHelpdeskDataset());
   assert.ok(d.ok, !d.ok ? d.errors.join('\n') : '');
   const t3 = d.value.tickets.find((t) => t.id === 'T-3')!;
   assert.equal(t3.merged_into, 'T-2');
@@ -43,7 +43,7 @@ test('helpdesk fields: merge, waiting status, conversations, SLA', async () => {
   assert.equal(d.value.conversations.length, 2);
   assert.equal(d.value.sla_policies[0].respond_within_ms, 4 * 3_600_000);
   // An older dataset without the new keys still validates, with defaults filled.
-  const old: any = tinyDataset(); delete old.conversations; delete old.sla_policies;
+  const old: any = tinyHelpdeskDataset(); delete old.conversations; delete old.sla_policies;
   for (const t of old.tickets) for (const k of ['cc_emails', 'merged_into', 'status_history', 'fr_escalated']) delete t[k];
   const parsed = Dataset.parse(old);
   assert.deepEqual(parsed.conversations, []);
@@ -51,10 +51,10 @@ test('helpdesk fields: merge, waiting status, conversations, SLA', async () => {
 });
 
 test('merge chains, self-merges and dangling conversations are rejected', () => {
-  const chain = tinyDataset(); chain.tickets[1].merged_into = 'T-1'; // T-3 -> T-2 -> T-1
+  const chain = tinyHelpdeskDataset(); chain.tickets[1].merged_into = 'T-1'; // T-3 -> T-2 -> T-1
   assert.match((validateDataset(chain) as any).errors.join(), /no merge chains/);
-  const self = tinyDataset(); self.tickets[0].merged_into = 'T-1';
+  const self = tinyHelpdeskDataset(); self.tickets[0].merged_into = 'T-1';
   assert.match((validateDataset(self) as any).errors.join(), /merge into itself/);
-  const dangling = tinyDataset(); dangling.conversations![0].ticket_id = 'T-404';
+  const dangling = tinyHelpdeskDataset(); dangling.conversations![0].ticket_id = 'T-404';
   assert.match((validateDataset(dangling) as any).errors.join(), /conversations\[CV-1\]\.ticket_id=T-404/);
 });

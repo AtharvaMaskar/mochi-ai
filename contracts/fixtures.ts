@@ -24,24 +24,8 @@ function tinyInput(): DatasetInput {
         issue_id: 'I-1', resolution_id: 'R-1', solved_by: 'A-1', follows_ticket_id: null },
       { id: 'T-2', customer_id: 'C-1', subject: 'Still not placed', body: 'Same issue again', channel: 'email',
         status: 'open', priority: 'urgent', created_at: T0 + 42 * DAY, resolved_at: null,
-        issue_id: 'I-1', resolution_id: null, solved_by: null, follows_ticket_id: 'T-1',
-        requester_email: 'meera.iyer@example.invalid', cc_emails: ['ravi.iyer@example.invalid'],
-        status_history: [{ status: 'open', at: T0 + 42 * DAY }, { status: 'waiting_on_customer', at: T0 + 42 * DAY + 3_600_000 }, { status: 'open', at: T0 + 43 * DAY }],
-        fr_due_by: T0 + 42 * DAY + 4 * 3_600_000, first_responded_at: T0 + 42 * DAY + 2 * 3_600_000 },
-      { id: 'T-3', customer_id: 'C-1', subject: 'Order not placed (resent)', body: 'Sending again in case you missed it', channel: 'email',
-        status: 'closed', priority: 'high', created_at: T0 + 42 * DAY + 600_000, resolved_at: null,
-        issue_id: 'I-1', resolution_id: null, solved_by: null, follows_ticket_id: null,
-        merged_into: 'T-2', closed_at: T0 + 42 * DAY + 900_000 },
+        issue_id: 'I-1', resolution_id: null, solved_by: null, follows_ticket_id: 'T-1' },
     ],
-    conversations: [
-      { id: 'CV-1', ticket_id: 'T-2', author: 'customer', author_id: null, incoming: true, private: false, source: 0,
-        from_email: 'meera.iyer@example.invalid', to_emails: ['support@ecorp-securities.example'], cc_emails: ['ravi.iyer@example.invalid'], bcc_emails: [],
-        body: 'Same issue again, see attached.', created_at: T0 + 42 * DAY, attachments: [{ name: 'screenshot.png', content_type: 'image/png', size: 48211 }] },
-      { id: 'CV-2', ticket_id: 'T-2', author: 'agent', author_id: 'A-1', incoming: false, private: false, source: 0,
-        from_email: 'support@ecorp-securities.example', to_emails: ['meera.iyer@example.invalid'], cc_emails: [], bcc_emails: [],
-        body: 'Can you share the order reference?', created_at: T0 + 42 * DAY + 2 * 3_600_000, attachments: [] },
-    ],
-    sla_policies: [{ id: 'SLA-premium-high', segment: 'premium', priority: 'high', respond_within_ms: 4 * 3_600_000, resolve_within_ms: 24 * 3_600_000 }],
     issues: [{ id: 'I-1', name: 'payment debited, order not placed', area: 'orders', first_seen: T0 + 39 * DAY }],
     product_areas: [{ name: 'orders', team: 'trading' }],
     teams: [{ name: 'trading' }],
@@ -67,4 +51,33 @@ export function tinyEval(): Eval {
     ],
     planted_mismatches: [{ id: 'M-1', kind: 'contradicts', kb_id: 'KB-1', area: 'orders', promised: 24, measured: 71, ticket_ids: ['T-1'] }],
   };
+}
+
+// tinyDataset plus the helpdesk scenarios (amend-contracts-3): a merged duplicate,
+// a waiting_on_customer history, a CC'd conversation thread and one SLA policy.
+// Kept separate so tests that count tinyDataset's nodes stay stable.
+export function tinyHelpdeskDataset(): Dataset {
+  const d = tinyInput();
+  const t2 = d.tickets[1];
+  Object.assign(t2, {
+    requester_email: 'meera.iyer@example.invalid', cc_emails: ['ravi.iyer@example.invalid'],
+    status_history: [{ status: 'open', at: T0 + 42 * DAY }, { status: 'waiting_on_customer', at: T0 + 42 * DAY + 3_600_000 }, { status: 'open', at: T0 + 43 * DAY }],
+    fr_due_by: T0 + 42 * DAY + 4 * 3_600_000, first_responded_at: T0 + 42 * DAY + 2 * 3_600_000,
+  });
+  return Dataset.parse({ ...d, tickets: [...d.tickets,
+      { id: 'T-3', customer_id: 'C-1', subject: 'Order not placed (resent)', body: 'Sending again in case you missed it', channel: 'email',
+        status: 'closed', priority: 'high', created_at: T0 + 42 * DAY + 600_000, resolved_at: null,
+        issue_id: 'I-1', resolution_id: null, solved_by: null, follows_ticket_id: null,
+        merged_into: 'T-2', closed_at: T0 + 42 * DAY + 900_000 },
+  ],
+    conversations: [
+      { id: 'CV-1', ticket_id: 'T-2', author: 'customer', author_id: null, incoming: true, private: false, source: 0,
+        from_email: 'meera.iyer@example.invalid', to_emails: ['support@ecorp-securities.example'], cc_emails: ['ravi.iyer@example.invalid'], bcc_emails: [],
+        body: 'Same issue again, see attached.', created_at: T0 + 42 * DAY, attachments: [{ name: 'screenshot.png', content_type: 'image/png', size: 48211 }] },
+      { id: 'CV-2', ticket_id: 'T-2', author: 'agent', author_id: 'A-1', incoming: false, private: false, source: 0,
+        from_email: 'support@ecorp-securities.example', to_emails: ['meera.iyer@example.invalid'], cc_emails: [], bcc_emails: [],
+        body: 'Can you share the order reference?', created_at: T0 + 42 * DAY + 2 * 3_600_000, attachments: [] },
+    ],
+    sla_policies: [{ id: 'SLA-premium-high', segment: 'premium', priority: 'high', respond_within_ms: 4 * 3_600_000, resolve_within_ms: 24 * 3_600_000 }],
+  });
 }
