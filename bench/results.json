@@ -7162,7 +7162,7 @@
       "feature": "crash resume",
       "mechanism": "Pi Durable checkpoints",
       "measured_against": "demonstrated, not benchmarked",
-      "result": "demonstrated (crash-demo clip), not benchmarked",
+      "result": "demonstrated by agent/scripts/crash-demo.ts, not benchmarked",
       "status": "demonstrated"
     },
     {

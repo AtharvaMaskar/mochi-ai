@@ -45,7 +45,7 @@ export function buildLedger(r: Omit<Results, 'ledger'>): Row[] {
       result: NOT, status: 'not_measured' },
     row('mismatch detection', 'deterministic CONTRADICTS/UNDOCUMENTED rules', 'LLM given all docs+tickets as text; 5 planted mismatches', mismatch),
     row('emerging clusters', 'community detection (CDLP) over the dream\'s SIMILAR_TO kNN edges (no seeded issue links read; dream tokens counted, embedding tokens not)', 'LLM clustering of the same week\'s raw ticket text vs planted bad-release spikes', clusters),
-    { feature: 'crash resume', mechanism: 'Pi Durable checkpoints', measured_against: 'demonstrated, not benchmarked', result: 'demonstrated (crash-demo clip), not benchmarked', status: 'demonstrated' },
+    { feature: 'crash resume', mechanism: 'Pi Durable checkpoints', measured_against: 'demonstrated, not benchmarked', result: 'demonstrated by agent/scripts/crash-demo.ts, not benchmarked', status: 'demonstrated' },
     row('tier isolation', 'Redis ACL users per tier', 'refusal cases as mochi_reader', tier),
     row('multi-agent concurrency', 'N parallel briefings while the dream writes; multigraph isolation', 'latency p50/p95 vs N, torn-read assertion, one graph vs per-user graphs', conc),
   ];

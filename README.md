@@ -220,7 +220,7 @@ Source: `bench/results.json`, run at 2026-10-18T10:25:59.413Z, seed 42.
 | TencentDB Agent Memory comparison (arm F) | multi-hop Cypher | TencentDB Agent Memory, not integrated: its extraction runs in a separate HTTP gateway whose LLM calls bypass the bench meter and cost cap (bench/artifacts/arm-f.md) | not measured | not measured |
 | mismatch detection | deterministic CONTRADICTS/UNDOCUMENTED rules | LLM given all docs+tickets as text; 5 planted mismatches | graph found 5/5, 0 hallucinated, 2862 tokens vs LLM found 5/5, 16 hallucinated, 207399 tokens | measured |
 | emerging clusters | community detection (CDLP) over the dream's SIMILAR_TO kNN edges (no seeded issue links read; dream tokens counted, embedding tokens not) | LLM clustering of the same week's raw ticket text vs planted bad-release spikes | graph 5/7 spikes, 0 spurious, 2854 tokens vs LLM 5/7 spikes, 9 spurious, 25219 tokens | measured |
-| crash resume | Pi Durable checkpoints | demonstrated, not benchmarked | demonstrated (crash-demo clip), not benchmarked | demonstrated |
+| crash resume | Pi Durable checkpoints | demonstrated, not benchmarked | demonstrated by agent/scripts/crash-demo.ts, not benchmarked | demonstrated |
 | tier isolation | Redis ACL users per tier | refusal cases as mochi_reader | 4/4 refused as mochi_reader | measured |
 | multi-agent concurrency | N parallel briefings while the dream writes; multigraph isolation | latency p50/p95 vs N, torn-read assertion, one graph vs per-user graphs | N=25: p50 7.8ms, p95 10.24ms, 2028.74/s; torn reads 0 across N=1/5/10/25; readers p95 one graph 9.15ms vs per-user 6.82ms (single container, admin user on a scratch copy) | measured |
 <!-- ledger:end -->
