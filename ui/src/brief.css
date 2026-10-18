@@ -19,9 +19,12 @@
 .mb-sum { display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-surface); min-width: 0; animation: mb-fade .12s ease-out both; }
 .mb-sum-part { display: flex; flex-direction: column; gap: var(--space-1\.5); min-width: 0; }
 .mb-sum-eyebrow { font-size: var(--fs-eyebrow); font-weight: var(--fw-eyebrow); color: var(--ink-muted); }
-.mb-sum .mb-noticed { padding: 0; border: none; border-radius: 0; background: none; }
+.mb-sum .mb-noticed { padding: var(--space-3); border-radius: var(--radius-md); gap: var(--space-2); } /* keeps app.css's aura gradient: the one highlighted line */
+.mb-sum .mb-noticed-text { font-size: var(--fs-body); line-height: var(--lh-body); color: var(--ink-body); }
+.mb-sum .mb-noticed-text b { color: var(--ink); }
+.mb-sum .mb-noticed-quiet { font-size: var(--fs-body); }
 .mb-sum-guess { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
-.mb-sum-lead { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); font-size: var(--fs-headline); font-weight: var(--fw-body-strong); color: var(--ink); }
+.mb-sum-lead { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); font-size: var(--fs-body); font-weight: var(--fw-body-strong); color: var(--ink); }
 .mb-sum-lead > span:first-child { min-width: 0; overflow-wrap: anywhere; }
 .mb-sum-line { font-size: var(--fs-label); color: var(--ink-body); overflow-wrap: anywhere; }
 .mb-sum-line b { font-weight: var(--fw-body-strong); }
