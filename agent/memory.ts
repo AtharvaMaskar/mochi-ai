@@ -14,12 +14,12 @@ export const DEMO_USER_GRAPH = GRAPH.user('demo');
 
 export const MEM_CYPHER = {
   episode: `/* mochi:memory.episode@v1 */
-MERGE (c:Customer {id: $customerId}) ON CREATE SET c.created_at = $now, c.source = 'session'
+MERGE (c:Customer {id: $customerId}) ON CREATE SET c.created_at = $now, c.source = 'session', c.source_session = $session
 MERGE (e:Episode {id: $id})
 ON CREATE SET e.ticket_id = $ticketId, e.at = $now, e.summary = $summary, e.source = 'session', e.source_session = $session, e.created_at = $now
 MERGE (c)-[:REMEMBERS]->(e)`,
   remember: `/* mochi:memory.remember@v1 */
-MERGE (a:AgentUser {id: $user}) ON CREATE SET a.created_at = $now, a.source = 'session'
+MERGE (a:AgentUser {id: $user}) ON CREATE SET a.created_at = $now, a.source = 'session', a.source_session = $session
 MERGE (e:Episode {id: $id})
 ON CREATE SET e.kind = 'preference', e.text = $text, e.source = 'session', e.source_session = $session, e.created_at = $now
 MERGE (a)-[:REMEMBERS]->(e)`,

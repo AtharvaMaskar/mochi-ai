@@ -1,6 +1,7 @@
 // The five load-bearing queries + similarity (SPEC §1). Each is a plain function -> { card, queries }: the card is
 // built in code from query rows, so numbers never come from model tokens. Every query runs read-only (roQuery), takes
 // $as_of through the contract fragments, binds the edges it counts, and breaks ties by id. CYPHER is README-verbatim.
+import { num, suggestionBlock } from '../suggestion-block.ts';
 import { EDGE_AS_OF, GRAPH, NODE_AS_OF, type PathReceipt, type StoredQuery, type ToolCard } from '@mochi/contracts';
 
 type Row = Record<string, unknown>;
@@ -43,6 +44,13 @@ OPTIONAL MATCH (r)-[:BASED_ON]->(k:KBArticle) WHERE ${N('k')}
 RETURN s.id AS ticket, s.subject AS subject, i.id AS issue_id, i.name AS issue,
        r.id AS resolution_id, r.summary AS resolution, k.id AS kb_id, k.title AS kb, score
 ORDER BY score, s.id LIMIT 5`,
+    // Live doctrine-vs-practice mismatches in the ticket's ProductArea, from the dream's open Suggestions for its owner.
+    suggestions: `/* mochi:briefing.suggestions@v1 */
+MATCH (t:Ticket {id: $ticketId})-[:ABOUT]->(i:Issue)-[:IN]->(a:ProductArea)-[:OWNED_BY]->(tm:Team)<-[:FOR]-(s:Suggestion)-[:FROM]->(p:ObservedPattern)-[e:CONTRADICTS|UNDOCUMENTED]->(d)
+WHERE s.area = a.name AND s.status = 'open' AND s.expires_at > $as_of AND ${N('t')} AND ${N('s')} AND ${E('e')}
+RETURN DISTINCT s.id AS suggestion_id, type(e) AS edge, coalesce(d.id, d.name) AS target, a.name AS area, tm.name AS team,
+       s.text AS text, s.support_count AS support, p.measured_tat_hours AS measured, e.promised AS promised, s.confidence AS confidence
+ORDER BY confidence DESC, suggestion_id LIMIT 2`,
   },
   likelyCause: `/* mochi:likely_cause@v1 */
 MATCH (t:Ticket {id: $ticketId})-[:ABOUT]->(i:Issue)<-[x:INTRODUCED]-(r:Release)
@@ -81,6 +89,12 @@ RETURN c.id AS customer_id, c.name AS customer, c.segment AS segment, t.id AS ti
        i.id AS issue_id, i.name AS issue,
        CASE WHEN t.resolved_at IS NULL OR t.resolved_at > $as_of THEN 'open' ELSE 'resolved' END AS state
 ORDER BY t.created_at DESC, t.id LIMIT 10`,
+    // Who gets the incident note: the Team owning each introduced Issue's ProductArea.
+    owner: `/* mochi:blast_radius.owner@v1 */
+MATCH (r:Release {version: $version})-[x:INTRODUCED]->(i:Issue)-[:IN]->(a:ProductArea)-[:OWNED_BY]->(tm:Team)
+WHERE ${E('x')} AND ${N('r')} AND ${N('i')}
+RETURN tm.name AS team, a.name AS area, collect(DISTINCT i.name) AS issues
+ORDER BY team, area LIMIT 3`,
   },
   searchSimilar: `/* mochi:search_similar@v1 */
 CALL db.idx.vector.queryNodes('Ticket', 'embedding', $fetch, vecf32($vector)) YIELD node, score
@@ -176,7 +190,8 @@ export async function briefing(db: Db, args: { ticketId: string }, as_of: number
   const q_3 = viaVector
     ? await runStored(db, graph, CYPHER.briefing.similarVector, { ...p, k: 25 }, as_of)
     : await runStored(db, graph, CYPHER.briefing.similar, p, as_of);
-  const queries = { q_1, q_2, q_3 };
+  const q_4 = await runStored(db, graph, CYPHER.briefing.suggestions, p, as_of);
+  const queries = { q_1, q_2, q_3, q_4 };
   const top = q_3.rows[0];
   let path: PathReceipt | null = null;
   if (profile && top) {
@@ -202,6 +217,7 @@ export async function briefing(db: Db, args: { ticketId: string }, as_of: number
       { type: 'table', query_id: 'q_1', label: 'Customer', columns: ['name', 'segment', 'plan', 'city'] },
       { type: 'table', query_id: 'q_2', label: 'Last 3 tickets', columns: ['ticket', 'subject', 'status'] },
       { type: 'table', query_id: 'q_3', label: viaVector ? 'Similar resolved tickets (vector→graph)' : 'What fixed similar tickets', columns: ['ticket', 'resolution', 'kb'] },
+      ...q_4.rows.map((r) => suggestionBlock('q_4', r)),
     ],
   };
   return { card, queries };
@@ -268,8 +284,18 @@ export async function blastRadius(db: Db, args: { version: string }, as_of: numb
   const q_1 = await runStored(db, graph, CYPHER.blastRadius.segments, p, as_of);
   const q_2 = await runStored(db, graph, CYPHER.blastRadius.totals, p, as_of);
   const q_3 = await runStored(db, graph, CYPHER.blastRadius.affected, p, as_of);
-  const queries = { q_1, q_2, q_3 };
+  const q_4 = await runStored(db, graph, CYPHER.blastRadius.owner, p, as_of);
+  const queries = { q_1, q_2, q_3, q_4 };
   const top = q_3.rows[0];
+  const t = q_2.rows[0];
+  // SPEC §1 Q5: the incident note for the owning Team, drafted in code so every figure is a <num> receipt.
+  const notes = top && t ? q_4.rows.map((o) => {
+    const text = `Release ${args.version} introduced ${(o.issues as string[]).join(', ')} in ${str(o.area)}. `
+      + `${num('q_2', 'customers', t.customers)} customers are affected and ${num('q_2', 'open_tickets', t.open_tickets)} tickets are still open.`;
+    return { type: 'suggestion' as const, query_id: 'q_4', tag: `Incident note for ${str(o.team)}`, edge: 'INTRODUCED',
+      actions: [`send_to_team:${str(o.team)}`, 'dismiss'], text,
+      nums: [{ query_id: 'q_2', column: 'customers', value: str(t.customers) }, { query_id: 'q_2', column: 'open_tickets', value: str(t.open_tickets) }] };
+  }) : [];
   const card: ToolCard = {
     kind: 'blast_radius',
     title: top ? `Release ${args.version}: blast radius` : `Release ${args.version}: no live affected customers`,
@@ -293,6 +319,7 @@ export async function blastRadius(db: Db, args: { version: string }, as_of: numb
       { type: 'kpi', query_id: 'q_2', label: 'Open tickets', column: 'open_tickets' },
       { type: 'bars', query_id: 'q_1', label: 'Affected customers by segment', x: 'segment', y: 'customers' },
       { type: 'table', query_id: 'q_3', label: 'Affected tickets', columns: ['customer', 'segment', 'ticket', 'state'] },
+      ...notes,
     ],
   };
   return { card, queries };

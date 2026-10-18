@@ -1,6 +1,7 @@
 // Step 8 · the morning report: a templated story whose every number is a stored $as_of query.
 // The model wrote only the suggestion prose; digits in it are wrapped only when the stored row holds them.
 import { newStoryId, parseStory, type Story, type StoredQuery } from '@mochi/contracts';
+import { num, suggestionBlock } from '../suggestion-block.ts';
 import { R } from './cypher.ts';
 import type { SuggestionOut } from './rules.ts';
 import type { Db } from './types.ts';
@@ -14,18 +15,6 @@ const COLUMNS: Record<string, string[]> = {
 async function stored(db: Db, graph: string, cypher: string, params: Record<string, unknown>, ran_at: number): Promise<StoredQuery> {
   const res = await db.selectGraph(graph).roQuery<Record<string, unknown>>(cypher, { params: params as any });
   return { cypher, graph, params, columns: COLUMNS[cypher], rows: res.data ?? [], ran_at };
-}
-
-const clean = (s: string) => s.replace(/[<>]/g, '').replace(/\s+/g, ' ').trim();
-const num = (q: string, col: string, v: unknown) => `<num query_id="${q}" column="${col}">${v}</num>`;
-const attr = (s: string) => s.replace(/["'<>]/g, '');
-
-/** Wrap each number in model prose that equals a stored column value; leave the rest as text. */
-function receipt(text: string, qid: string, row: Record<string, unknown>): string {
-  return clean(text).replace(/\d+(?:\.\d+)?/g, (m) => {
-    const col = Object.keys(row).find((k) => typeof row[k] === 'number' && String(row[k]) === m);
-    return col ? num(qid, col, m) : m;
-  });
 }
 
 export async function buildReport(db: Db, graph: string, as_of: number, suggestions: SuggestionOut[]): Promise<{ story: Story | null; errors: string[] }> {
@@ -53,13 +42,8 @@ export async function buildReport(db: Db, graph: string, as_of: number, suggesti
   for (const [n, s] of suggestions.slice(0, 3).entries()) {
     const qid = `q_${4 + n}`;
     queries[qid] = await stored(db, graph, R.suggestion, { as_of, id: s.id }, as_of);
-    const row = queries[qid].rows[0] ?? {};
-    const facts = s.edge === 'CONTRADICTS'
-      ? `Measured ${num(qid, 'measured', row.measured)}h against a promised ${num(qid, 'promised', row.promised)}h, over ${num(qid, 'support', row.support)} tickets.`
-      : `Seen on ${num(qid, 'support', row.support)} tickets, and in no document.`;
-    const actions = JSON.stringify([`send_to_team:${attr(String(row.team ?? s.area))}`, ...(s.edge === 'CONTRADICTS' ? [`draft_kb:${attr(String(row.target))}`] : []), 'dismiss']);
-    const tag = s.edge === 'CONTRADICTS' ? 'The docs and reality disagree' : 'Practice nobody wrote down';
-    body.push('', `<suggestion query_id="${qid}" tag="${tag}" edge="${s.edge}" actions='${actions}'>`, `${receipt(s.text, qid, row)} ${facts}`, '</suggestion>');
+    const b = suggestionBlock(qid, { ...queries[qid].rows[0], edge: s.edge, team: queries[qid].rows[0]?.team ?? s.area, text: s.text });
+    body.push('', `<suggestion query_id="${qid}" tag="${b.tag}" edge="${b.edge}" actions='${JSON.stringify(b.actions)}'>`, b.text, '</suggestion>');
   }
 
   const story = {
