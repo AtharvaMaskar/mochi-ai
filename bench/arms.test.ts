@@ -132,3 +132,16 @@ test('E staleness: an event retires the live row and inserts the new fact, as ap
   assert.equal((await SQL_TOOLS.customer_profile(db, { customerId: 'C-1' }, now)).q_1[0].plan, 'basic');
   assert.equal((await SQL_TOOLS.customer_profile(db, { customerId: 'C-1' }, at - 1)).q_1[0].plan, 'premium', 'history kept');
 });
+
+test('lessons: picked ids, read-only SQL guard, cosine, merge fills D and traces from the summary', async () => {
+  const { picked, isSelect, cosine } = await import('./arms/lessons.ts');
+  const { withApproaches } = await import('./merge.ts');
+  assert.deepEqual(picked('T-2\nT-9\nT-2', ['T-1', 'T-2']), ['T-2']);
+  assert.ok(isSelect('SELECT * FROM lessons;') && isSelect('with x as (select 1) select * from x'));
+  assert.ok(!isSelect('DELETE FROM lessons') && !isSelect('SELECT 1; DROP TABLE lessons'));
+  assert.equal(cosine([1, 0], [1, 0]), 1);
+  const m = { n: 1, accuracy: 1, cost_usd_mean: 0, input_tokens_mean: 0, output_tokens_mean: 0, tool_calls_mean: 1, p50_ms: 0 };
+  const t = withApproaches({ summary: { D: m, warm_replay: { ...m, tool_calls_mean: 0 } }, staleness: { fresh: { D: 10, 'D+trace': 9, of: 10 }, traces_closed_by_retirement: 0 }, approaches: {} } as never);
+  assert.equal(t.approaches!.D.llm_calls_mean, 2);
+  assert.equal(t.approaches!.graph_traces_warm_replay.staleness!.fresh, 9);
+});
