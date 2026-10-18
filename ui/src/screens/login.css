@@ -1,6 +1,6 @@
 /* #/login. The landing exception's brand moment, very soft: a still morning wash and two slow clouds, agent colours as
    tints only. Everything else is the desk's paper surface. */
-.mb-login { position: relative; min-height: 100vh; min-height: 100dvh; display: grid; place-items: center; padding: var(--space-6) var(--space-4); overflow: hidden; background: var(--bg-page); }
+.mb-login { position: relative; isolation: isolate; min-height: 100vh; min-height: 100dvh; display: grid; place-items: center; padding: var(--space-6) var(--space-4); overflow: hidden; background: var(--bg-page); }
 .mb-login-sky { position: absolute; inset: 0; pointer-events: none;
   background: linear-gradient(180deg, color-mix(in srgb, var(--agent-sky) 18%, var(--bg-page)) 0%, var(--bg-page) 55%, color-mix(in srgb, var(--agent-anzu) 10%, var(--bg-page)) 100%); }
 .mb-login-sky span { position: absolute; width: 420px; height: 120px; border-radius: var(--radius-pill); background: var(--bg-surface); opacity: .7; filter: blur(28px); animation: mb-login-drift 90s linear infinite alternate; }

@@ -1,4 +1,5 @@
 // #/login: the sign-in card. Shown whenever the agent answers 401; after sign-in it returns to `?next=`.
+import { Backdrop } from '../components/chat/Backdrop.tsx';
 import { useRef, useState, type FormEvent } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import { Mochi } from '@mochi/ui/mochi';
@@ -29,7 +30,7 @@ export function Login() {
   };
   return (
     <main className="mb-login">
-      <div className="mb-login-sky" aria-hidden="true"><span /><span /></div>
+      <Backdrop mood="home" /> {/* the same grain and dither sky as the empty chat: one brand moment */}
       <form className="mb-login-card" ref={form} onSubmit={submit} aria-labelledby="login-title">
         <div className="mb-login-brand">
           <Mochi size="md" mood={error ? 'sorry' : busy ? 'thinking' : 'idle'} label="Mochi" />
