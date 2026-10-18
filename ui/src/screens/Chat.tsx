@@ -13,9 +13,17 @@ import { SandboxFrame } from '../components/sandbox.tsx';
 import { ReceiptProvider } from '../components/receipts.tsx';
 import { Mochi, Button, NeedsYou } from '../components/ds.tsx';
 import { StoryPanel } from '../components/story-panel.tsx';
+import { MessageList } from '../components/chat/MessageList.tsx';
+import { Message, MessageActions } from '../components/chat/Message.tsx';
+import { Composer, type Command } from '../components/chat/Composer.tsx';
+import { ToolProgress } from '../components/chat/ToolProgress.tsx';
+import { EmptyState } from '../components/chat/EmptyState.tsx';
 
 const STORY_ACTIVITY = 'mochi.story'; // agent/stories.ts STORY_ACTIVITY
 type StoryRef = { id: string; version: number; kind?: 'story' | 'dashboard' };
+// The harness parses these prefixes; the composer only puts "/story " or "/dashboard " at the start of the message.
+const COMMANDS: Command[] = [{ name: '/story', hint: 'Write a story from this conversation' }, { name: '/dashboard', hint: 'Build a live dashboard' }];
+const PROMPTS = ['Make a report of the last 20 tickets from today', 'Brief me on T-0091', 'Which release caused the OTP tickets?'];
 
 /** A fixture transcript item (#/preview). */
 export function Answer({ m }: { m: Extract<ChatItem, { role: 'assistant' }> }) {
@@ -32,7 +40,7 @@ export function Answer({ m }: { m: Extract<ChatItem, { role: 'assistant' }> }) {
   );
 }
 
-type Msg = { id: string; role: string; content?: unknown; activityType?: string };
+type Msg = { id: string; role: string; content?: unknown; activityType?: string; toolCallId?: string; toolCalls?: { id: string; function: { name: string } }[] };
 const THREAD_KEY = 'mochi-thread';
 const newThread = () => { const id = crypto.randomUUID(); try { localStorage.setItem(THREAD_KEY, id); } catch { /* storage blocked */ } return id; };
 const loadThread = () => { try { return localStorage.getItem(THREAD_KEY) ?? newThread(); } catch { return newThread(); } };
@@ -64,7 +72,6 @@ function StoryChip({ s, open, onOpen }: { s: StoryRef; open: boolean; onOpen: ()
 function Conversation({ threadId, openId, onOpen }: { threadId: string; openId: string | null; onOpen: (id: string) => void }) {
   const { agent, isReady } = useAgent({ agentId: 'mochi' });
   const { copilotkit } = useCopilotKit();
-  const [text, setText] = useState('');
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     if (!isReady) return;
@@ -75,13 +82,14 @@ function Conversation({ threadId, openId, onOpen }: { threadId: string; openId: 
   const messages = agent.messages as unknown as Msg[];
   // every stored query a card brought into this thread, so <num> and tags in Mochi's text resolve to receipts
   const queries = useMemo(() => Object.assign({}, ...messages.filter((m) => m.activityType === ACTIVITY.card).map((m) => (m.content as Card).queries)) as Record<string, StoredQuery>, [messages.length]);
-  const send = async () => {
-    const q = text.trim();
-    if (!q || agent.isRunning) return;
-    setText(''); setError(null);
+  const running = agent.isRunning;
+  const send = async (q: string) => {
+    if (running) return;
+    setError(null);
     agent.addMessage({ id: crypto.randomUUID(), role: 'user', content: q });
     try { await copilotkit.runAgent({ agent }); } catch (e) { setError(reason(e)); }
   };
+  const stop = () => { try { copilotkit.stopAgent({ agent }); } catch { agent.abortRun(); } };
   // A story activity that arrives during this page's life opens (or advances) the panel; replayed history doesn't.
   const seen = useRef(new Set<string>());
   useEffect(() => {
@@ -90,40 +98,59 @@ function Conversation({ threadId, openId, onOpen }: { threadId: string; openId: 
       if (agent.isRunning) onOpen((m.content as StoryRef).id);
     }
   }, [messages.length, agent.isRunning]);
-  const last = messages.at(-1);
+  // one turn = a user message and every part Mochi answered with; the parts share one avatar
+  const turns: { user?: Msg; parts: Msg[] }[] = [];
+  for (const m of messages) {
+    if (m.role === 'user') turns.push({ user: m, parts: [] });
+    else if (turns.length) turns[turns.length - 1].parts.push(m);
+    else turns.push({ parts: [m] });
+  }
+  const results = new Set(messages.filter((m) => m.role === 'tool').map((m) => m.toolCallId));
+  const tail = messages.at(-1);
+  const streaming = tail?.role === 'assistant' && typeof tail.content === 'string' && tail.content.trim() !== '';
   return (
-    <>
-      <div className="mb-chat" aria-label="Conversation with Mochi" aria-live="polite">
-        {!messages.length && !agent.isRunning && <NeedsYou mood="idle" title="Ask me about a ticket" reason="Try “Brief me on T-0091” or “Which release caused the OTP tickets?”. Every number I give you opens its Cypher." />}
-        {messages.map((m) => {
-          if (m.role === 'user') return <div key={m.id} className="mb-chat-user">{String(m.content)}</div>;
-          if (m.role === 'assistant' && typeof m.content === 'string' && m.content.trim())
-            return <div key={m.id} className="mb-chat-ai"><Mochi size="sm" still /><div className="mb-chat-ai-body"><AiText text={m.content} queries={queries} /></div></div>;
-          if (m.role === 'activity' && m.activityType === ACTIVITY.card)
-            return <div key={m.id} className="mb-chat-ai"><Mochi size="sm" still /><div className="mb-chat-ai-body"><ToolCard card={m.content as Card} /></div></div>;
-          if (m.role === 'activity' && m.activityType === STORY_ACTIVITY) {
-            const s = m.content as StoryRef;
-            return <div key={m.id} className="mb-chat-ai"><Mochi size="sm" still /><div className="mb-chat-ai-body"><StoryChip s={s} open={openId === s.id} onOpen={() => onOpen(s.id)} /></div></div>;
-          }
-          if (m.role === 'activity' && m.activityType === ACTIVITY.html) {
-            const h = m.content as SandboxHtml & { queries: Record<string, StoredQuery> };
-            return <div key={m.id} className="mb-chat-ai"><Mochi size="sm" still /><div className="mb-chat-ai-body"><SandboxFrame value={{ html: h.html, css: h.css }} queries={h.queries} height={220} /></div></div>;
-          }
-          return null;
+    <div className="mb-chat-shell">
+      <MessageList pinKey={turns.length} busy={running}>
+        {!messages.length && !running && <EmptyState prompts={PROMPTS} onPick={(p) => void send(p)} />}
+        {turns.map((t, i) => {
+          const live = running && i === turns.length - 1;
+          const steps = t.parts.flatMap((m) => (m.toolCalls ?? []).map((c) => ({ id: c.id, name: c.function.name, done: results.has(c.id) || !live })));
+          const texts = t.parts.filter((m) => m.role === 'assistant' && typeof m.content === 'string' && m.content.trim()).map((m) => String(m.content));
+          const acts = t.parts.filter((m) => m.role === 'activity');
+          const mood = !live ? undefined : steps.some((s) => !s.done) || !streaming ? 'thinking' : 'speaking';
+          const user = t.user;
+          return (
+            <div key={user?.id ?? i} className="mb-chat-turn">
+              {user && <Message role="user">{String(user.content)}</Message>}
+              {(live || steps.length > 0 || texts.length > 0 || acts.length > 0) && (
+                // order: what Mochi is doing, then what it found (cards), then what it says
+                <Message role="assistant" mood={mood}>
+                  <ToolProgress steps={steps} />
+                  {acts.map((m) => <Activity key={m.id} m={m} openId={openId} onOpen={onOpen} />)}
+                  {texts.map((x, j) => <AiText key={j} text={x} queries={queries} />)}
+                  {live && !steps.length && !texts.length && !acts.length && <div className="mb-skel" aria-label="Mochi is thinking">{[70, 50].map((w, k) => <i key={k} style={{ width: `${w}%` }} />)}</div>}
+                  {!live && <MessageActions text={texts.join('\n\n') || undefined} onRetry={i === turns.length - 1 && user && !running ? () => void send(String(user.content)) : undefined} />}
+                </Message>
+              )}
+            </div>
+          );
         })}
-        {agent.isRunning && last?.role !== 'assistant' && (
-          <div className="mb-chat-ai"><Mochi size="sm" mood="thinking" /><div className="mb-skel" aria-label="Mochi is thinking">{[70, 50].map((w, i) => <i key={i} style={{ width: `${w}%` }} />)}</div></div>
-        )}
         {error && <NeedsYou mood="sorry" title="I couldn’t answer" reason={error} />}
-      </div>
-      <form className="mb-composer" onSubmit={(e) => { e.preventDefault(); void send(); }}>
-        <label className="sr" htmlFor="ask">Ask Mochi</label>
-        <input id="ask" value={text} onChange={(e) => setText(e.target.value)} placeholder="Ask, or start with /story or /dashboard" />
-        <Button variant="primary" size="sm" type="submit" loading={agent.isRunning}
-          disabledReason={!isReady ? 'I’m still connecting to the agent.' : !text.trim() ? 'Type a question first.' : undefined}>Ask</Button>
-      </form>
-    </>
+      </MessageList>
+      <Composer onSend={(q) => void send(q)} onStop={stop} running={running} commands={COMMANDS}
+        placeholder="Ask, or start with /story or /dashboard"
+        disabledReason={!isReady ? 'I’m still connecting to the agent.' : undefined} />
+    </div>
   );
+}
+
+/** Rich UI paths: a tool card, guarded sandbox HTML, or a story chip that opens the panel. */
+function Activity({ m, openId, onOpen }: { m: Msg; openId: string | null; onOpen: (id: string) => void }) {
+  if (m.activityType === ACTIVITY.card) return <ToolCard card={m.content as Card} />;
+  if (m.activityType === STORY_ACTIVITY) { const s = m.content as StoryRef; return <StoryChip s={s} open={openId === s.id} onOpen={() => onOpen(s.id)} />; }
+  if (m.activityType !== ACTIVITY.html) return null;
+  const h = m.content as SandboxHtml & { queries: Record<string, StoredQuery> };
+  return <SandboxFrame value={{ html: h.html, css: h.css }} queries={h.queries} height={220} />;
 }
 
 export function Chat() {
