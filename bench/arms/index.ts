@@ -3,7 +3,7 @@ import type { FalkorDB } from 'falkordb';
 import type { Dataset, EvalQuestion, ContradictionEvent } from '@mochi/contracts';
 import type { Llm, Usage } from '../llm.ts';
 
-export type Arch = 'A' | 'B' | 'C' | 'D';
+export type Arch = 'A' | 'B' | 'C' | 'D' | 'E';
 export type Answer = { answer: string; usage: Usage; retrieval_ms: number; truncated?: boolean };
 export type Arm = {
   arch: Arch;

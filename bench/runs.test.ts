@@ -10,7 +10,7 @@ import { runStaleness } from './runs/staleness.ts';
 import { scoreFindings } from './runs/ablation.ts';
 import { scoreClusters } from './runs/clusters.ts';
 import { runConcurrency } from './runs/concurrency.ts';
-import { runIsolation } from './runs/isolation.ts';
+import { isRefusal, runIsolation } from './runs/isolation.ts';
 import { runServer } from './runs/server.ts';
 import { testCtx } from './testctx.ts';
 
@@ -74,6 +74,8 @@ test('isolation: every refusal case is refused for mochi_reader', async () => {
   const r = await runIsolation();
   assert.equal(r.tier_isolation!.cases.length, 4);
   for (const c of r.tier_isolation!.cases) assert.equal(c.refused, true, `${c.case}: ${c.error}`);
+  assert.equal(isRefusal('Socket closed unexpectedly'), false, 'only ACL and read-only errors count as refusals');
+  assert.equal(isRefusal('NOPERM User mochi_reader has no permissions to run the \'graph.QUERY\' command'), true);
 });
 
 test('server: config and graph counts are non-zero', async () => {

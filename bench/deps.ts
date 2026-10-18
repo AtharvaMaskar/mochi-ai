@@ -17,12 +17,14 @@ export type DreamGraphs = Partial<Graphs>;
 export type QueryResult = Q.Result;
 export type MismatchEdge = { type: 'CONTRADICTS' | 'UNDOCUMENTED'; kb_id: string | null; area: string };
 
-const read = (f: string) => JSON.parse(readFileSync(new URL(`../data/${f}`, import.meta.url), 'utf8'));
+const DATA = new URL('../data/', import.meta.url);
+const read = (f: string | URL) => JSON.parse(readFileSync(f, 'utf8'));
 
-export async function readData(): Promise<{ dataset: Dataset; eval: Eval }> {
-  const d = validateDataset(read('dataset.json'));
-  if (!d.ok) throw new Error(`data/dataset.json invalid: ${d.errors.slice(0, 3).join('; ')}`);
-  const e = validateEval(read('eval.json'), d.value);
+/** `dataset`: a dataset.json path (default data/dataset.json; add-sim's bench slice is data/bench/dataset.json). Eval is data/eval.json. */
+export async function readData(dataset: string | URL = new URL('dataset.json', DATA)): Promise<{ dataset: Dataset; eval: Eval }> {
+  const d = validateDataset(read(dataset));
+  if (!d.ok) throw new Error(`${dataset} invalid: ${d.errors.slice(0, 3).join('; ')}`);
+  const e = validateEval(read(new URL('eval.json', DATA)), d.value);
   if (!e.ok) throw new Error(`data/eval.json invalid: ${e.errors.slice(0, 3).join('; ')}`);
   return { dataset: d.value, eval: e.value };
 }

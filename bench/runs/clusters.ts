@@ -1,10 +1,13 @@
-// Clusters ablation: graph community detection (CDLP over live Ticket-ABOUT-Issue edges, on a scratch
-// projection) vs LLM clustering of the same week's raw ticket text, scored against the bad-release spikes.
+// Clusters ablation: graph community detection (CDLP over Ticket-ABOUT-Issue edges, on a scratch projection) vs LLM
+// clustering of the same week's raw ticket text, scored against the bad-release spikes. The graph side never sees the
+// seeded issue labels: every ABOUT edge is stripped and re-derived by the dream's LLM extraction, whose tokens are the
+// graph side's cost. (Clustering the seeded labels and scoring them against themselves would be circular.)
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { MISMATCH, type Dataset, type Results } from '@mochi/contracts';
-import { CDLP, PROJECT_ABOUT, WINDOW_ABOUT } from '../cypher.ts';
-import { ensureWorld } from '../arms/d.ts';
+import { CDLP, PROJECT_ABOUT, STRIP_ABOUT, WINDOW_ABOUT } from '../cypher.ts';
+import { loadDataset, runDreamNow } from '../deps.ts';
+import { ZERO } from '../llm.ts';
 import type { Ctx } from '../arms/index.ts';
 import { jsonArray } from './ablation.ts';
 
@@ -30,9 +33,15 @@ const PROMPT = 'Below are one week of support tickets from a fictional broker, t
 
 export async function runClusters(ctx: Ctx): Promise<Pick<Results, 'clusters_ablation'>> {
   const d = ctx.dataset, n = ctx.names;
-  await ensureWorld(ctx);
-  const world = ctx.db.selectGraph(n.world), scratch = ctx.db.selectGraph(n.clusters);
-  const g: Score = { matched_spikes: 0, missed_spikes: 0, spurious: 0, tokens: 0 }, l = { ...g };
+  const graphs = { company: n.ingest, prev: n.ingestPrev, scratch: n.ingestScratch };
+  await loadDataset(d, ctx.db, { graph: n.ingest, fresh: true });
+  await ctx.db.selectGraph(n.ingest).query(STRIP_ABOUT);
+  const before = ctx.llm.byCaller.clusters_dream ?? ZERO;
+  await runDreamNow({ db: ctx.db, llm: ctx.llm, caller: 'clusters_dream', graphs });
+  const after = ctx.llm.byCaller.clusters_dream ?? ZERO;
+  const extraction = after.input - before.input + after.output - before.output;
+  const world = ctx.db.selectGraph(n.ingest), scratch = ctx.db.selectGraph(n.clusters);
+  const g: Score = { matched_spikes: 0, missed_spikes: 0, spurious: 0, tokens: extraction }, l = { ...g, tokens: 0 };
   const detail: unknown[] = [];
   // One window per release: bad releases carry spikes, good ones are the chance to be spurious.
   for (const rel of d.releases) {
@@ -41,9 +50,8 @@ export async function runClusters(ctx: Ctx): Promise<Pick<Results, 'clusters_abl
     const pairs = (await world.roQuery<{ t: string; i: string }>(WINDOW_ABOUT, { params: { from, to } })).data ?? [];
     await scratch.delete().catch(() => {});
     if (pairs.length) await scratch.query(PROJECT_ABOUT, { params: { rows: pairs } });
-    const comm = new Map<number, string[]>();
-    if (pairs.length) for (const r of (await scratch.roQuery<{ id: string; communityId: number }>(CDLP)).data ?? []) comm.set(r.communityId, [...(comm.get(r.communityId) ?? []), r.id]);
-    const graphClusters = [...comm.values()];
+    const rows = pairs.length ? (await scratch.roQuery<{ id: string; communityId: number }>(CDLP)).data ?? [] : [];
+    const graphClusters = [...Map.groupBy(rows, (r) => r.communityId).values()].map((rs) => rs.map((r) => r.id));
 
     const week = d.tickets.filter((t) => t.created_at >= from && t.created_at < to);
     let llmClusters: string[][] = [], tokens = 0;
@@ -57,7 +65,7 @@ export async function runClusters(ctx: Ctx): Promise<Pick<Results, 'clusters_abl
     for (const k of Object.keys(g) as (keyof Score)[]) { g[k] += gs[k]; l[k] += ls[k]; }
     detail.push({ release: rel.version, spikes, graph: { clusters: graphClusters, score: gs }, llm: { clusters: llmClusters, score: ls } });
   }
-  await scratch.delete().catch(() => {});
+  for (const x of [scratch, ...Object.values(graphs).map((x) => ctx.db.selectGraph(x))]) await x.delete().catch(() => {});
   writeFileSync(join(ctx.artifacts, 'clusters.json'), JSON.stringify(detail, null, 2));
   return { clusters_ablation: { graph: g, llm: l } };
 }

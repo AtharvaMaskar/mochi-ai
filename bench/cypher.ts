@@ -13,6 +13,8 @@ export const VECTOR_QUERY = `CALL db.idx.vector.queryNodes($label, 'embedding', 
 // Strip ingestion marks so the dream re-ingests every ticket (D ingestion cost, concurrency writer).
 export const UNINGEST = `MATCH (t:Ticket) REMOVE t.ingested_at, t.batch_id, t.batch_size`;
 
+// Clusters ablation: drop the seeded issue links so the graph side clusters only what the dream's extraction derives.
+export const STRIP_ABOUT = `MATCH (t:Ticket) OPTIONAL MATCH (t)-[a:ABOUT]->() DELETE a REMOVE t.ingested_at, t.batch_id, t.batch_size`;
 // Clusters ablation: copy one window of live Ticket-ABOUT-Issue pairs into a scratch graph, then CDLP.
 export const WINDOW_ABOUT = `MATCH (t:Ticket)-[a:ABOUT]->(i:Issue) WHERE t.created_at >= $from AND t.created_at < $to RETURN t.id AS t, i.id AS i`;
 export const PROJECT_ABOUT = `UNWIND $rows AS r MERGE (t:Ticket {id: r.t}) MERGE (i:Issue {id: r.i}) MERGE (t)-[:ABOUT]->(i)`;
@@ -27,6 +29,6 @@ export const PER_USER_WRITE = `CREATE (:DoctrineCandidate {id: $id, text: 'bench
 export const META_STATS = `CALL db.meta.stats()`;
 
 export const ALL_CYPHER: string[] = [
-  ...VECTOR_LABELS.flatMap((l) => [vectorIndex(l, 384), vectorInsert(l)]), VECTOR_QUERY, UNINGEST, WINDOW_ABOUT, PROJECT_ABOUT, CDLP,
+  ...VECTOR_LABELS.flatMap((l) => [vectorIndex(l, 384), vectorInsert(l)]), VECTOR_QUERY, UNINGEST, STRIP_ABOUT, WINDOW_ABOUT, PROJECT_ABOUT, CDLP,
   TORN_BATCHES, LIVE_PLANS, PER_USER_WRITE, META_STATS,
 ];
