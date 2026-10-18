@@ -1,0 +1,502 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mochi Brain</title>
+<meta name="description" content="Why we built a support agent whose memory is a graph. The problem, the decision log, and the receipts.">
+<style>
+  :root {
+    --bg: #faf9f6;
+    --ink: #1a1a1a;
+    --dim: #6b6b6b;
+    --line: #e2e0da;
+    --accent: #c2410c;
+    --code-bg: #f1efe9;
+    --mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+  }
+  /* light theme only, by decision */
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 17px/1.65 Georgia, "Times New Roman", serif;
+    padding: 0 16px;
+  }
+  /* shader paper background sits behind everything */
+  #paper {
+    position: fixed; inset: 0; width: 100vw; height: 100vh;
+    z-index: -1; display: block; pointer-events: none;
+  }
+  main { max-width: 42rem; margin: 0 auto; padding: 4rem 0 6rem; position: relative; }
+  h1 { font-size: 2rem; font-weight: 600; margin: 2.5rem 0 1rem; letter-spacing: -0.01em; }
+  h2 { font-size: 1.25rem; font-weight: 600; margin: 3rem 0 0.75rem; }
+  p { margin: 0 0 1rem; }
+  a { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+  a:hover { color: var(--accent); }
+
+  .memo { font-family: var(--mono); font-size: 0.82rem; color: var(--dim);
+          border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+          padding: 0.9rem 0; margin: 1rem 0 2rem; }
+  .memo dt { display: inline-block; width: 5.5rem; }
+  .memo dd { display: inline; margin: 0; color: var(--ink); }
+  .memo div { margin: 0.15rem 0; }
+
+  .want { font-style: italic; color: var(--dim); }
+
+  /* decision log entries */
+  .decision { border-left: 2px solid var(--line); padding-left: 1rem; margin: 2rem 0; }
+  .decision .stamp { font-family: var(--mono); font-size: 0.72rem; color: var(--accent); }
+  .decision h3 { font-size: 1rem; font-weight: 600; margin: 0.2rem 0 0.5rem; }
+  .decision .trade { font-family: var(--mono); font-size: 0.78rem; color: var(--dim); }
+  .decision .trade b { color: var(--ink); font-weight: 500; }
+
+  pre { background: var(--code-bg); border: 1px solid var(--line);
+        padding: 0.9rem 1rem; overflow-x: auto; font-size: 0.8rem;
+        line-height: 1.55; border-radius: 2px; }
+  code { font-family: var(--mono); }
+  p code, li code { background: var(--code-bg); padding: 0.1em 0.3em; font-size: 0.85em; }
+
+  figure { margin: 2rem 0; }
+  figcaption { font-family: var(--mono); font-size: 0.75rem; color: var(--dim); margin-top: 0.5rem; }
+
+  .race { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  @media (max-width: 560px) { .race { grid-template-columns: 1fr; } }
+  .race svg { width: 100%; height: auto; display: block;
+              border: 1px solid var(--line); border-radius: 2px; background: var(--bg); }
+  .race text { font-family: var(--mono); font-size: 9px; fill: var(--dim); }
+
+  .hop-node { fill: none; stroke: var(--dim); stroke-width: 1.2; }
+  .hop-edge { stroke: var(--line); stroke-width: 1.2; }
+  @media (prefers-reduced-motion: no-preference) {
+    .hop-1 { animation: light 6s infinite 0.0s; }
+    .hop-2 { animation: light 6s infinite 0.7s; }
+    .hop-3 { animation: light 6s infinite 1.4s; }
+    .hop-4 { animation: light 6s infinite 2.1s; }
+    .edge-1 { animation: trace 6s infinite 0.35s; }
+    .edge-2 { animation: trace 6s infinite 1.05s; }
+    .edge-3 { animation: trace 6s infinite 1.75s; }
+    .scan-row { animation: scan 6s infinite; }
+    .scan-row:nth-child(2) { animation-delay: 0.5s; }
+    .scan-row:nth-child(3) { animation-delay: 1.0s; }
+    .scan-row:nth-child(4) { animation-delay: 1.5s; }
+    .scan-row:nth-child(5) { animation-delay: 2.0s; }
+    .scan-row:nth-child(6) { animation-delay: 2.5s; }
+    .scan-row:nth-child(7) { animation-delay: 3.0s; }
+    .stale { animation: dim 7s infinite; }
+    .fresh { animation: rise 7s infinite; }
+    .stale-label { animation: dimtext 7s infinite; }
+  }
+  @keyframes light {
+    0%, 100% { stroke: var(--dim); fill: none; }
+    15%, 70% { stroke: var(--accent); fill: color-mix(in srgb, var(--accent) 12%, transparent); }
+  }
+  @keyframes trace {
+    0%, 100% { stroke: var(--line); }
+    15%, 70% { stroke: var(--accent); }
+  }
+  @keyframes scan {
+    0%, 100% { opacity: 0.35; }
+    8%, 14% { opacity: 1; }
+  }
+  /* temporal invalidation: old edge dims, new edge rises */
+  @keyframes dim {
+    0%, 30% { stroke: var(--ink); opacity: 1; }
+    55%, 100% { stroke: var(--line); opacity: 0.45; stroke-dasharray: 4 3; }
+  }
+  @keyframes dimtext {
+    0%, 30% { opacity: 1; }
+    55%, 100% { opacity: 0.4; }
+  }
+  @keyframes rise {
+    0%, 40% { opacity: 0; }
+    65%, 100% { opacity: 1; }
+  }
+
+  .bars { font-family: var(--mono); font-size: 0.78rem; }
+  .bars .row { display: grid; grid-template-columns: 11rem 1fr 4.5rem; gap: 0.6rem;
+               align-items: center; margin: 0.45rem 0; }
+  .bars .track { background: var(--code-bg); height: 14px; border-radius: 1px; overflow: hidden; }
+  .bars .fill { height: 100%; background: var(--dim); width: 0; }
+  .bars .fill.win { background: var(--accent); }
+  .bars.in-view .fill { transition: width 1.1s cubic-bezier(.2,.7,.2,1); }
+  .bars .val { color: var(--dim); text-align: right; }
+  .bench-note { font-family: var(--mono); font-size: 0.72rem; color: var(--dim); }
+
+  ol.frames { padding-left: 1.2rem; }
+  ol.frames li { margin: 0.4rem 0; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 0.85rem; margin: 1rem 0; }
+  th, td { border-bottom: 1px solid var(--line); text-align: left; padding: 0.4rem 0.6rem 0.4rem 0; }
+  th { font-family: var(--mono); font-size: 0.72rem; font-weight: 500; color: var(--dim); }
+
+  .todo { font-family: var(--mono); font-size: 0.75rem; color: var(--accent);
+          border: 1px dashed var(--accent); padding: 0.2rem 0.5rem; border-radius: 2px; }
+  footer { margin-top: 4rem; border-top: 1px solid var(--line); padding-top: 1rem;
+           font-family: var(--mono); font-size: 0.75rem; color: var(--dim); }
+</style>
+</head>
+<body>
+<canvas id="paper" aria-hidden="true"></canvas>
+<main>
+
+<h1>Mochi Brain</h1>
+
+<dl class="memo">
+  <div><dt>Date:</dt><dd>Sat, 18 Oct 2026</dd></div>
+  <div><dt>From:</dt><dd>Mochi Engineering</dd></div>
+  <div><dt>To:</dt><dd>You</dd></div>
+  <div><dt>Subject:</dt><dd>Why a support agent's memory should be a graph — the problem, the decisions, the receipts</dd></div>
+</dl>
+
+<p>This is not a product announcement. It is the log of how we decided what to build for a 36-hour hackathon, written while we built it. If you want the code, it is <span class="todo">TODO: repo link</span>. If you want the thinking, read on.</p>
+
+<h2>The problem</h2>
+
+<p class="want">Watch a support agent take a ticket. Any support agent, any helpdesk.</p>
+
+<p>The ticket says "money deducted, order not placed." Before the agent can type a single useful word, they open the CRM to see who this customer is. The billing panel to confirm the deduction. The ticket history to learn this is the customer's third attempt. An internal chat to ask whether anyone else has seen this today. A knowledge base that may or may not have been updated since the last release. Five systems, and the customer is still waiting.</p>
+
+<p>The context exists. All of it. It is just stored in pieces that do not know about each other, so a human reassembles it, per ticket, forever. The senior agents are fast only because they carry the missing links in their heads — which release broke what, which team owns which screen, which workaround actually works. When they leave, the links leave.</p>
+
+<p>So the problem statement, in one line: <strong>every ticket starts from zero, because the relationships between customer, history, cause, and fix live nowhere.</strong></p>
+
+<p>Most AI support tools attack the typing: draft the reply faster. We think that is the wrong end of the ticket. The expensive part is not writing the answer. It is assembling the context that makes the answer right.</p>
+
+<h2>The shape of the problem</h2>
+
+<p class="want">Look at what support actually asks, and notice none of it lives in one record.</p>
+
+<ul>
+  <li>What did this customer try before, and did it work?</li>
+  <li>What fixed the last fifty tickets that look like this one?</li>
+  <li>Which release caused this spike?</li>
+  <li>Who on the team has solved this class of problem before?</li>
+</ul>
+
+<p>Every one of these is a question about <em>connections</em>. Relationships are the data. Which is the whole argument for storing them as a graph — nodes and edges the agent can walk — instead of as prose it has to re-derive every time.</p>
+
+<figure>
+  <div class="race">
+    <svg viewBox="0 0 280 160" role="img" aria-label="File memory scanning note after note">
+      <text x="8" y="14">flat memory: scan the cabinet</text>
+      <g>
+        <rect class="scan-row" x="8" y="24"  width="264" height="14" fill="var(--code-bg)"/>
+        <rect class="scan-row" x="8" y="42"  width="264" height="14" fill="var(--code-bg)"/>
+        <rect class="scan-row" x="8" y="60"  width="264" height="14" fill="var(--code-bg)"/>
+        <rect class="scan-row" x="8" y="78"  width="264" height="14" fill="var(--code-bg)"/>
+        <rect class="scan-row" x="8" y="96"  width="264" height="14" fill="var(--code-bg)"/>
+        <rect class="scan-row" x="8" y="114" width="264" height="14" fill="var(--code-bg)"/>
+        <rect class="scan-row" x="8" y="132" width="264" height="14" fill="var(--code-bg)"/>
+      </g>
+    </svg>
+    <svg viewBox="0 0 280 160" role="img" aria-label="Graph memory following four hops from customer to release">
+      <text x="8" y="14">graph memory: follow the edges</text>
+      <line class="hop-edge edge-1" x1="50" y1="60" x2="120" y2="95"/>
+      <line class="hop-edge edge-2" x1="120" y1="95" x2="190" y2="60"/>
+      <line class="hop-edge edge-3" x1="190" y1="60" x2="245" y2="110"/>
+      <circle class="hop-node hop-1" cx="50"  cy="60"  r="14"/>
+      <circle class="hop-node hop-2" cx="120" cy="95"  r="14"/>
+      <circle class="hop-node hop-3" cx="190" cy="60"  r="14"/>
+      <circle class="hop-node hop-4" cx="245" cy="110" r="14"/>
+      <text x="34"  y="40">customer</text>
+      <text x="104" y="126">ticket</text>
+      <text x="176" y="40">issue</text>
+      <text x="224" y="142">release</text>
+    </svg>
+  </div>
+  <figcaption>fig 1 — the same question, two retrieval shapes. the graph answers in 4 hops; the cabinet answers in however many notes you have.</figcaption>
+</figure>
+
+<p>But "we think" is not evidence. The rest of this post is us trying to falsify our own idea.</p>
+
+<h2>Decision log</h2>
+
+<div class="decision">
+  <span class="stamp">01 · sat 12:00</span>
+  <h3>Build the context layer, not another reply-drafter</h3>
+  <p>The thesis as a contrast: <em>not faster typing — zero cold starts.</em> One agent, one job: handed a ticket, produce a briefing that already contains who the customer is, their history, the five most similar resolved tickets and what fixed them, the likely cause, and the owning team — with the path it walked to get there shown, so a human can check it.</p>
+  <p class="trade"><b>rejected:</b> reply drafting, gamification, real-time calls. all real ideas, all cut, because a briefing that is wrong fast is worse than one that is right.</p>
+</div>
+
+<div class="decision">
+  <span class="stamp">02 · sat 12:10</span>
+  <h3>Don't claim the graph is cheaper. Measure it.</h3>
+  <p>Four memory architectures, one dataset, same model, same questions: (A) stuff everything into the prompt, (B) vector top-k, (C) flat file memory, (D) a FalkorDB graph. Count input tokens, time retrieval, score answers. Publish the harness so anyone can re-run it.</p>
+  <p class="trade"><b>cost:</b> ~6 hours we could have spent on features. <b>why paid:</b> without numbers this post is an opinion.</p>
+</div>
+
+<div class="decision">
+  <span class="stamp">03 · sat 12:20</span>
+  <h3>Implement Devin's memory spec as the fair baseline</h3>
+  <p>You cannot benchmark a closed product. But <a href="https://docs.devin.ai/product-guides/memory">Devin's memory</a> is built on an open spec — a git repo of Markdown notes, a <code>MEMORY.md</code> index loaded each session, one-line entries with sources, a nightly dream that consolidates. So baseline C is a faithful implementation of that spec, not a strawman. If the graph cannot beat a competent filing cabinet, we want to know.</p>
+</div>
+
+<div class="decision">
+  <span class="stamp">04 · sat 12:30</span>
+  <h3>TypeScript + Pi Durable over Python + Graphiti</h3>
+  <p>The comfortable path was Python with <a href="https://docs.falkordb.com/agentic-memory/graphiti.html">Graphiti on FalkorDB</a> — temporal knowledge-graph memory, contradiction handling included. We took the other path: TypeScript on <a href="https://earendil.com/posts/pi-durable/">Pi Durable</a>, an experimental harness where every step of a run is a checkpointed task that survives the process dying — and raw, hand-written Cypher against FalkorDB.</p>
+  <p class="trade"><b>gave up:</b> Graphiti's free temporal logic. <b>got:</b> an agent you can <code>kill -9</code> mid-ticket that resumes from its checkpoint, and every query in the repo readable by a human. <b>risk accepted:</b> Pi Durable is experimental and we learned it during the event.</p>
+</div>
+
+<div class="decision">
+  <span class="stamp">05 · <span class="todo">TODO: stamp</span></span>
+  <h3>Temporal invalidation, by hand</h3>
+  <p>Memory that cannot forget correctly is not memory, it is a liability. When a fact changes — the bug is fixed, the customer upgraded — we do not delete the old edge. We stamp it:</p>
+<pre><code>// a contradicted fact is retired, not erased
+MATCH (c:Customer {id: $id})-[r:ON_PLAN]->(:Plan)
+WHERE r.valid_until IS NULL
+SET r.valid_until = timestamp()
+WITH c
+MATCH (p:Plan {name: $newPlan})
+CREATE (c)-[:ON_PLAN {valid_from: timestamp(), valid_until: null}]->(p)</code></pre>
+  <p>Live queries filter <code>valid_until IS NULL</code>. History stays walkable; the agent just stops serving it. This is the eight lines Graphiti would have given us for free. It was worth writing once.</p>
+</div>
+
+<figure>
+  <svg viewBox="0 0 560 150" role="img" aria-label="An old edge dims and gets a valid-until stamp while a new edge appears" style="width:100%;height:auto;border:1px solid var(--line);border-radius:2px;background:var(--bg)">
+    <text x="12" y="20" style="font-family:var(--mono);font-size:9px;fill:var(--dim)">fig 3 — the dream retires a fact</text>
+    <circle cx="90" cy="85" r="16" class="hop-node"/>
+    <text x="68" y="120" style="font-family:var(--mono);font-size:9px;fill:var(--dim)">customer</text>
+    <circle cx="300" cy="50" r="16" class="hop-node"/>
+    <text x="280" y="24" style="font-family:var(--mono);font-size:9px;fill:var(--dim)">basic plan</text>
+    <circle cx="300" cy="120" r="16" class="hop-node"/>
+    <text x="276" y="148" style="font-family:var(--mono);font-size:9px;fill:var(--dim)">premium plan</text>
+    <line x1="106" y1="78" x2="284" y2="54" class="stale" stroke-width="1.4"/>
+    <text x="150" y="52" class="stale-label" style="font-family:var(--mono);font-size:8px;fill:var(--dim)">ON_PLAN · valid_until: 18 oct</text>
+    <line x1="106" y1="92" x2="284" y2="116" class="fresh" stroke="var(--accent)" stroke-width="1.4"/>
+    <text x="150" y="118" class="fresh" style="font-family:var(--mono);font-size:8px;fill:var(--accent)">ON_PLAN · valid_until: null</text>
+  </svg>
+</figure>
+
+<div class="decision">
+  <span class="stamp">06 · <span class="todo">TODO: stamp</span></span>
+  <h3>Dreaming is a background task, not a cron job bolted on</h3>
+  <p>Pi Durable has background tasks that belong to a conversation but not its current work. So the dream — replay the day's tickets, cluster them with FalkorDB's community detection to surface emerging issues, promote repeated fixes into procedural memory, retire contradicted edges, write the morning briefing — is just another durable task. It survives restarts like everything else.</p>
+  <p><span class="todo">TODO: dream task excerpt + the community-detection call + a real morning briefing</span></p>
+</div>
+
+<div class="decision">
+  <span class="stamp">07 · sat 12:11</span>
+  <h3>Three memory tiers, and the company tier is append-only for everyone</h3>
+  <p>One FalkorDB instance, three kinds of graphs: <code>company</code> (the brain), <code>team_*</code>, <code>user_*</code> — multigraph makes each a real, isolated graph, not a filter. The company tier is written by exactly one actor, the dream, and only ever by appending: a wrong fact is retired with a timestamp, never edited. Humans and their conversations get read-only access to it, enforced in the harness loadout — the write tool simply is not in their toolset.</p>
+  <p class="trade"><b>why:</b> a shared brain that anyone can silently edit is not a brain, it is a wiki war. append-only is what makes it trustworthy enough to share.</p>
+</div>
+
+<div class="decision">
+  <span class="stamp">08 · sat 12:11</span>
+  <h3>Doctrine vs practice: let the graph catch the company lying to itself</h3>
+  <p>The company brain holds two kinds of truth. <em>Doctrine</em>: what the docs claim — "withdrawals take 24 hours." <em>Practice</em>: what the tickets show — the last 40 withdrawals took 71. Because both live in the same graph, the mismatch is not an insight someone has in a retro six weeks late. It is an edge, computed nightly by arithmetic, with the ticket IDs as evidence, routed to the team that owns the doc.</p>
+  <p class="trade"><b>rule:</b> detection is deterministic — a promised number against a measured one needs Cypher, not a model. the LLM only writes the suggestion's prose, and a suggestion is a hypothesis with receipts, never an auto-applied fact.</p>
+  <p><span class="todo">TODO: a real CONTRADICTS edge from the demo run + the suggestion as it appeared in the morning briefing</span></p>
+</div>
+
+<div class="decision">
+  <span class="stamp">09 · sat 12:13</span>
+  <h3>Every graph use pays rent</h3>
+  <p>Graphs are fashionable, which is exactly why we do not get to use them on vibes. Every feature that touches the graph gets a row in a feature ledger: what it does, what we measured it against, and the result — good or bad. A feature we did not measure says "not measured" in public. The best example: the mismatch engine's rules run against an LLM handed all the docs and tickets as raw text, on five planted mismatches we know the answers to. If the expensive way finds things the cheap way misses, that goes in the post too.</p>
+  <p><span class="todo">TODO: the ledger table, filled</span></p>
+</div>
+
+<h2>The benchmark</h2>
+
+<p class="want">One number per architecture per question: tokens in, answer right or wrong, milliseconds to retrieve.</p>
+
+<p><span class="todo">TODO: replace placeholder numbers with bench/results.json output. model + price stated below.</span></p>
+
+<figure>
+  <div class="bars" id="bench-tokens" aria-label="Mean input tokens per multi-hop question"></div>
+  <figcaption>fig 2 — mean input tokens per <em>multi-hop</em> question. lower is cheaper. accuracy right. <span class="bench-note">model: TODO · price: TODO/1M input tokens · n=20 questions</span></figcaption>
+</figure>
+
+<p>Three question buckets, reported separately, because averages hide the story:</p>
+<table>
+  <tr><th>bucket</th><th>example</th><th>who should win</th></tr>
+  <tr><td>single-fact</td><td>what plan is customer 4412 on?</td><td>honestly, files</td></tr>
+  <tr><td>multi-hop</td><td>which release caused the issues behind this week's refund tickets?</td><td>graph</td></tr>
+  <tr><td>structural</td><td>top 3 emerging issue clusters</td><td>only the graph can even ask</td></tr>
+</table>
+
+<h2>Where we lost</h2>
+<p class="want">A benchmark that only shows wins is an ad.</p>
+<p><span class="todo">TODO after results — expected losses: single-fact recall ties or loses on cost; the graph's write path costs more per episode than appending a bullet to a Markdown file; ingestion needed an LLM to extract entities, which files do not. Numbers, not apologies.</span></p>
+
+<h2>The crash test</h2>
+<p class="want">An always-on agent is an agent that survives dying.</p>
+<ol class="frames">
+  <li>A ticket arrives; the agent starts assembling the briefing.</li>
+  <li>We <code>kill -9</code> the process between two tool calls.</li>
+  <li>A new process opens the same storage.</li>
+  <li>The interrupted run continues from its checkpoint — the safe graph reads rerun, the rest resumes.</li>
+  <li>The briefing arrives. The memory graph never noticed.</li>
+</ol>
+<p><span class="todo">TODO: 15-second clip / gif</span></p>
+
+<h2>The bill</h2>
+<p class="want">The whole experiment gets a receipt.</p>
+<p><span class="todo">TODO: total tokens + cost across build, benchmark, demo. one table.</span></p>
+
+<h2>FAQ</h2>
+<p><strong>Why not just a vector database?</strong><br>
+We tried. It is baseline B. See fig 2.</p>
+<p><strong>Is this a shot at Devin?</strong><br>
+No. Their spec is open and good at what it is for — personal preferences and project gotchas. Support context is a different shape of problem. That is the point of measuring instead of asserting.</p>
+<p><strong>Why is there a SQLite file in a graph project?</strong><br>
+Two storage roles. FalkorDB holds what the agent <em>knows</em> — the memory this whole post is about. SQLite holds what the agent <em>is doing</em> — Pi Durable's transcripts and task checkpoints, which is what the crash-resume runs on. The harness storage interface is small enough that FalkorDB could plausibly hold both over its Redis protocol; we were not going to hand-roll the storage under our own crash demo in 36 hours. It's in LATER.md.</p>
+<p><strong>Why is the dataset synthetic?</strong><br>
+Hackathon rules, and basic hygiene: no real customers in a public demo. The generator is seeded and in the repo; the fictional company's dysfunctions are statistically modeled on public accounts of support-team pain, not on anyone's data.</p>
+<p><strong>Would this survive real ticket volume?</strong><br>
+<span class="todo">TODO: honest answer after a load check, or honest admission there wasn't one.</span></p>
+
+<footer>
+  repo: <span class="todo">TODO</span> · tracks entered: 01, 02, 03 · built with AI coding assistants, disclosed per the rules · graph hacks, oct 2026
+</footer>
+
+</main>
+
+<script>
+  // Placeholder benchmark data — overwrite with bench/results.json output.
+  const BENCH = [
+    { name: "A · stuff everything",   tokens: 48000, acc: "—",   win: false },
+    { name: "B · vector top-k",       tokens: 6200,  acc: "—",   win: false },
+    { name: "C · file memory (spec)", tokens: 5400,  acc: "—",   win: false },
+    { name: "D · graph (FalkorDB)",   tokens: 1900,  acc: "—",   win: true  },
+  ];
+  const max = Math.max(...BENCH.map(b => b.tokens));
+  const el = document.getElementById("bench-tokens");
+  el.innerHTML = BENCH.map(b => `
+    <div class="row">
+      <span>${b.name}</span>
+      <div class="track"><div class="fill${b.win ? " win" : ""}" data-w="${(b.tokens / max * 100).toFixed(1)}"></div></div>
+      <span class="val">${b.tokens.toLocaleString()} · ${b.acc}</span>
+    </div>`).join("");
+
+  try {
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (!e.isIntersecting) return;
+        e.target.classList.add("in-view");
+        requestAnimationFrame(() =>
+          e.target.querySelectorAll(".fill").forEach(f => f.style.width = f.dataset.w + "%"));
+        io.unobserve(e.target);
+      });
+    }, { threshold: 0.4 });
+    io.observe(el);
+  } catch (_) {
+    el.querySelectorAll(".fill").forEach(f => f.style.width = f.dataset.w + "%");
+  }
+
+  // ---- shader paper background ----------------------------------------
+  // Subtle animated paper: fbm grain + a slow, warm light drifting across
+  // the sheet. Light theme only. Falls back to the solid --bg if WebGL is
+  // unavailable; renders a single still frame under prefers-reduced-motion.
+  (function paper() {
+    const canvas = document.getElementById("paper");
+    const gl = canvas.getContext("webgl", { antialias: false, alpha: false });
+    if (!gl) return;
+
+    const vsrc = `
+      attribute vec2 p;
+      void main() { gl_Position = vec4(p, 0.0, 1.0); }`;
+
+    const fsrc = `
+      precision mediump float;
+      uniform vec2 u_res;
+      uniform float u_t;
+
+      float hash(vec2 p) {
+        return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+      }
+      float noise(vec2 p) {
+        vec2 i = floor(p), f = fract(p);
+        vec2 u = f * f * (3.0 - 2.0 * f);
+        return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), u.x),
+                   mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x),
+                   u.y);
+      }
+      float fbm(vec2 p) {
+        float v = 0.0, a = 0.5;
+        for (int i = 0; i < 5; i++) {
+          v += a * noise(p);
+          p = p * 2.03 + vec2(17.0, 9.2);
+          a *= 0.5;
+        }
+        return v;
+      }
+
+      void main() {
+        vec2 uv = gl_FragCoord.xy / u_res;
+        vec2 q = uv * vec2(u_res.x / u_res.y, 1.0);
+
+        // paper base
+        vec3 paper = vec3(0.980, 0.976, 0.965);        // #faf9f6
+        // fine static grain (fibers)
+        float grain = fbm(q * 220.0) - 0.5;
+        // coarse mottling, barely moving, like pulp density
+        float pulp = fbm(q * 5.0 + vec2(u_t * 0.008, -u_t * 0.005)) - 0.5;
+        // one slow warm light drifting across the sheet
+        vec2 lightPos = vec2(
+          0.5 + 0.45 * sin(u_t * 0.028),
+          0.55 + 0.35 * cos(u_t * 0.019));
+        float d = distance(uv, lightPos);
+        float glow = smoothstep(0.85, 0.0, d);
+
+        vec3 col = paper;
+        col -= grain * 0.016;                           // fiber speckle
+        col -= pulp * 0.012;                            // pulp clouds
+        col += vec3(0.760, 0.255, 0.047) * glow * 0.016; // faint warm accent
+        col += glow * 0.012;                            // lift under the light
+        // gentle vignette so text column feels seated
+        col -= smoothstep(0.55, 1.25, distance(uv, vec2(0.5))) * 0.018;
+
+        gl_FragColor = vec4(col, 1.0);
+      }`;
+
+    function shader(type, src) {
+      const s = gl.createShader(type);
+      gl.shaderSource(s, src);
+      gl.compileShader(s);
+      return gl.getShaderParameter(s, gl.COMPILE_STATUS) ? s : null;
+    }
+    const vs = shader(gl.VERTEX_SHADER, vsrc);
+    const fs = shader(gl.FRAGMENT_SHADER, fsrc);
+    if (!vs || !fs) return;
+    const prog = gl.createProgram();
+    gl.attachShader(prog, vs); gl.attachShader(prog, fs);
+    gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) return;
+    gl.useProgram(prog);
+
+    const buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER,
+      new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+    const loc = gl.getAttribLocation(prog, "p");
+    gl.enableVertexAttribArray(loc);
+    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+
+    const uRes = gl.getUniformLocation(prog, "u_res");
+    const uT = gl.getUniformLocation(prog, "u_t");
+
+    function resize() {
+      // half-res is invisible at this subtlety and kind to batteries
+      const dpr = Math.min(window.devicePixelRatio || 1, 1.5) * 0.5;
+      canvas.width = Math.ceil(innerWidth * dpr);
+      canvas.height = Math.ceil(innerHeight * dpr);
+      gl.viewport(0, 0, canvas.width, canvas.height);
+      gl.uniform2f(uRes, canvas.width, canvas.height);
+    }
+    resize();
+    addEventListener("resize", resize);
+
+    const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let start = performance.now();
+    function frame(now) {
+      gl.uniform1f(uT, (now - start) / 1000);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+      if (!still) requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  })();
+</script>
+</body>
+</html>

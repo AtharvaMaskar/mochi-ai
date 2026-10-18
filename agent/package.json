@@ -1,0 +1,7 @@
+{
+  "name": "@mochi/agent",
+  "private": true,
+  "type": "module",
+  "scripts": { "check": "node -e 0" },
+  "dependencies": { "@mochi/contracts": "*" }
+}

@@ -1,0 +1,26 @@
+# FalkorDB server (6379) + Browser (3000). ACL users are config, so they survive restarts.
+# Rules per docs/falkordb.md gotcha 10: read-only is granted per command, never %R~.
+# +INFO +CLIENT|SETINFO: the node redis client sends both on connect.
+services:
+  falkordb:
+    image: falkordb/falkordb:v4.22.1
+    ports: ["6379:6379", "3000:3000"]
+    environment:
+      FALKORDB_PASSWORD: ${FALKORDB_PASSWORD:?}   # read by the healthcheck
+      REDIS_ARGS: >-
+        --requirepass ${FALKORDB_PASSWORD:?set FALKORDB_PASSWORD in .env}
+        --appendonly yes --appendfsync everysec
+        --save 900 1 --save 300 10 --save 60 1000
+        --user mochi_reader on >${MOCHI_READER_PASSWORD:?} resetkeys ~mochi_company ~team_* resetchannels -@all +GRAPH.RO_QUERY +GRAPH.EXPLAIN +GRAPH.LIST +PING +INFO +CLIENT|SETINFO
+        --user mochi_dream on >${MOCHI_DREAM_PASSWORD:?} resetkeys ~mochi_company ~mochi_company_prev ~algo_scratch ~team_* resetchannels -@all +GRAPH.QUERY +GRAPH.RO_QUERY +GRAPH.EXPLAIN +GRAPH.COPY +GRAPH.DELETE +GRAPH.CONSTRAINT +GRAPH.LIST +PING +INFO +CLIENT|SETINFO
+        --user user_demo on >${MOCHI_DEMO_USER_PASSWORD:?} resetkeys ~mochi_company ~team_* resetchannels -@all +GRAPH.RO_QUERY +GRAPH.LIST +PING +INFO +CLIENT|SETINFO (~user_demo ~cust_* +GRAPH.QUERY +GRAPH.RO_QUERY)
+      FALKORDB_ARGS: THREAD_COUNT 4 MAX_QUEUED_QUERIES 256 TIMEOUT_DEFAULT 30000 TIMEOUT_MAX 60000 RESULTSET_SIZE 10000
+    volumes:
+      - falkordb_data:/var/lib/falkordb/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$FALKORDB_PASSWORD\" --no-auth-warning ping | grep -q PONG"]
+      interval: 5s
+      retries: 10
+    restart: unless-stopped
+volumes:
+  falkordb_data: {}

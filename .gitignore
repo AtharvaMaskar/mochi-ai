@@ -218,3 +218,14 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Local-only: agent tooling and workflow files (never pushed)
+CLAUDE.md
+.claude/
+openspec/
+node_modules/
+*.sqlite*
+.env.local
+
+# Design-system component reference: local only (third-party product copy)
+docs/design-system/components/
