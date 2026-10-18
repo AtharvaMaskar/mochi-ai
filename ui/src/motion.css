@@ -29,10 +29,7 @@
 .mb-btn-secondary.mb-btn-loading::before { background-image: linear-gradient(100deg, transparent 20%, color-mix(in srgb, var(--agent-sky) 30%, transparent) 50%, transparent 80%); }
 .mb-btn:disabled.mb-btn-loading { opacity: .85; }
 
-/* Press dips: bigger surfaces dip less (cards 0.975, rows 0.994). */
-.mb-card, .mb-block { transition: transform .26s cubic-bezier(.3,1.4,.5,1); }
-.mb-card:active, .mb-block:active { transform: scale(.975); transition-duration: .06s; }
-.mb-card .mb-block:active { transform: none; }
+/* Press dips belong to controls only. Cards and blocks are reading surfaces: clicking text or a receipt inside one must not move it. */
 .mb-row { transition: transform .26s cubic-bezier(.3,1.4,.5,1), background .16s ease; }
 .mb-row:active { transform: scale(.994); transition-duration: .06s; }
 .mb-seg button { transition: transform .26s cubic-bezier(.3,1.4,.5,1), color .16s ease; }
