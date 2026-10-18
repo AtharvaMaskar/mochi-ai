@@ -10,6 +10,7 @@ import { CostCapError, type Llm } from './llm.ts';
 
 export { loadDataset, applyEvent, embed, EMBED_DIM } from '@mochi/gen';
 export { READ_TOOL_SPECS } from '../agent/queries/tools.ts';
+export { SCHEMA_PROMPT, ROW_CAP, TIMEOUT_MS } from '../agent/queries/graph-tools.ts';
 export type { DreamReport } from '../agent/dream/index.ts';
 
 export type Db = Pick<FalkorDB, 'selectGraph'>;
@@ -17,13 +18,20 @@ export type DreamGraphs = Partial<Graphs>;
 export type QueryResult = Q.Result;
 export type MismatchEdge = { type: 'CONTRADICTS' | 'UNDOCUMENTED'; kb_id: string | null; area: string };
 
-const read = (f: string) => JSON.parse(readFileSync(new URL(`../data/${f}`, import.meta.url), 'utf8'));
+const DATA = new URL('../data/', import.meta.url);
+const read = (f: string | URL) => JSON.parse(readFileSync(f, 'utf8'));
 
-export async function readData(): Promise<{ dataset: Dataset; eval: Eval }> {
-  const d = validateDataset(read('dataset.json'));
-  if (!d.ok) throw new Error(`data/dataset.json invalid: ${d.errors.slice(0, 3).join('; ')}`);
-  const e = validateEval(read('eval.json'), d.value);
+/** `dataset`: a dataset.json path, default add-sim's 400-ticket bench slice data/bench/dataset.json. Eval is data/eval.json. */
+export async function readData(dataset: string | URL = new URL('bench/dataset.json', DATA)): Promise<{ dataset: Dataset; eval: Eval }> {
+  const d = validateDataset(read(dataset));
+  if (!d.ok) throw new Error(`${dataset} invalid: ${d.errors.slice(0, 3).join('; ')}`);
+  const e = validateEval(read(new URL('eval.json', DATA)), d.value);
   if (!e.ok) throw new Error(`data/eval.json invalid: ${e.errors.slice(0, 3).join('; ')}`);
+  // Eval must be computed over this dataset: every id or version a question or answer names has to exist in it.
+  const v = d.value, ids = new Set<string>([...v.tickets, ...v.customers, ...v.issues, ...v.agents, ...v.kb_articles, ...v.resolutions].map((x) => x.id));
+  for (const r of v.releases) ids.add(r.version);
+  const missing = e.value.questions.flatMap((q) => (`${q.question} ${q.answer}`.match(/\b[A-Z]{1,3}-\d+\b|\b\d+\.\d+\.\d+\b/g) ?? []).filter((x) => !ids.has(x)).map((x) => `${q.id}:${x}`));
+  if (missing.length) throw new Error(`data/eval.json names ids not in ${dataset}: ${missing.slice(0, 5).join(', ')}`);
   return { dataset: d.value, eval: e.value };
 }
 

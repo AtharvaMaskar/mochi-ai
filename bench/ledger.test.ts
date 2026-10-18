@@ -19,10 +19,11 @@ const body: Omit<Results, 'ledger'> = {
 
 test('null sections give honest "not measured" rows and the results validate', () => {
   const ledger = buildLedger(body);
-  assert.deepEqual(ledger.map((l) => l.feature), [...LEDGER_FEATURES]);
+  assert.deepEqual(ledger.map((l) => l.feature).filter((f) => (LEDGER_FEATURES as readonly string[]).includes(f)), [...LEDGER_FEATURES]);
   const row = (f: string) => ledger.find((l) => l.feature === f)!;
   assert.deepEqual([row('multi-agent concurrency').status, row('multi-agent concurrency').result], ['not_measured', 'not measured']);
   assert.equal(row('crash resume').status, 'demonstrated');
+  assert.deepEqual([row('TencentDB Agent Memory comparison (arm F)').status, row('TencentDB Agent Memory comparison (arm F)').result], ['not_measured', 'not measured']);
   assert.equal(row('briefing retrieval').result, 'D 1/1 vs A 0/1');
   assert.match(row('mismatch detection').result, /graph lost/);
   const v = validateResults({ ...body, ledger });

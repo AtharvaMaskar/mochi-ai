@@ -1,5 +1,7 @@
-// Main run: arms x eval questions -> records, summary, ingestion. Questions tied to an event are
-// asked after every arm has replayed the events (the JSON ground truth has them applied).
+// Main run: arms x models x eval questions -> records, per_task, summary, ingestion. Questions tied to an event are
+// asked after every arm has replayed the events (the JSON ground truth has them applied). Each arm builds its memory
+// once, on the first model; only the answering model changes across the sweep (design decision 3). summary and
+// ingestion are the first model's.
 import type { Eval, Results } from '@mochi/contracts';
 import type { Arm } from '../arms/index.ts';
 import { score, type Vote } from '../score.ts';
@@ -29,26 +31,52 @@ export function summarize(records: Rec[]): Results['summary'] {
   return out;
 }
 
-export async function runMain(o: { llm: Llm; arms: Arm[]; eval: Eval; events: Parameters<Arm['apply']>[0][]; votes: Vote[] }):
-  Promise<Pick<Results, 'records' | 'summary' | 'ingestion'>> {
+/** Headline (SPEC §3): per task, per model x arch, accuracy beside cost and end-to-end latency. */
+export function perTask(records: Rec[]): NonNullable<Results['per_task']> {
+  const groups = Map.groupBy(records, (r) => `${r.model_id}\u0000${r.arch}`);
+  return [...groups.values()].map((rs) => {
+    const cost = rs.reduce((s, r) => s + (r.cost_usd ?? 0), 0), ms = rs.map((r) => r.total_ms ?? 0);
+    return {
+      model_id: rs[0].model_id ?? '', arch: rs[0].arch, n: rs.length, accuracy: rs.filter((r) => r.correct).length / rs.length,
+      cost_usd_mean: cost / rs.length, cost_usd_total: cost, p50_ms: pct(ms, 50), p95_ms: pct(ms, 95),
+    };
+  });
+}
+
+/** What each task would have cost without prompt caching (arm A caches its corpus): an artifact column, never hidden. */
+export type CostRow = { model_id: string; arch: string; question_id: string; cost_usd: number; cost_usd_uncached: number };
+
+export async function runMain(o: {
+  llm: Llm; arms: Arm[]; eval: Eval; events: Parameters<Arm['apply']>[0][]; votes: Vote[]; models?: string[]; costs?: CostRow[]; sink?: Rec[];
+}): Promise<Pick<Results, 'records' | 'per_task' | 'summary' | 'ingestion'>> {
   const records: Rec[] = [], ingestion: Results['ingestion'] = [];
+  const models = o.models ?? [o.llm.answerModel];
   const pre = o.eval.questions.filter((q) => !q.after_event), post = o.eval.questions.filter((q) => q.after_event);
   for (const arm of o.arms) {
     const u = await arm.prepare();
     ingestion.push({ arch: arm.arch, tokens: u.input + u.output });
     const ask = async (qs: typeof pre) => {
-      for (const q of qs) {
+      for (const model_id of models) for (const q of qs) {
+        o.llm.use(model_id);
+        const t0 = performance.now();
         const a = await arm.answer(q);
-        records.push({
+        const total_ms = Math.round((performance.now() - t0) * 100) / 100;
+        o.costs?.push({ model_id, arch: arm.arch, question_id: q.id, cost_usd: a.usage.cost, cost_usd_uncached: a.usage.uncached ?? a.usage.cost });
+        const rec: Rec = {
+          model_id, cost_usd: a.usage.cost, total_ms,
           arch: arm.arch, question_id: q.id, bucket: q.bucket, input_tokens: a.usage.input, output_tokens: a.usage.output,
-          retrieval_ms: Math.round(a.retrieval_ms * 100) / 100, answer: a.answer, correct: await score(o.llm, q, arm.arch, a.answer, o.votes),
+          retrieval_ms: Math.round(a.retrieval_ms * 100) / 100, answer: a.answer, correct: await score(o.llm, q, models.length > 1 ? `${arm.arch}:${model_id}` : arm.arch, a.answer, o.votes),
           ...(a.truncated !== undefined ? { truncated: a.truncated } : {}),
-        });
+        };
+        records.push(rec);
+        o.sink?.push(rec); // survives a cost-cap abort mid-arm
       }
+      o.llm.use(models[0]);
     };
     await ask(pre);
     if (post.length) for (const e of [...o.events].sort((a, b) => a.at - b.at)) await arm.apply(e);
     await ask(post);
+    console.log(`bench: main arm ${arm.arch} done ($${o.llm.spent().toFixed(4)} so far)`);
   }
-  return { records, summary: summarize(records), ingestion };
+  return { records, per_task: perTask(records), summary: summarize(records.filter((r) => r.model_id === models[0])), ingestion };
 }

@@ -23,18 +23,17 @@ test('exact questions use normalized exact match, no judge call', async () => {
   assert.equal(llm.byCaller.judge, undefined);
 });
 
-test('a judge vote that disagrees with containment triggers two more, majority wins', async () => {
+test('a split first two judge votes takes a third, majority wins', async () => {
   const replies = ['incorrect', 'correct', 'correct'];
   const llm = createLlm({ dry: true, maxUsd: 1, reply: () => replies.shift()! });
   const votes: Vote[] = [];
   assert.equal(await score(llm, judged, 'B', 'Most likely release 2.4.0', votes), true);
   assert.deepEqual(votes[0].votes, [false, true, true]);
-  assert.equal(votes[0].heuristic, true);
 });
 
-test('an agreeing judge vote is final', async () => {
+test('two agreeing judge votes are already the 3-vote majority', async () => {
   const llm = createLlm({ dry: true, maxUsd: 1, reply: () => 'incorrect' });
   const votes: Vote[] = [];
   assert.equal(await score(llm, judged, 'B', 'release 2.3.9', votes), false);
-  assert.deepEqual(votes[0].votes, [false]);
+  assert.deepEqual(votes[0].votes, [false, false]);
 });
