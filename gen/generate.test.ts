@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import { validateDataset, validateEval, MISMATCH } from '@mochi/contracts';
-import { generate, stable, PLANT, DEMO_START, END, DAY, HOUR, T0 } from './generate.ts';
+import { plantFailures } from './derive.ts';
+import { generate, stable, WORLD, PLANT, DEMO_START, END, DAY, HOUR, T0 } from './generate.ts';
 import { rng } from './rng.ts';
 
 const { dataset: d, eval: ev } = generate(42);
@@ -21,9 +21,12 @@ test('deterministic: two runs give identical bytes', () => {
   assert.equal(stable(again.eval), stable(ev));
 });
 
-test('committed data/*.json equals fresh output for seed 42', () => {
-  assert.equal(readFileSync(new URL('../data/dataset.json', import.meta.url), 'utf8'), stable(d));
-  assert.equal(readFileSync(new URL('../data/eval.json', import.meta.url), 'utf8'), stable(ev));
+test('the sim-scale world keeps every planted rule', () => {
+  const big = generate(42, WORLD.sim).dataset;
+  assert.deepEqual(plantFailures(big, { minChains: 20 }), []);
+  assert.deepEqual([big.customers.length, big.agents.length], [1000, 12]);
+  const demo = big.tickets.filter((t) => t.created_at >= DEMO_START).length;
+  assert.equal(demo, WORLD.sim.demoTickets);
 });
 
 test('contract-valid with exact SPEC counts', () => {

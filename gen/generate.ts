@@ -1,6 +1,5 @@
-// Seeded dataset generator (SPEC §2). `npm run gen -- --seed 42` writes data/dataset.json + data/eval.json.
-import { writeFileSync, mkdirSync } from 'node:fs';
-import { parseArgs } from 'node:util';
+// Seeded world generator (SPEC §2): the planted facts. The sim renders it as a helpdesk and
+// derive.ts turns the sim's truth into data/dataset.json, data/bench/dataset.json and data/eval.json.
 import { validateDataset, validateEval, MISMATCH, type Dataset, type Eval, type Customer, type Ticket, type ContradictionEvent } from '@mochi/contracts';
 import { rng } from './rng.ts';
 import { BROKER, TEAMS, AREA_TEAM, AGENTS, CITIES, FIRST, LAST, ISSUES, SECOND_KB, WORKAROUNDS, NOISE_PRE, NOISE_POST, RELEASE_NOTES, type Area } from './catalog.ts';
@@ -26,15 +25,24 @@ const BAD_COUNT = 22, SPIKE = 14, STALE_COUNT = 30, WA_COUNT = 28, MILD_COUNT = 
 const OTHER_COUNTS = [18, 18, 18, 18, 17, 17];
 const CHAINS = [5, 3, 3, 3, 3, 3, 3, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]; // 48 tickets in FOLLOWS chains
 
-export function generate(seed = 42): { dataset: Dataset; eval: Eval } {
+// World size. `small` is the original 400-ticket world; `sim` is the add-sim scale (the sim adds duplicates on top).
+// Every planted rule is the same at both sizes; per-issue counts, chains and resolutions scale by `scale`.
+export const WORLD = {
+  small: { customers: 150, scale: 1, agents: 6, demoTickets: PLANT.demoTickets },
+  sim: { customers: 1000, scale: 7.5, agents: 12, demoTickets: 40 },
+} as const;
+export type WorldSize = (typeof WORLD)[keyof typeof WORLD];
+
+export function generate(seed = 42, size: WorldSize = WORLD.small): { dataset: Dataset; eval: Eval } {
   const r = rng(seed);
+  const n = (x: number) => Math.round(x * size.scale);
   const hours = (h: number) => Math.round(h * HOUR / 1000) * 1000;
   const at = (lo: number, hi: number) => Math.floor((lo + r.next() * (hi - lo)) / 1000) * 1000;
 
   // Teams, areas, agents.
   const teams = TEAMS.map((name) => ({ name }));
   const product_areas = (Object.keys(AREA_TEAM) as Area[]).map((name) => ({ name, team: AREA_TEAM[name] }));
-  const agents = AGENTS.map((a) => ({ ...a }));
+  const agents = AGENTS.slice(0, size.agents).map((a) => ({ ...a }));
 
   // Releases: 8, roughly every 11 days.
   const releases = RELEASE_NOTES.map((notes, k) => ({
@@ -87,8 +95,9 @@ export function generate(seed = 42): { dataset: Dataset; eval: Eval } {
     resolutions.push({ id: workaround[i]!, kind: 'workaround', summary: WORKAROUNDS[i], kb_id: null });
   });
 
-  // Customers: 90 retail / 45 premium / 15 HNI.
-  const segments = r.shuffle([...Array(90).fill('retail'), ...Array(45).fill('premium'), ...Array(15).fill('hni')]) as Customer['segment'][];
+  // Customers: 60% retail / 30% premium / 10% HNI.
+  const nc = size.customers;
+  const segments = r.shuffle([...Array(nc * 0.6).fill('retail'), ...Array(nc * 0.3).fill('premium'), ...Array(nc * 0.1).fill('hni')]) as Customer['segment'][];
   const customers: Customer[] = segments.map((segment, k) => {
     const city = r.pick(CITIES);
     const language = city === 'Chennai' && r.next() < 0.6 ? 'ta' : (city === 'Pune' || city === 'Mumbai') && r.next() < 0.3 ? 'mr' : r.weighted([['en', 6], ['hi', 4]] as const);
@@ -98,7 +107,7 @@ export function generate(seed = 42): { dataset: Dataset; eval: Eval } {
     const plan_history = r.next() < 0.2
       ? (() => { const ch = at(joined_at + DAY, END - 10 * DAY); return [{ plan: other, valid_from: joined_at, valid_until: ch }, { plan, valid_from: ch, valid_until: null }]; })()
       : [{ plan, valid_from: joined_at, valid_until: null }];
-    return { id: `C-${String(k + 1).padStart(3, '0')}`, name: `${r.pick(FIRST)} ${r.pick(LAST)}`, segment, city, language, joined_at, plan_history } as Customer;
+    return { id: `C-${String(k + 1).padStart(String(nc).length, '0')}`, name: `${r.pick(FIRST)} ${r.pick(LAST)}`, segment, city, language, joined_at, plan_history } as Customer;
   });
   const activity = customers.map((c) => [c, r.next() < 0.1 ? 5 : 1] as const);
 
@@ -110,13 +119,13 @@ export function generate(seed = 42): { dataset: Dataset; eval: Eval } {
   ISSUES.forEach((_, i) => {
     const rel = introducedBy.get(i);
     const ship = rel !== undefined ? releases[rel].shipped_at : T0;
-    if (rel !== undefined && PLANT.bad[rel]) { spread(i, SPIKE, ship, ship + 7 * DAY); spread(i, BAD_COUNT - SPIKE, ship + 7 * DAY, DEMO_START); }
-    else if (rel !== undefined) spread(i, MILD_COUNT, ship, DEMO_START);
-    else if (PLANT.stale.includes(i)) spread(i, STALE_COUNT, T0, DEMO_START);
-    else if (PLANT.workaround.includes(i)) spread(i, WA_COUNT, T0, DEMO_START);
-    else spread(i, OTHER_COUNTS[other++], T0, DEMO_START);
+    if (rel !== undefined && PLANT.bad[rel]) { spread(i, n(SPIKE), ship, ship + 7 * DAY); spread(i, n(BAD_COUNT - SPIKE), ship + 7 * DAY, DEMO_START); }
+    else if (rel !== undefined) spread(i, n(MILD_COUNT), ship, DEMO_START);
+    else if (PLANT.stale.includes(i)) spread(i, n(STALE_COUNT), T0, DEMO_START);
+    else if (PLANT.workaround.includes(i)) spread(i, n(WA_COUNT), T0, DEMO_START);
+    else spread(i, n(OTHER_COUNTS[other++]), T0, DEMO_START);
   });
-  for (let k = 0; k < PLANT.demoTickets; k++) drafts.push({ issue: r.int(0, ISSUES.length - 1), created_at: at(DEMO_START, END - HOUR) });
+  for (let k = 0; k < size.demoTickets; k++) drafts.push({ issue: r.int(0, ISSUES.length - 1), created_at: at(DEMO_START, END - HOUR) });
   drafts.sort((a, b) => a.created_at - b.created_at || a.issue - b.issue);
 
   const tickets: Ticket[] = drafts.map((d, k) => ({
@@ -128,7 +137,7 @@ export function generate(seed = 42): { dataset: Dataset; eval: Eval } {
 
   // FOLLOWS chains: same customer + issue, each linking to the previous ticket.
   const used = new Set<string>();
-  for (const len of CHAINS) {
+  for (const len of Array.from({ length: Math.ceil(size.scale) }, () => CHAINS).flat().slice(0, n(CHAINS.length))) {
     const pool = r.shuffle(ISSUES.map((_, i) => i)).map((i) => tickets.filter((t) => issueOf(t) === i && !used.has(t.id))).find((xs) => xs.length >= len)!;
     const chain = r.shuffle(pool).slice(0, len).sort((a, b) => a.created_at - b.created_at);
     chain.forEach((t, k) => { used.add(t.id); t.customer_id = chain[0].customer_id; if (k) t.follows_ticket_id = chain[k - 1].id; });
@@ -147,7 +156,7 @@ export function generate(seed = 42): { dataset: Dataset; eval: Eval } {
 
   // Resolutions: demo-day tickets stay open; the last 5 days before it are backlog; the rest are drawn to hit 70%.
   const older = tickets.filter((t) => t.created_at < DEMO_START - 5 * DAY);
-  const unresolvedNeeded = tickets.length - PLANT.demoTickets - PLANT.resolved - tickets.filter((t) => t.created_at >= DEMO_START - 5 * DAY && t.created_at < DEMO_START).length;
+  const unresolvedNeeded = tickets.length - size.demoTickets - n(PLANT.resolved) - tickets.filter((t) => t.created_at >= DEMO_START - 5 * DAY && t.created_at < DEMO_START).length;
   const resolvedSet = new Set(r.shuffle(older).slice(unresolvedNeeded).map((t) => t.id));
   const expert = ISSUES.map((def) => r.pick(agents.filter((a) => a.team === AREA_TEAM[def.area])).id);
   for (const t of tickets) {
@@ -200,14 +209,3 @@ export function generate(seed = 42): { dataset: Dataset; eval: Eval } {
 }
 
 export const stable = (x: unknown) => JSON.stringify(x, null, 2) + '\n';
-
-if (import.meta.main) {
-  // Root `npm run gen -- --seed n` reaches us as a bare positional (npm eats --seed).
-  const { values, positionals } = parseArgs({ options: { seed: { type: 'string' } }, allowPositionals: true });
-  const { dataset, eval: ev } = generate(Number(values.seed ?? positionals[0] ?? 42));
-  const dir = new URL('../data/', import.meta.url);
-  mkdirSync(dir, { recursive: true });
-  writeFileSync(new URL('dataset.json', dir), stable(dataset));
-  writeFileSync(new URL('eval.json', dir), stable(ev));
-  console.log(`seed ${dataset.seed}: ${dataset.customers.length} customers, ${dataset.tickets.length} tickets, ${dataset.issues.length} issues, ${dataset.kb_articles.length} KBs, ${dataset.releases.length} releases, ${dataset.contradiction_events.length} events, ${ev.questions.length} questions, ${ev.planted_mismatches.length} mismatches`);
-}

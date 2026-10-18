@@ -14,7 +14,7 @@ export type FdTicket = {
 export type FdAgent = { id: number; name?: string; contact?: { name: string } };
 
 export const simUrl = () => (process.env.SIM_URL ?? 'http://localhost:4010').replace(/\/$/, '');
-const auth = () => `Basic ${Buffer.from(`${process.env.SIM_API_KEY ?? 'mochi-sim'}:X`).toString('base64')}`;
+const auth = () => `Basic ${Buffer.from(`${process.env.SIM_API_KEY ?? 'sim-key'}:X`).toString('base64')}`;
 
 export class SimError extends Error {
   status: number;

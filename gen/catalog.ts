@@ -12,6 +12,13 @@ export const AGENTS = [
   { id: 'A-4', name: 'Arjun Pillai', team: 'payments' },
   { id: 'A-5', name: 'Kabir Rao', team: 'trading' },
   { id: 'A-6', name: 'Zoya Contractor', team: 'platform' },
+  // The sim-scale world adds six more (WORLD.sim.agents = 12): three per team.
+  { id: 'A-7', name: 'Devika Sharma', team: 'onboarding' },
+  { id: 'A-8', name: 'Owen Fernandes', team: 'payments' },
+  { id: 'A-9', name: 'Sameer Bhide', team: 'trading' },
+  { id: 'A-10', name: 'Lata Srinivasan', team: 'trading' },
+  { id: 'A-11', name: 'Rahul Mehra', team: 'platform' },
+  { id: 'A-12', name: 'Tara Dsouza', team: 'platform' },
 ];
 
 export const CITIES = ['Mumbai', 'Delhi', 'Bengaluru', 'Pune', 'Chennai', 'Hyderabad', 'Kolkata', 'Ahmedabad'];
