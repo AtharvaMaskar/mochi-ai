@@ -32,6 +32,10 @@ export const Results = z.object({
     runs: z.array(z.object({ n: n, p50_ms: n, p95_ms: n, throughput_per_s: n, torn_reads: n })),
     isolation: z.object({ one_graph: z.object({ p50_ms: n, p95_ms: n }), per_user: z.object({ p50_ms: n, p95_ms: n }) }).nullable(),
   }).nullable(),
+  clusters_ablation: z.object({
+    graph: z.object({ matched_spikes: n, missed_spikes: n, spurious: n, tokens: n }),
+    llm: z.object({ matched_spikes: n, missed_spikes: n, spurious: n, tokens: n }),
+  }).nullable(),
   tier_isolation: z.object({ cases: z.array(z.object({ case: z.string(), refused: z.boolean(), error: z.string() })) }).nullable(),
   server: z.object({
     thread_count: n, max_queued_queries: n, node_count: n, edge_count: n, memory_mb: n, slowlog_top: z.array(z.string()),

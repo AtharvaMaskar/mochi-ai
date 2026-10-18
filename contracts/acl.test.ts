@@ -35,6 +35,17 @@ test('graph unchanged after refused writes', async () => {
   assert.equal(r.data?.[0].n, 0);
 });
 
+test('user tier writes team memory, refused on company', async () => {
+  const user = await connect(ACL.demoUser.user, ACL.demoUser.passwordEnv);
+  try {
+    await user.selectGraph(GRAPH.team('acltest')).query("CREATE (:DoctrineCandidate {id:'D-acl', created_at:0, source:'teach'})");
+    await assert.rejects(user.selectGraph(GRAPH.company).query("CREATE (:Policy {id:'evil'})"));
+  } finally {
+    await admin.selectGraph(GRAPH.team('acltest')).delete().catch(() => {});
+    await user.close();
+  }
+});
+
 test('dream can write company', async () => {
   await dream.selectGraph(GRAPH.company).query("CREATE (:Ticket {id:'T-acl-dream', created_at:0, source:'dream'})");
 });

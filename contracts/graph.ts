@@ -31,7 +31,7 @@ export const E = {
   RAISED: e('Customer', 'Ticket'),
   ON_PLAN: e('Customer', 'Plan'),
   ABOUT: e('Ticket', 'Issue'),
-  IN: e(['Issue', 'DoctrineCandidate'], 'ProductArea'),
+  IN: e(['Issue', 'DoctrineCandidate', 'Policy'], 'ProductArea'),
   OWNED_BY: e('ProductArea', 'Team'),
   SOLVED: e('AgentUser', 'Ticket'),
   MEMBER_OF: e('AgentUser', 'Team'),
@@ -72,8 +72,11 @@ export const P = {
   validFrom: 'valid_from', validUntil: 'valid_until', embedding: 'embedding',
   promisedTat: 'promised_tat_hours', steps: 'steps', measuredTat: 'measured_tat_hours',
   supportCount: 'support_count', lastSeen: 'last_seen', summary: 'summary', delta: 'delta',
-  text: 'text', evidenceTicketIds: 'evidence_ticket_ids', confidence: 'confidence', expiresAt: 'expires_at', status: 'status',
+  ingestedAt: 'ingested_at', text: 'text', evidenceTicketIds: 'evidence_ticket_ids', confidence: 'confidence', expiresAt: 'expires_at', status: 'status',
 } as const;
+// Mismatch engine (SPEC §1): gen plants above these, dream checks against them.
+export const MISMATCH = { MIN_SUPPORT: 5, TAT_TOLERANCE: 0.25 } as const;
+
 export const SUGGESTION_STATUS = ['open', 'right', 'wrong', 'expired'] as const;
 
 // Database-enforced tiers (SPEC §1). Rule strings must match docker-compose.yml (acl.test.ts checks).
@@ -83,7 +86,7 @@ export const ACL = {
   dream: { user: 'mochi_dream', passwordEnv: 'MOCHI_DREAM_PASSWORD',
     rules: 'resetkeys ~mochi_company ~mochi_company_prev ~algo_scratch ~team_* resetchannels -@all +GRAPH.QUERY +GRAPH.RO_QUERY +GRAPH.EXPLAIN +GRAPH.COPY +GRAPH.DELETE +GRAPH.CONSTRAINT +GRAPH.LIST +PING +INFO +CLIENT|SETINFO' },
   demoUser: { user: 'user_demo', passwordEnv: 'MOCHI_DEMO_USER_PASSWORD',
-    rules: 'resetkeys ~mochi_company ~team_* resetchannels -@all +GRAPH.RO_QUERY +GRAPH.LIST +PING +INFO +CLIENT|SETINFO (~user_demo ~cust_* +GRAPH.QUERY +GRAPH.RO_QUERY)' },
+    rules: 'resetkeys ~mochi_company resetchannels -@all +GRAPH.RO_QUERY +GRAPH.LIST +PING +INFO +CLIENT|SETINFO (~user_demo ~cust_* ~team_* +GRAPH.QUERY +GRAPH.RO_QUERY)' },
 } as const;
 
 // Reports labels / rel types in a Cypher string that are not in the contract.

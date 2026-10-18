@@ -8,7 +8,7 @@ const minimal = (): Results => ({
   judge: { model_id: 'claude-opus-5-5', same_as_answer_model: false, prompt_path: 'bench/judge.md' },
   records: [{ arch: 'D', question_id: 'Q-1', bucket: 'single_fact', input_tokens: 900, output_tokens: 40, retrieval_ms: 12, answer: 'premium', correct: true }],
   summary: { D: { single_fact: { accuracy: 1, mean_input_tokens: 900, p50_ms: 12, p95_ms: 12 } } },
-  ingestion: [], staleness: [], mismatch_ablation: null, concurrency: null, tier_isolation: null,
+  ingestion: [], staleness: [], mismatch_ablation: null, clusters_ablation: null, concurrency: null, tier_isolation: null,
   server: { thread_count: 4, max_queued_queries: 256, node_count: 10, edge_count: 12, memory_mb: 1, slowlog_top: [] },
   ledger: LEDGER_FEATURES.map((feature) => ({ feature, mechanism: 'm', measured_against: 'x', result: 'not measured', status: 'not_measured' as const })),
 });

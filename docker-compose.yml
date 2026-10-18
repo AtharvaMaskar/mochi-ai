@@ -13,7 +13,7 @@ services:
         --save 900 1 --save 300 10 --save 60 1000
         --user mochi_reader on >${MOCHI_READER_PASSWORD:?} resetkeys ~mochi_company ~team_* resetchannels -@all +GRAPH.RO_QUERY +GRAPH.EXPLAIN +GRAPH.LIST +PING +INFO +CLIENT|SETINFO
         --user mochi_dream on >${MOCHI_DREAM_PASSWORD:?} resetkeys ~mochi_company ~mochi_company_prev ~algo_scratch ~team_* resetchannels -@all +GRAPH.QUERY +GRAPH.RO_QUERY +GRAPH.EXPLAIN +GRAPH.COPY +GRAPH.DELETE +GRAPH.CONSTRAINT +GRAPH.LIST +PING +INFO +CLIENT|SETINFO
-        --user user_demo on >${MOCHI_DEMO_USER_PASSWORD:?} resetkeys ~mochi_company ~team_* resetchannels -@all +GRAPH.RO_QUERY +GRAPH.LIST +PING +INFO +CLIENT|SETINFO (~user_demo ~cust_* +GRAPH.QUERY +GRAPH.RO_QUERY)
+        --user user_demo on >${MOCHI_DEMO_USER_PASSWORD:?} resetkeys ~mochi_company resetchannels -@all +GRAPH.RO_QUERY +GRAPH.LIST +PING +INFO +CLIENT|SETINFO (~user_demo ~cust_* ~team_* +GRAPH.QUERY +GRAPH.RO_QUERY)
       FALKORDB_ARGS: THREAD_COUNT 4 MAX_QUEUED_QUERIES 256 TIMEOUT_DEFAULT 30000 TIMEOUT_MAX 60000 RESULTSET_SIZE 10000
     volumes:
       - falkordb_data:/var/lib/falkordb/data
