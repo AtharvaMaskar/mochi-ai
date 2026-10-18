@@ -105,7 +105,7 @@ export async function ticketDetail(db: Db, graph: string, rawId: string) {
   const guess = g.byId.get(gid);
   return {
     id: gid, fd_id: t.id, subject: t.subject, status: FD_STATUS_NAME[t.status] ?? String(t.status),
-    state: isReady(t) ? 'todo' : isDone(t) ? 'done' : 'left', created_at: ms(t.created_at),
+    state: isReady(t) ? 'todo' : isDone(t) ? 'done' : 'left', created_at: ms(t.created_at), source: t.source,
     requester: { name: requester, email: t.requester?.email ?? null }, customer_id: customerId,
     merged_into: t.merged_into ? graphId(t.merged_into) : null,
     in_memory: !!guess, ingested: !!guess?.ingested,

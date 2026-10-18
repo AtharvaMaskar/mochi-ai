@@ -1,0 +1,59 @@
+/* The ticket as a conversation (components/thread.tsx). Tokens only. */
+.mb-tt { position: relative; list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-3); }
+/* the spine: one thin line through the avatars' centres */
+.mb-tt::before { content: ""; position: absolute; left: 15.5px; top: var(--space-4); bottom: var(--space-8); width: 1px; background: var(--border-strong); }
+
+.mb-tt-item { position: relative; display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: var(--space-3); animation: mb-in .4s cubic-bezier(.2,.7,.2,1) both; }
+.mb-tt-av { position: relative; z-index: 1; width: 32px; height: 32px; border-radius: var(--radius-pill); display: grid; place-items: center;
+  background: var(--bg-surface); border: 1px solid var(--border-strong); color: var(--ink-secondary); font-size: var(--fs-caption); font-weight: var(--fw-label); }
+.mb-tt-item[data-kind="reply"] .mb-tt-av { background: var(--ink); border-color: var(--ink); color: var(--on-ink); }
+.mb-tt-item[data-kind="note"] .mb-tt-av { border-style: dashed; border-color: var(--border-dashed); color: var(--ink-muted); }
+.mb-tt-item[data-kind="next"] .mb-tt-av { background: var(--bg-page); border-color: transparent; color: var(--ink-muted); }
+
+.mb-tt-msg { min-width: 0; display: flex; flex-direction: column; gap: var(--space-1\.5); padding: var(--space-3) var(--space-4); border-radius: var(--radius-md);
+  background: var(--bg-surface); border: 1px solid var(--border); }
+.mb-tt-item[data-kind="reply"] .mb-tt-msg { background: var(--bg-subtle); border-color: transparent; }
+.mb-tt-item[data-kind="note"] .mb-tt-msg { background: transparent; border-style: dashed; border-color: var(--border-dashed); }
+.mb-tt-item[data-kind="next"] .mb-tt-msg { border-color: var(--border-strong); box-shadow: var(--shadow-seg); gap: var(--space-2); }
+
+.mb-tt-head { display: flex; align-items: center; gap: var(--space-1\.5) var(--space-2); flex-wrap: wrap; font-size: var(--fs-caption); color: var(--ink-muted); }
+.mb-tt-head b { font-size: var(--fs-label); font-weight: var(--fw-body-strong); color: var(--ink); }
+.mb-tt-chan { display: inline-flex; align-items: center; gap: var(--space-1); }
+.mb-tt-at { margin-left: auto; }
+.mb-tt-text, .mb-tt-noise { white-space: pre-wrap; overflow-wrap: anywhere; color: var(--ink-body); }
+.mb-tt-noise { color: var(--ink-muted); animation: mb-in .24s ease-out both; }
+
+/* the fold: a small "…" pill, Gmail-style */
+.mb-tt-fold { align-self: flex-start; display: inline-grid; place-items: center; height: 16px; padding: 0 var(--space-1\.5); border: 0; border-radius: var(--radius-pill);
+  background: var(--border); color: var(--ink-secondary); cursor: pointer; transition: background .15s, transform .26s cubic-bezier(.3,1.6,.5,1); }
+.mb-tt-fold:hover { background: var(--border-strong); }
+.mb-tt-fold:active { transform: scale(.94); transition-duration: .06s; }
+.mb-tt-fold[aria-expanded="true"] { background: var(--border-strong); }
+.mb-tt-fold:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* marks on the spine: the day, and the time between messages */
+.mb-tt-mark { position: relative; padding-left: 44px; font-size: var(--fs-caption); color: var(--ink-muted); animation: mb-in .4s ease-out both; }
+.mb-tt-mark::before { content: ""; position: absolute; left: 12.5px; top: 50%; width: 7px; height: 7px; margin-top: -3.5px; border-radius: var(--radius-pill);
+  background: var(--bg-page); border: 1px solid var(--border-strong); }
+.mb-tt-day { font-size: var(--fs-eyebrow); font-weight: var(--fw-eyebrow); color: var(--ink-secondary); }
+
+/* the next reply */
+.mb-tt-say { font-size: var(--fs-caption); color: var(--ink-muted); }
+.mb-tt-input { width: 100%; box-sizing: border-box; resize: vertical; min-height: 120px; padding: var(--space-2\.5) var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--bg-surface); color: var(--ink-body); font: inherit; line-height: inherit; }
+.mb-tt-input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.mb-tt-act { display: flex; justify-content: flex-end; }
+
+@media (max-width: 767px) {
+  .mb-tt::before { left: 13.5px; }
+  .mb-tt-item { grid-template-columns: 28px minmax(0, 1fr); gap: var(--space-2); }
+  .mb-tt-av { width: 28px; height: 28px; }
+  .mb-tt-msg { padding: var(--space-3); }
+  .mb-tt-mark { padding-left: 36px; }
+  .mb-tt-mark::before { left: 10.5px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mb-tt-item, .mb-tt-mark, .mb-tt-noise { animation: none; }
+  .mb-tt-fold { transition: none; }
+  .mb-tt-fold:active { transform: none; }
+}

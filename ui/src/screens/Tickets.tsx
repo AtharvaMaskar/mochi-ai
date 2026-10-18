@@ -1,12 +1,13 @@
 // Tickets: queue → thread → Mochi's brief. ≥1180 three panes; 768–1179 brief as a sheet; <768 one pane with back.
 // The queue and threads come from the helpdesk (through the agent); the brief, guess and history from the graph.
 import { useEffect, useState } from 'react';
-import type { ThreadMessage } from '../../fixtures/index.ts';
 import { Segmented, Button, NeedsYou, Icon, Confidence } from '../components/ds.tsx';
-import { TicketRow, TicketThread, MochiBrief, BriefSection, Noticed, CustomerHeader, CustomerHistory } from '../components/desk.tsx';
+import { TicketRow, MochiBrief, BriefSection, Noticed, CustomerHeader, CustomerHistory } from '../components/desk.tsx';
 import { ToolCard } from '../components/blocks.tsx';
 import { QueryTag, ReceiptProvider, useReceipts } from '../components/receipts.tsx';
 import { useWidth } from '../components/shell.tsx';
+import { ConversationThread } from '../components/thread.tsx';
+import { draftReply } from '../components/thread-text.ts';
 import { api, fmtClock, fmtDay, useData, type Guess, type TicketDetail } from '../data/api.ts';
 
 const VIEWS = [{ id: 'ready', label: 'Ready' }, { id: 'done', label: 'Done today' }, { id: 'all', label: 'All received' }] as const;
@@ -17,14 +18,10 @@ const LINES: Record<string, string> = {
 };
 const POLL_MS = 15_000; // the helpdesk replays new tickets; the queue picks them up
 
-function threadOf(t: TicketDetail): ThreadMessage[] {
-  let day = '';
-  return t.thread.map((m) => {
-    const d = fmtDay(m.at);
-    const out: ThreadMessage = { kind: m.kind, author: m.author, at: fmtClock(m.at), text: m.text, quoted: m.quoted, day: d !== day ? d : undefined };
-    day = d;
-    return out;
-  });
+/** The graph customer's name when someone else wrote in for them (a family member, an assistant). */
+function writingFor(t: TicketDetail): string | null {
+  const name = t.customer?.queries.q_1.rows[0]?.name;
+  return name && String(name).toLowerCase() !== t.requester.name.toLowerCase() ? String(name) : null;
 }
 
 /** The confidence word opens the query that computed it. */
@@ -111,11 +108,13 @@ export function Tickets() {
     if (view === 'ready') setSel(width >= 768 ? rest[0]?.id ?? null : null);
     list.reload(); detail.reload();
   };
-  const answer = async (id: string) => {
+  const answer = async (id: string, text: string) => {
     setAnswerError(null);
-    try { await api.answer(id, `${id}:${crypto.randomUUID()}`); } catch (e) { setAnswerError((e as Error).message); return; }
+    try { await api.answer(id, `${id}:${crypto.randomUUID()}`, text); } catch (e) { setAnswerError((e as Error).message); return false; }
     setTimeout(() => { if (view === 'ready') setLeaving(id); else handled(id); }, 500);
+    return true;
   };
+  const forName = t && writingFor(t);
   const counts = list.data?.counts;
 
   return (
@@ -143,15 +142,17 @@ export function Tickets() {
           <div className="mb-ticket-head">
             <div>
               <h1 className="t-title">{t.subject}</h1>
-              <p className="t-caption muted">{t.requester.name} · <span className="mono">{t.id}</span></p>
+              <p className="t-caption muted">{t.requester.name}{forName && <>, writing for {forName}</>}
+                {t.customer_id && <> · <span className="mono">{t.customer_id}</span></>} · <span className="mono">{t.id}</span></p>
             </div>
             <div className="mb-prev-row" style={{ gap: 'var(--space-2)' }}>
               {width < 1180 && <Button size="sm" onClick={() => (width < 768 ? setPane('brief') : setSheet(true))}>Open Mochi’s brief</Button>}
-              {t.state === 'todo' && <Button variant="primary" size="sm" success="Answered" onClick={() => answer(t.id)}>Mark answered</Button>}
             </div>
           </div>
-          {answerError && <NeedsYou mood="sorry" title="I couldn’t mark it answered" reason={answerError} />}
-          <TicketThread messages={threadOf(t)} />
+          <ConversationThread key={t.id} messages={t.thread} source={t.source}
+            next={t.state === 'todo' ? { to: t.requester.name, onSend: (text) => answer(t.id, text),
+              draft: draftReply({ requester: t.requester.name, customer: forName, resolution: t.guess?.resolution }) } : undefined} />
+          {answerError && <NeedsYou mood="sorry" title="I couldn’t send the reply" reason={answerError} />}
         </> : detail.error ? <NeedsYou mood="sorry" title="I can’t open this ticket" reason={detail.error} action="Try again" onAction={detail.reload} />
           : sel ? <div className="mb-skel" aria-label="Loading the ticket">{[92, 70, 84].map((w, i) => <i key={i} style={{ width: `${w}%` }} />)}</div>
           : <div className="mb-empty"><span className="t-body">Pick a ticket to read it here.</span></div>}

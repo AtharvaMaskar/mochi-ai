@@ -14,7 +14,7 @@ export type TicketDetail = {
   id: string; fd_id: number; subject: string; status: string; state: DeskRow['state']; created_at: number;
   requester: { name: string; email: string | null }; customer_id: string | null; merged_into: string | null;
   in_memory: boolean; ingested: boolean; guess: Guess | null; guess_queries: Record<string, StoredQuery>;
-  customer: ToolCard | null; thread: Msg[];
+  customer: ToolCard | null; thread: Msg[]; /** Freshdesk channel code: 1 email, 2 portal, 3 phone, 7 chat. */ source?: number;
 };
 export type StoryRow = { id: string; title: string; version: number; generated_at: number; generated_by: string; topic: string; kind?: Kind; status?: string };
 export type Kind = 'story' | 'dashboard';
@@ -45,7 +45,7 @@ export const api = {
   tickets: (view: string, order = 'newest') => call<DeskList>(`/api/tickets?view=${view}&order=${order}`),
   ticket: (id: string) => call<TicketDetail>(`/api/tickets/${encodeURIComponent(id)}`),
   brief: (id: string) => call<ToolCard>(`/api/tickets/${encodeURIComponent(id)}/brief`, post()),
-  answer: (id: string, requestId: string) => call<{ status: string }>(`/api/tickets/${encodeURIComponent(id)}/answer`, post({ requestId })),
+  answer: (id: string, requestId: string, text?: string) => call<{ status: string }>(`/api/tickets/${encodeURIComponent(id)}/answer`, post({ requestId, text })),
   overview: () => call<Overview>('/api/overview'),
   stories: () => call<StoryRow[]>('/api/stories'),
   story: (id: string, version?: number, asOf?: number) =>
