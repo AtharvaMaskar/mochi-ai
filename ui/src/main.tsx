@@ -6,6 +6,7 @@ import './motion.css';
 import './thread.css';
 import './artifacts.css';
 import './entity.css';
+import './print.css';
 import { TopBar, useRoute } from './components/shell.tsx';
 import { Tickets } from './screens/Tickets.tsx';
 import { Overview } from './screens/Overview.tsx';

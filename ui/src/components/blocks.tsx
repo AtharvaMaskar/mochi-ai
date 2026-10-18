@@ -5,6 +5,7 @@ import type { Visual, ToolCard as ToolCardT } from '@mochi/contracts';
 import { useReceipts, QueryTag, NumPill, PathReceipt, ReceiptProvider } from './receipts.tsx';
 import { StoryMarkdown } from './markdown.tsx';
 import { ENTITY_ID, EntityLink } from './entity.tsx';
+import { isPrint } from '../data/api.ts';
 import { Button, NeedsYou, DrawnCheck, RollingNumber } from './ds.tsx';
 
 const isNum = (v: unknown) => typeof v === 'number';
@@ -115,7 +116,7 @@ const None = () => <p className="mb-none">None yet.</p>;
 export function Table(v: Extract<Visual, { type: 'table' }> & { brief?: boolean; exclude?: string; bare?: boolean }) {
   const all = useRows(v.query_id).filter((r) => !v.exclude || r.ticket !== v.exclude);
   const [open, setOpen] = useState(false);
-  const rows = open ? all : all.slice(0, 10);
+  const rows = open || isPrint() ? all : all.slice(0, 10);
   const cols = v.brief ? v.columns.filter((c) => !internal(c)) : v.columns;
   const numCol = (c: string) => rows.length > 0 && rows.every((r) => isNum(r[c]) && !isWhen(c, r[c]));
   return (

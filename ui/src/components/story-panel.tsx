@@ -8,7 +8,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Ellipsis, ExternalLink, FileText, LayoutDashboard, X } from 'lucide-react';
 import { StoryView, AsOfBanner } from './story.tsx';
 import { Button, NeedsYou } from './ds.tsx';
-import { api, shareUrl, storyHref, useData, useStory, type StoryMeta } from '../data/api.ts';
+import { api, printHref, shareUrl, storyHref, useData, useStory, type StoryMeta } from '../data/api.ts';
 
 /** "Live · updated 12s ago", ticking; "Frozen" under as-of. */
 export function LiveSince({ at, frozen }: { at: number; frozen?: boolean }) {
@@ -93,6 +93,7 @@ function Panel({ id, ready, closing, onClose }: { id: string; ready: boolean; cl
   const Icon = m?.kind === 'dashboard' ? LayoutDashboard : FileText;
   const items: Item[] = show ? [
     { label: 'Copy link', on: () => void copy(shareUrl(id, m.kind)).then(() => setToast('Link copied.')) },
+    { label: 'Export as PDF', on: () => void window.open(printHref(id, m.kind, pick, asOf), '_blank', 'noopener') },
     asOf === undefined ? { label: 'As of the day before', on: () => setAsOf(story.generated_at - 86_400_000) } : { label: 'See it live', on: () => setAsOf(undefined) },
     ...(m.owner && m.status === 'published' ? [{ label: 'Unpublish', on: () => void publish(false) }] : []),
   ] : [];
