@@ -178,7 +178,7 @@ function Desk({ live }: { live: boolean }) {
             <span className="t-label">Mochi’s brief</span>
             <span className="state t-caption">{reading ? 'Reading the graph' : <>Ready for <span className="t-data">{sel}</span></>}</span>
           </div>
-          {reading ? <div className="brief-body"><Shimmer lines={6} /></div> : <BriefBody key={sel} b={b} pinOpen={!live && !picked && innerWidth >= 1100} />}
+          {reading ? <div className="brief-body"><Shimmer lines={6} /></div> : <BriefBody key={sel} b={b} pinOpen={false} /* the hero rests clean; a click on a number still opens its Cypher */ />}
         </section>
       </div>
       <p className="recorded t-label">Recorded from the seeded demo. E Corp Securities and its customers are fictional.</p>
