@@ -115,3 +115,8 @@ export function checkCypherNames(cypher: string): string[] {
     for (const t of m[1].split(/[|:]/).map((s) => s.trim()).filter(Boolean)) if (!(t in E)) bad.add(`edge ${t}`);
   return [...bad];
 }
+
+// Decision traces (change decision-traces): one Trace per successful answer, its tool Steps in order and the stored
+// Queries it cited. Its own graph, apart from the Pi Durable journal; Trace.ticket_id names a Ticket in mochi_company,
+// resolved at read time.
+export const TRACE_LABELS = { graph: 'mochi_traces', Trace: 'Trace', Step: 'Step', Query: 'Query', STEP: 'STEP', CITED: 'CITED' } as const;

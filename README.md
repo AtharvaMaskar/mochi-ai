@@ -227,6 +227,7 @@ Source: `bench/results.json`, run at 2026-10-18T10:25:59.413Z, seed 42.
 | crash resume | Pi Durable checkpoints | demonstrated, not benchmarked | demonstrated by agent/scripts/crash-demo.ts, not benchmarked | demonstrated |
 | tier isolation | Redis ACL users per tier | refusal cases as mochi_reader | 4/4 refused as mochi_reader | measured |
 | multi-agent concurrency | N parallel briefings while the dream writes; multigraph isolation | latency p50/p95 vs N, torn-read assertion, one graph vs per-user graphs | N=25: p50 7.8ms, p95 10.24ms, 2028.74/s; torn reads 0 across N=1/5/10/25; readers p95 one graph 9.15ms vs per-user 6.82ms (single container, admin user on a scratch copy) | measured |
+| decision traces | mochi_traces Trace/Step/Query graph, Trace.embedding vector index, SIMILAR_TO-first ticket lookup, receipts re-checked at as_of | arm D on later unseen tickets (likely cause, what fixed similar); journal warmed on earlier resolved tickets; staleness harness after retirements | D 40/40, $0.000926/task, 8835 in tok, 1 calls, p50 1971ms; cold 39/40, $0.000923/task, 8831 in tok, 1 calls, p50 2376ms; warm_hint 40/40, $0.000944/task, 9050 in tok, 1 calls, p50 2457ms; warm_replay 39/40, $0.000482/task, 4738 in tok, 0 calls, p50 1323ms; staleness fresh D 10/10 vs D+trace 9/10, 4 traces closed by retirement; chat on 40 paraphrased eval questions: D 35/40, $0.001009/task vs warm_replay 37/40, $0.000716/task | measured |
 <!-- ledger:end -->
 
 ## The Cypher the product depends on

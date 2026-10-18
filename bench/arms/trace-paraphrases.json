@@ -1,0 +1,162 @@
+{
+  "Q-07": {
+    "text": "Which subscription tier is customer C-0712 (Ishaan Deshpande) currently enrolled in?",
+    "overlap": 0.31
+  },
+  "Q-08": {
+    "text": "Which subscription tier is customer C-0678 (Dhruv Gokhale) currently enrolled in?",
+    "overlap": 0.31
+  },
+  "Q-09": {
+    "text": "What customer segment does C-0469 (Pranav Chawla) belong to?",
+    "overlap": 0.36
+  },
+  "Q-10": {
+    "text": "Which segment does customer C-0113 (Meera Hegde) belong to?",
+    "overlap": 0.5
+  },
+  "Q-11": {
+    "text": "What customer segment does C-0136 (Zara Yadav) belong to?",
+    "overlap": 0.36
+  },
+  "Q-12": {
+    "text": "Which segment does customer C-0912 (Lakshmi Iyer) belong to?",
+    "overlap": 0.5
+  },
+  "Q-13": {
+    "text": "Which team is responsible for issue I-05 (e-sign OTP failing)?",
+    "overlap": 0.64
+  },
+  "Q-14": {
+    "text": "Which team is responsible for issue I-08 (UPI mandate failure)?",
+    "overlap": 0.6
+  },
+  "Q-15": {
+    "text": "Which team is responsible for issue I-04 (KYC stuck in verification)?",
+    "overlap": 0.64
+  },
+  "Q-16": {
+    "text": "Which group is responsible for ticket I-18 (portfolio displays no holdings)?",
+    "overlap": 0.2
+  },
+  "Q-17": {
+    "text": "What turnaround time does KB-20 (\"e-sign FAQ\") commit to for resolving an issue?",
+    "overlap": 0.28
+  },
+  "Q-18": {
+    "text": "What is the resolution time promised for KB-17 (\"Charts not loading\")?",
+    "overlap": 0.33
+  },
+  "Q-19": {
+    "text": "What resolution time does KB-16 (\"App crash on launch\") guarantee?",
+    "overlap": 0.43
+  },
+  "Q-20": {
+    "text": "Within how many hours is KB-06 (\"Accepted bank proof documents\") guaranteed to be resolved?",
+    "overlap": 0.41
+  },
+  "Q-25": {
+    "text": "Which version is most likely responsible for ticket T-2063?",
+    "overlap": 0.3
+  },
+  "Q-26": {
+    "text": "Which version of the software most likely led to ticket T-4218?",
+    "overlap": 0.25
+  },
+  "Q-27": {
+    "text": "Which version of the software most likely led to issue T-3696?",
+    "overlap": 0.15
+  },
+  "Q-28": {
+    "text": "Who among the agents has resolved the greatest number of tickets concerning issue I-13 (brokerage charged twice)?",
+    "overlap": 0.35
+  },
+  "Q-29": {
+    "text": "Which agent has resolved the greatest number of tickets related to issue I-06 (bank proof rejected)?",
+    "overlap": 0.5
+  },
+  "Q-30": {
+    "text": "Which agent has resolved the greatest number of tickets related to issue I-01 (OTP not received at login)?",
+    "overlap": 0.55
+  },
+  "Q-31": {
+    "text": "Which agent has resolved the greatest number of tickets related to issue I-02 (account locked following failed PIN attempts)?",
+    "overlap": 0.5
+  },
+  "Q-32": {
+    "text": "Which fix has most commonly resolved tickets involving the same problem as T-2978?",
+    "overlap": 0.26
+  },
+  "Q-33": {
+    "text": "Which fix was most frequently used to resolve tickets concerning the same problem as T-1190?",
+    "overlap": 0.24
+  },
+  "Q-34": {
+    "text": "Which fix was most frequently effective in resolving tickets that concerned the same problem as ticket T-2553?",
+    "overlap": 0.27
+  },
+  "Q-35": {
+    "text": "Which fix most commonly resolved tickets dealing with the same problem as ticket T-2028?",
+    "overlap": 0.32
+  },
+  "Q-36": {
+    "text": "For version 3.1.0, how many separate customers submitted tickets regarding the problems it caused, and how many of those tickets remain unresolved?",
+    "overlap": 0.37
+  },
+  "Q-37": {
+    "text": "For version 3.2.0, how many separate customers submitted tickets regarding the problems it caused, and how many of those tickets remain unresolved?",
+    "overlap": 0.37
+  },
+  "Q-38": {
+    "text": "For release 3.3.0, how many different customers submitted tickets about the problems it caused, and how many of those tickets remain unresolved?",
+    "overlap": 0.48
+  },
+  "Q-39": {
+    "text": "For version 3.5.0, how many separate customers submitted tickets regarding the problems it caused, and how many of those tickets remain unresolved?",
+    "overlap": 0.37
+  },
+  "Q-40": {
+    "text": "For release 3.6.0, how many separate customers submitted tickets regarding the problems it caused, and how many of those tickets remain unresolved?",
+    "overlap": 0.42
+  },
+  "Q-41": {
+    "text": "Which release saw the largest jump in support tickets on the issues it brought in, comparing the week after shipping with the week before?",
+    "overlap": 0.37
+  },
+  "Q-42": {
+    "text": "Which releases had issues whose ticket counts rose to at least 10 and at least tripled within the week after they shipped?",
+    "overlap": 0.44
+  },
+  "Q-43": {
+    "text": "What is the longest chain of repeat contacts (FOLLOWS)?",
+    "overlap": 0.55
+  },
+  "Q-44": {
+    "text": "Which knowledge base articles claim a turnaround time that resolved tickets fail to achieve?",
+    "overlap": 0.37
+  },
+  "Q-45": {
+    "text": "Which product areas depend on a commonly used fix that isn't documented in any knowledge base article?",
+    "overlap": 0.38
+  },
+  "Q-46": {
+    "text": "What issue has the greatest number of tickets in total?",
+    "overlap": 0.31
+  },
+  "Q-47": {
+    "text": "Over the past week, which product area received the highest number of tickets?",
+    "overlap": 0.29
+  },
+  "Q-48": {
+    "text": "What agent has resolved the greatest number of tickets in total?",
+    "overlap": 0.27
+  },
+  "Q-49": {
+    "text": "Which team has the largest number of open tickets?",
+    "overlap": 0.45
+  },
+  "Q-50": {
+    "text": "Which customer has submitted the greatest number of tickets?",
+    "overlap": 0.45
+  }
+}

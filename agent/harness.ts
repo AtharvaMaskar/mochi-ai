@@ -23,6 +23,7 @@ import { TRACE_TOOL } from './queries/trace.ts';
 import { SCHEMA_PROMPT } from './queries/graph-tools.ts';
 import { applyEdits, commitStory, latestDreamStory, visible, type Kind } from './stories.ts';
 import { StoryDoc } from './story-doc.ts';
+import { traceExtension } from './traces/hook.ts';
 
 type Opts = { params?: Record<string, unknown> };
 type AnyDb = { selectGraph(name: string): { roQuery<T>(q: string, o?: Opts): Promise<{ data?: T[] }>; query<T>(q: string, o?: Opts): Promise<{ data?: T[] }> } };
@@ -361,6 +362,7 @@ CREATE (a)-[:FEEDBACK {verdict: $verdict, at: $now}]->(s)`, { params: { suggesti
   });
   const registry = createRegistry();
   registry.install(extension);
+  if (process.env.MOCHI_TRACES === 'on') registry.install(traceExtension({ read, write, graph, embed: cfg.embed })); // decision traces, off by default
   for (const ext of cfg.extra ?? []) registry.install(ext);
 
   // MOCHI_STORAGE=falkordb puts the journal in the mochi_journal graph (cfg.storage, a SQLite path, is then unused).
