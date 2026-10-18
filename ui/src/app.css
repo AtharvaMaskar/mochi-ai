@@ -495,3 +495,6 @@ h1, h2, h3, b, strong { font-weight: var(--fw-body-strong); }
 /* Folded card receipts: a group that never overlaps the title; on a phone it takes its own line under it. */
 .mb-chat-fold-pills { flex-shrink: 0; display: inline-flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-1); }
 @media (max-width: 767px) { .mb-chat-fold-head { flex-wrap: wrap; } .mb-chat-fold-pills { flex-basis: 100%; justify-content: flex-start; padding-left: calc(16px + var(--space-2)); } }
+
+/* Shared report pages: just the mark, no navigation */
+.mb-sharebar { flex-shrink: 0; height: var(--layout-topbar); display: flex; align-items: center; padding: 0 var(--space-4); background: var(--bg-surface); border-bottom: 1px solid var(--border); }

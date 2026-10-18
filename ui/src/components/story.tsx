@@ -50,7 +50,7 @@ export function StoryView({ input, asOf, header = true, versionLabel, prev, dash
             <div className="mb-story-title-row"><h1 className="mb-story-title">{story.title}</h1>{actions}</div>
             <div className="mb-story-meta">
               <span className="mb-version">{versionLabel ?? `@${story.version}`}</span>
-              <span>Written by {story.generated_by === 'dream' ? 'the dream' : story.generated_by.replace('user:', '')}</span>
+              {story.generated_by === 'dream' && <span>Written by the nightly dream</span>}
               <span className="mono">{fmtTime(story.generated_at)}</span>
             </div>
           </header>
