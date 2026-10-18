@@ -70,8 +70,8 @@ function nextDream(now: number) {
 
 export function Footer() {
   const [now, setNow] = useState(() => Date.now()), ref = useRef<HTMLElement>(null);
-  useInView(ref, (v) => { if (v) want('footer', { t: 12, clouds: 0.6 }); });
-  useEffect(() => { want('footer', { t: 12, clouds: 0.6 }); const iv = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(iv); }, []);
+  useInView(ref, (v) => { if (v) want('footer', { t: 19, clouds: 0.6 }); });
+  useEffect(() => { want('footer', { t: 19, clouds: 0.6 }); const iv = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(iv); }, []);
   const left = Math.max(0, nextDream(now) - now), h = Math.floor(left / 3600_000), m = Math.floor((left % 3600_000) / 60_000), s = Math.floor((left % 60_000) / 1000);
   const time = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: false }).format(now);
   return (

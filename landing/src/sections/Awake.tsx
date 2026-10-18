@@ -20,7 +20,7 @@ const MARKS = [
 export function Awake() {
   const [hover, setHover] = useState<number | null>(null), sec = useRef<HTMLElement>(null);
   useInView(sec);
-  useEffect(() => { want('awake', { t: hover ?? 13, clouds: 0.3 }); }, [hover]);
+  useEffect(() => { want('awake', { t: hover ?? 8, clouds: 0.3 }); /* the morning after the night section, until an hour is hovered */ }, [hover]);
   return (
     <section className="awake wrap" id="awake" data-sky="awake" ref={sec} aria-labelledby="awake-h">
       <h2 id="awake-h" className="t-display">Awake at every hour.</h2>

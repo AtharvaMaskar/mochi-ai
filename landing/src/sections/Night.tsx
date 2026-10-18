@@ -8,11 +8,11 @@ import { Bars, MemDiff, Prose, Suggestion } from '../parts/Card';
 import { want } from '../sky/store';
 
 const STOPS: { name: string; clause: string; line: string; mood: Mood; t: number }[] = [
-  { name: 'Ingest', clause: 'First, read the day’s tickets.', line: 'Every ticket that arrived today becomes nodes and edges in the company graph.', mood: 'listening', t: 21 },
-  { name: 'Cluster', clause: 'Then group what repeats.', line: 'Tickets about the same issue gather. The path from customer to team lights up.', mood: 'thinking', t: 23 },
-  { name: 'Retire', clause: 'Retire what stopped being true.', line: 'A fixed bug no longer causes tickets. The old fact gets an end date. Nothing is deleted.', mood: 'thinking', t: 26 },
-  { name: 'Mismatch', clause: 'Catch the docs disagreeing.', line: 'When practice and the knowledge base part ways, Mochi writes a suggestion for the team.', mood: 'curious', t: 28 },
-  { name: 'Morning', clause: 'Write the morning report.', line: 'Every agent wakes up knowing what changed overnight, with the query behind each number.', mood: 'done', t: 30.5 },
+  { name: 'Ingest', clause: 'First, read the day’s tickets.', line: 'Every ticket that arrived today becomes nodes and edges in the company graph.', mood: 'listening', t: 18.6 },
+  { name: 'Cluster', clause: 'Then group what repeats.', line: 'Tickets about the same issue gather. The path from customer to team lights up.', mood: 'thinking', t: 21.5 },
+  { name: 'Retire', clause: 'Retire what stopped being true.', line: 'A fixed bug no longer causes tickets. The old fact gets an end date. Nothing is deleted.', mood: 'thinking', t: 25 },
+  { name: 'Mismatch', clause: 'Catch the docs disagreeing.', line: 'When practice and the knowledge base part ways, Mochi writes a suggestion for the team.', mood: 'curious', t: 29 },
+  { name: 'Morning', clause: 'Write the morning report.', line: 'Every agent wakes up knowing what changed overnight, with the query behind each number.', mood: 'done', t: 31.5 },
 ];
 // Stop hours run past midnight (26 = 02:00); the sky wraps them.
 const skyT = (v: number) => { const i = Math.min(3, Math.floor(v)), k = v - i; return (STOPS[i].t + (STOPS[i + 1].t - STOPS[i].t) * k) % 24; };

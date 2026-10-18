@@ -115,12 +115,12 @@ section .t-lead { color: var(--fg-2); }
 .slider input::-webkit-slider-runnable-track { height: 8px; border-radius: 4px; background: linear-gradient(to right, var(--fg) calc(var(--v) * 100%), var(--line) 0); }
 .slider input::-moz-range-track { height: 8px; border-radius: 4px; background: var(--border-strong); }
 .slider input::-moz-range-progress { height: 8px; border-radius: 4px; background: var(--ink); }
-/* The handle is the moon: its crescent shadow shrinks toward Morning (--v 0 to 1) and its glow warms from sky to dawn. */
-.slider input { --moon-glow: color-mix(in srgb, var(--agent-yuzu) calc(var(--v, 0) * 100%), var(--agent-sky)); --moon-shade: calc((1 - var(--v, 0)) * -11px); }
-.slider input::-webkit-slider-thumb { -webkit-appearance: none; width: 30px; height: 30px; margin-top: -11px; border-radius: 50%; border: 0; background: var(--bg-surface);
-  box-shadow: inset var(--moon-shade) -3px 0 0 color-mix(in srgb, var(--ink) 30%, var(--bg-surface)), 0 0 18px 4px color-mix(in srgb, var(--moon-glow) 60%, transparent); transition: transform .26s var(--ease-spring); }
-.slider input::-moz-range-thumb { width: 28px; height: 28px; border-radius: 50%; border: 0; background: var(--bg-surface);
-  box-shadow: inset var(--moon-shade) -3px 0 0 color-mix(in srgb, var(--ink) 30%, var(--bg-surface)), 0 0 18px 4px color-mix(in srgb, var(--moon-glow) 60%, transparent); }
+/* The handle is the body in the sky at that hour: a warm sun at dusk (v 0) and sunrise (v 1), a pale moon through the night. */
+.slider input { --sunny: calc(max(0, 1 - var(--v, 0) * 4, var(--v, 0) * 4 - 3) * 100%); --orb: color-mix(in srgb, var(--agent-yuzu) var(--sunny), var(--bg-surface)); }
+.slider input::-webkit-slider-thumb { -webkit-appearance: none; width: 26px; height: 26px; margin-top: -9px; border-radius: 50%; border: 0; background: var(--orb);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--orb) 22%, transparent), 0 0 22px 6px color-mix(in srgb, var(--orb) 45%, transparent); transition: transform .26s var(--ease-spring); }
+.slider input::-moz-range-thumb { width: 24px; height: 24px; border-radius: 50%; border: 0; background: var(--orb);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--orb) 22%, transparent), 0 0 22px 6px color-mix(in srgb, var(--orb) 45%, transparent); }
 .slider input:focus-visible { outline: none; }
 .slider input:focus-visible::-webkit-slider-thumb { outline: 2px solid var(--focus); outline-offset: 3px; }
 .slider input:focus-visible::-moz-range-thumb { outline: 2px solid var(--focus); outline-offset: 3px; }
@@ -173,7 +173,7 @@ section .t-lead { color: var(--fg-2); }
 .tiers-copy { max-width: 760px; } .tiers-copy .t-lead { margin-top: var(--space-4); }
 .tiers-grid { display: grid; grid-template-columns: 6fr 6fr; gap: 64px; align-items: center; margin-top: var(--space-8); }
 .stack-wrap { height: 520px; display: grid; place-items: center; perspective: 1400px; }
-.stack { position: relative; width: 250px; height: 250px; transform: rotateX(58deg) rotateZ(-45deg); transform-style: preserve-3d; }
+.stack { position: relative; top: 90px; width: 250px; height: 250px; transform: rotateX(58deg) rotateZ(-45deg); transform-style: preserve-3d; }
 .slab { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; padding: 10px; border-radius: var(--radius-md); background: color-mix(in srgb, var(--bg-surface) 70%, transparent); transform: translateZ(calc(var(--z) * 78px)); transform-style: preserve-3d; transition: transform .4s var(--ease-out), background-color .3s; cursor: pointer; }
 .slab.on { transform: translateZ(calc(var(--z) * 78px + 14px)); background: var(--bg-surface); }
 .slab i { position: relative; border-radius: 3px; background: var(--bg-subtle); transform-style: preserve-3d; transform: translateZ(4px); box-shadow: 0 0 0 1px var(--border); transition: background-color .3s; }
@@ -196,7 +196,7 @@ section .t-lead { color: var(--fg-2); }
 .tl b { color: var(--island-muted); font-weight: var(--fw-body); }
 .tl.err { color: var(--island-alarm); }
 .tl.note { color: var(--island-muted); }
-@media (max-width: 899px) { .tiers-grid { grid-template-columns: 1fr; gap: var(--space-6); } .stack-wrap { height: 380px; } .stack { width: 190px; height: 190px; } .slab { transform: translateZ(calc(var(--z) * 56px)); } .slab.on { transform: translateZ(calc(var(--z) * 56px + 10px)); } }
+@media (max-width: 899px) { .tiers-grid { grid-template-columns: 1fr; gap: var(--space-6); } .stack-wrap { height: 380px; } .stack { top: 0; width: 190px; height: 190px; } .slab { transform: translateZ(calc(var(--z) * 56px)); } .slab.on { transform: translateZ(calc(var(--z) * 56px + 10px)); } }
 
 /* §8 bench */
 .ledger { width: 100%; border-collapse: collapse; margin-top: var(--space-6); }
@@ -279,3 +279,8 @@ section .t-lead { color: var(--fg-2); }
 .mark-pin { width: 10px; height: 10px; border-radius: 50%; background: var(--agent-yuzu); box-shadow: 0 0 0 3px color-mix(in srgb, var(--agent-yuzu) 30%, transparent); margin-bottom: var(--space-1); }
 @media (max-width: 899px) { .marks { grid-template-columns: 1fr 1fr; } .ribbon-band { height: 88px; } }
 @media (max-width: 479px) { .marks { grid-template-columns: 1fr; } }
+
+/* Receipts: redraw is a quiet text control under the hops, not a full-width bar */
+.rcf-redraw { align-self: flex-start; justify-self: start; display: inline-flex; align-items: center; gap: 6px; width: auto; margin-top: var(--space-2); padding: 4px 0; border: 0; background: none; font: inherit; color: var(--fg-2); cursor: pointer; }
+.rcf-redraw:hover { color: var(--fg); }
+.rcf-redraw:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; border-radius: 2px; }

@@ -13,7 +13,13 @@ let active = 'hero';
 let target: SkyWant = { ...DAY };
 const subs = new Set<() => void>();
 
-const recompute = () => { target = { ...DAY, ...wants.get(active) }; subs.forEach((f) => f()); };
+// The page is one day, read top to bottom: morning, midday, the night (dragged through on the slider), the morning
+// after, afternoon, and dusk at the call to action. A section without its own hour takes its place on that clock, so
+// scrolling never snaps back to a default noon. Interactive sections (hero clock, night slider, hour bars) override it.
+const SECTION_HOUR: Record<string, number> = {
+  hero: 9, mochi: 10, ask: 11.5, demo: 13, night: 18.6, awake: 8, receipts: 11, tiers: 14, bench: 16, built: 17, faq: 17.8, cta: 18.4, footer: 19,
+};
+const recompute = () => { target = { ...DAY, t: SECTION_HOUR[active] ?? DAY.t, ...wants.get(active) }; subs.forEach((f) => f()); };
 
 export function want(section: string, w: Partial<SkyWant>) {
   wants.set(section, { ...wants.get(section), ...w });

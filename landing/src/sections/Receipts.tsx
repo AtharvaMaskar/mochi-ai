@@ -83,7 +83,7 @@ function PathState() {
           return <li key={e.type} className="t-body"><b>{a.label}</b> {a.name} <span className="t-data">{e.type}</span> <b>{b.label}</b> {b.name}</li>;
         })}
       </ol>
-      <button type="button" className="tlink t-label" onClick={() => setN((k) => k + 1)}>Draw it again</button>
+      <button type="button" className="tlink t-label rcf-redraw" onClick={() => setN((k) => k + 1)}><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.5-3.6M13 2.5V5h-2.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>Draw the path again</button>
     </>
   );
 }
