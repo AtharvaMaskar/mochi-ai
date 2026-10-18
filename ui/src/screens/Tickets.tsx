@@ -5,7 +5,7 @@ import type { ThreadMessage } from '../../fixtures/index.ts';
 import { Segmented, Button, NeedsYou, Icon, Confidence } from '../components/ds.tsx';
 import { TicketRow, TicketThread, MochiBrief, BriefSection, Noticed, CustomerHeader, CustomerHistory } from '../components/desk.tsx';
 import { ToolCard } from '../components/blocks.tsx';
-import { ReceiptProvider, useReceipts } from '../components/receipts.tsx';
+import { QueryTag, ReceiptProvider, useReceipts } from '../components/receipts.tsx';
 import { useWidth } from '../components/shell.tsx';
 import { api, fmtClock, fmtDay, useData, type Guess, type TicketDetail } from '../data/api.ts';
 
@@ -39,6 +39,13 @@ function GuessWord({ g }: { g: Guess }) {
       <span className="t-caption muted">{g.basis === 'graph' ? 'Share of resolved tickets on this issue fixed this way' : 'Closest resolved ticket by meaning (no issue link yet)'}</span>
     </div>
   );
+}
+
+/** The view tabs; each count opens q_0, the helpdesk request that produced it. */
+function ViewTabs({ view, counts, onChange }: { view: string; counts?: Record<string, number>; onChange: (v: string) => void }) {
+  const { open } = useReceipts();
+  return <Segmented label="Tickets" value={view} onChange={onChange}
+    options={VIEWS.map((v) => ({ id: v.id, label: v.label, count: counts?.[v.id] }))} onCount={counts && ((id, el) => open('q_0', el, id))} />;
 }
 
 export function Brief({ t, onClose }: { t: TicketDetail; onClose?: () => void }) {
@@ -114,11 +121,12 @@ export function Tickets() {
   return (
     <div className="mb-desk" data-sheet={sheet || undefined}>
       <aside className="mb-pane mb-queue" data-show={pane === 'list' || undefined} aria-label="Tickets">
-        <div className="mb-queue-head">
-          <Segmented label="Tickets" value={view} onChange={(v) => { setView(v); setSel(null); }}
-            options={VIEWS.map((v) => ({ id: v.id, label: v.label, count: counts?.[v.id] }))} />
-          <p className="t-caption muted">{LINES[view]}</p>
-        </div>
+        <ReceiptProvider queries={list.data?.queries ?? {}}>
+          <div className="mb-queue-head">
+            <ViewTabs view={view} counts={counts} onChange={(v) => { setView(v); setSel(null); }} />
+            <p className="t-caption muted">{LINES[view]}{counts && <> <QueryTag qid="q_0" /></>}</p>
+          </div>
+        </ReceiptProvider>
         {list.error && !list.data ? <NeedsYou mood="sorry" title="I can’t load the tickets" reason={list.error} action="Try again" onAction={list.reload} />
           : !list.data ? <div className="mb-skel" aria-label="Loading tickets">{[80, 64, 72].map((w, i) => <i key={i} style={{ width: `${w}%` }} />)}</div>
           : rows.length ? rows.map((x) => (

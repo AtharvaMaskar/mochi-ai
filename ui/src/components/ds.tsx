@@ -84,14 +84,15 @@ export function RollingNumber({ value }: { value: number | string }) {
   );
 }
 
-export function Segmented(p: { options: { id: string; label: string; count?: number }[]; value: string; onChange?: (id: string) => void; label?: string }) {
+export function Segmented(p: { options: { id: string; label: string; count?: number }[]; value: string; onChange?: (id: string) => void; label?: string; onCount?: (id: string, el: HTMLElement) => void }) {
   const i = p.options.findIndex((o) => o.id === p.value);
   return (
     <div className="mb-seg" role="group" aria-label={p.label ?? 'Filter'}>
       {i >= 0 && <span className="mb-seg-ind" aria-hidden="true" style={{ ['--seg-i' as string]: i, ['--seg-n' as string]: p.options.length }} />}
       {p.options.map((o) => (
         <button key={o.id} aria-pressed={o.id === p.value} onClick={() => p.onChange?.(o.id)}>
-          {o.label}{o.count !== undefined && <span className="mono">{o.count}</span>}
+          {o.label}{o.count !== undefined && <span className="mono" title={p.onCount && 'Open the receipt for this count'}
+            onClick={p.onCount && ((e) => { e.stopPropagation(); p.onCount!(o.id, e.currentTarget); })}>{o.count}</span>}
         </button>
       ))}
     </div>

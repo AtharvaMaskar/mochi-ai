@@ -7,14 +7,17 @@ const isNum = (v: unknown) => typeof v === 'number';
 
 export function Kpi({ b, q }: { b: Extract<Block, { type: 'kpi' }>; q: StoredQuery }) {
   const v = q.rows[0][b.column] as number;
+  // The promise is shown only from the block's own query row (e.g. promised_h), so it carries a receipt.
+  const pc = Object.keys(q.rows[0]).find((k) => k.startsWith('promised') && isNum(q.rows[0][k]));
+  const promised = pc ? (q.rows[0][pc] as number) : undefined;
   return (
     <div className="kpi">
       <div>
         <div className="lbl t-caption">{b.label}</div>
         <Num qid={b.query_id} column={b.column} unit={b.unit} big />
-        {b.promised !== undefined && <div className="t-caption kpi-vs">promised <span className="t-data">{b.promised}{b.unit}</span></div>}
+        {pc && <div className="t-caption kpi-vs">promised <Num qid={b.query_id} column={pc} unit={b.unit} /></div>}
       </div>
-      {b.bad && v > (b.promised ?? Infinity) && <span className="sig t-caption"><i />Over promise</span>}
+      {b.bad && v > (promised ?? Infinity) && <span className="sig t-caption"><i />Over promise</span>}
     </div>
   );
 }

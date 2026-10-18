@@ -93,6 +93,7 @@ Doctrine (what the company claims) lives on `KBArticle` and `Policy` (`promised_
 | `BASED_ON` | Resolution | KBArticle | |
 | `INTRODUCED` | Release | Issue | yes |
 | `FOLLOWS` | Ticket | Ticket | |
+| `MERGED_INTO` | Ticket | Ticket (primary) | |
 | `CONTRADICTS` | ObservedPattern | KBArticle, Policy | yes |
 | `UNDOCUMENTED` | ObservedPattern | ProductArea | yes |
 | `SEEN_IN` | ObservedPattern | Ticket | |
@@ -699,7 +700,7 @@ RETURN s.id AS id, type(e) AS edge, coalesce(d.id, d.name) AS target, team.name 
 
 ## AI-assistant disclosure
 
-Built with **Claude Code** running **Claude Opus 5.5**. We used it to write proposals and specs (OpenSpec), write and test code in parallel git worktrees, and review diffs. A human approved every spec amendment and design decision; those approvals are dated in `docs/SPEC.md`. The team can explain every graph model, query and architectural decision in this repo.
+Built with **Claude Code** running **Claude Opus 5.5**. We used it to write proposals and specs (`docs/SPEC.md`), write and test code in parallel git worktrees, and review diffs. A human approved every spec amendment and design decision; those approvals are dated in `docs/SPEC.md`. The team can explain every graph model, query and architectural decision in this repo.
 
 At runtime the product uses Anthropic models through `pi-ai`: `claude-haiku-5-5` by default for chat, extraction and suggestion prose, and `claude-opus-5-5` as the benchmark judge.
 

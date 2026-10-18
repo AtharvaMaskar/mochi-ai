@@ -22,15 +22,20 @@ function useFlash(qid: string) {
 }
 
 export function Kpi(v: Extract<Visual, { type: 'kpi' }>) {
-  const value = useRows(v.query_id)[0]?.[v.column];
-  const delta = v.promised !== undefined && isNum(value) ? Math.round(((value as number) - v.promised) * 10) / 10 : undefined;
+  const row = useRows(v.query_id)[0] ?? {};
+  const value = row[v.column];
+  // The promise comes from the block's own query (e.g. kb.promised_tat_hours AS promised_h). A bare attribute with
+  // no such column still renders, as a drift pill: a number without a receipt is visibly flagged.
+  const pc = Object.keys(row).find((k) => k.startsWith('promised') && isNum(row[k]));
+  const promised = pc ? (row[pc] as number) : v.promised;
+  const delta = promised !== undefined && isNum(value) ? Math.round(((value as number) - promised) * 10) / 10 : undefined;
   return (
     <div className="mb-block" {...useFlash(v.query_id)}>
       <Head label={v.label} qid={v.query_id} />
       <div className="mb-kpi-row"><NumPill query_id={v.query_id} column={v.column} size="lg" bad={v.bad} unit={v.unit} /></div>
-      {v.promised !== undefined && (
+      {promised !== undefined && (
         <div className="mb-kpi-delta" data-bad={v.bad || undefined}>
-          Promised <span className="mono">{v.promised}{v.unit}</span>
+          Promised <NumPill query_id={v.query_id} column={pc ?? 'promised'} value={pc ? undefined : String(promised)} unit={v.unit} />
           {delta !== undefined && <> · <span className="mono">{delta > 0 ? '+' : ''}{delta}{v.unit}</span> {delta > 0 ? 'over the promise' : 'within the promise'}</>}
         </div>
       )}
