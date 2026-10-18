@@ -1,0 +1,2112 @@
+{
+ "recorded_from": "data/dataset.json, seed 42, E Corp Securities",
+ "broker": "E Corp Securities",
+ "as_of": {
+  "before": 1792203660000,
+  "after": 1792281600000
+ },
+ "counts": {
+  "open": 66,
+  "pending": 54
+ },
+ "hero": {
+  "queue": [
+   {
+    "id": "T-0400",
+    "name": "Saanvi Shenoy",
+    "subject": "Charged twice for one trade",
+    "created_at": 1792277262000,
+    "status": "open"
+   },
+   {
+    "id": "T-0399",
+    "name": "Ananya Joshi",
+    "subject": "Double brokerage",
+    "created_at": 1792275274000,
+    "status": "open"
+   },
+   {
+    "id": "T-0398",
+    "name": "Pranav Nair",
+    "subject": "Account locked",
+    "created_at": 1792271488000,
+    "status": "open"
+   },
+   {
+    "id": "T-0397",
+    "name": "Pranav Nair",
+    "subject": "Cancelled cheque not accepted",
+    "created_at": 1792268447000,
+    "status": "open"
+   },
+   {
+    "id": "T-0396",
+    "name": "Meera Oberoi",
+    "subject": "Money debited, not in account",
+    "created_at": 1792263788000,
+    "status": "open"
+   },
+   {
+    "id": "T-0395",
+    "name": "Pranav Yadav",
+    "subject": "OTP not coming",
+    "created_at": 1792256948000,
+    "status": "open"
+   }
+  ],
+  "ticket": "T-0396",
+  "briefs": {
+   "T-0400": {
+    "ticket": "T-0400",
+    "customer": "Saanvi Shenoy",
+    "subject": "Charged twice for one trade",
+    "body": "Namaste, Contract note shows double brokerage.",
+    "issue": "brokerage charged twice",
+    "card": {
+     "kind": "briefing",
+     "title": "Brief for T-0400",
+     "queries": {
+      "q_1": {
+       "cypher": "MATCH (c:Customer)-[:RAISED]->(t:Ticket {id: $ticket})-[:ABOUT]->(i:Issue)-[:IN]->(a:ProductArea)-[:OWNED_BY]->(tm:Team)\nWHERE t.created_at <= $as_of\nRETURN c.name AS customer, t.id AS ticket, i.name AS issue, a.name AS area, tm.name AS team",
+       "graph": "mochi_company",
+       "params": {
+        "ticket": "T-0400",
+        "as_of": 1792281600000
+       },
+       "columns": [
+        "customer",
+        "ticket",
+        "issue",
+        "area",
+        "team"
+       ],
+       "rows": [
+        {
+         "customer": "Saanvi Shenoy",
+         "ticket": "T-0400",
+         "issue": "brokerage charged twice",
+         "area": "charges",
+         "team": "payments"
+        }
+       ],
+       "ran_at": 1792281600000
+      },
+      "q_2": {
+       "cypher": "MATCH (:Ticket {id: $ticket})-[:ABOUT]->(i:Issue)<-[:ABOUT]-(s:Ticket)-[:RESOLVED_BY]->(:Resolution)-[:BASED_ON]->(k:KBArticle)\nWHERE s.resolved_at <= $as_of\nRETURN k.id AS kb, k.promised_tat_hours AS promised_h,\n  round(10 * percentileDisc((s.resolved_at - s.created_at) / 3600000.0, 0.5)) / 10 AS median_h,\n  count(s) AS tickets\nORDER BY tickets DESC LIMIT 1",
+       "graph": "mochi_company",
+       "params": {
+        "ticket": "T-0400",
+        "as_of": 1792281600000
+       },
+       "columns": [
+        "kb",
+        "promised_h",
+        "median_h",
+        "tickets"
+       ],
+       "rows": [
+        {
+         "kb": "KB-13",
+         "promised_h": 24,
+         "median_h": 72.6,
+         "tickets": 21
+        }
+       ],
+       "ran_at": 1792281600000
+      },
+      "q_3": {
+       "cypher": "MATCH (c:Customer {id: $customer})-[:RAISED]->(t:Ticket)\nWHERE t.created_at <= $as_of AND t.created_at > $as_of - 90 * 86400000\nRETURN count(t) AS tickets_90d",
+       "graph": "mochi_company",
+       "params": {
+        "customer": "C-043",
+        "as_of": 1792281600000
+       },
+       "columns": [
+        "tickets_90d"
+       ],
+       "rows": [
+        {
+         "tickets_90d": 8
+        }
+       ],
+       "ran_at": 1792281600000
+      },
+      "q_4": {
+       "cypher": "MATCH (:Ticket {id: $ticket})-[:ABOUT]->(i:Issue)<-[:ABOUT]-(s:Ticket)-[:RESOLVED_BY]->(r:Resolution)\nWHERE s.resolved_at <= $as_of\nRETURN r.id AS resolution, r.summary AS summary, count(s) AS used\nORDER BY used DESC LIMIT 1",
+       "graph": "mochi_company",
+       "params": {
+        "ticket": "T-0400",
+        "as_of": 1792281600000
+       },
+       "columns": [
+        "resolution",
+        "summary",
+        "used"
+       ],
+       "rows": [
+        {
+         "resolution": "R-13",
+         "summary": "Reversed duplicate brokerage",
+         "used": 21
+        }
+       ],
+       "ran_at": 1792281600000
+      },
+      "q_5": {
+       "cypher": "MATCH (:Ticket {id: $ticket})-[:ABOUT]->(i:Issue)<-[:ABOUT]-(s:Ticket)<-[:SOLVED]-(u:AgentUser)\nWHERE s.created_at <= $as_of\nRETURN u.id AS agent, u.name AS name, count(s) AS solved\nORDER BY solved DESC LIMIT 1",
+       "graph": "mochi_company",
+       "params": {
+        "ticket": "T-0400",
+        "as_of": 1792281600000
+       },
+       "columns": [
+        "agent",
+        "name",
+        "solved"
+       ],
+       "rows": [
+        {
+         "agent": "A-4",
+         "name": "Arjun Pillai",
+         "solved": 14
+        }
+       ],
+       "ran_at": 1792281600000
+      },
+      "q_6": {
+       "cypher": "MATCH (:Ticket {id: $ticket})-[:ABOUT]->(i:Issue)\nOPTIONAL MATCH (r:Release)-[x:INTRODUCED]->(i)\nWHERE x.valid_from <= $as_of AND x.valid_until > $as_of\nRETURN r.version AS release",
+       "graph": "mochi_company",
+       "params": {
+        "ticket": "T-0400",
+        "as_of": 1792281600000
+       },
+       "columns": [
+        "release"
+       ],
+       "rows": [
+        {
+         "release": "none"
+        }
+       ],
+       "ran_at": 1792281600000
+      }
+     },
+     "path": {
+      "query_id": "q_1",
+      "nodes": [
+       {
+        "id": "c",
+        "label": "Customer",
+        "name": "Saanvi Shenoy"
+       },
+       {
+        "id": "t",
+        "label": "Ticket",
+        "name": "T-0400"
+       },
+       {
+        "id": "i",
+        "label": "Issue",
+        "name": "brokerage charged twice"
+       },
+       {
+        "id": "a",
+        "label": "ProductArea",
+        "name": "charges"
+       },
+       {
+        "id": "tm",
+        "label": "Team",
+        "name": "payments"
+       }
+      ],
+      "edges": [
+       {
+        "type": "RAISED",
+        "from": "c",
+        "to": "t"
+       },
+       {
+        "type": "ABOUT",
+        "from": "t",
+        "to": "i"
+       },
+       {
+        "type": "IN",
+        "from": "i",
+        "to": "a"
+       },
+       {
+        "type": "OWNED_BY",
+        "from": "a",
+        "to": "tm"
+       }
+      ]
+     },
+     "blocks": [
+      {
+       "type": "kpi",
+       "query_id": "q_2",
+       "label": "Median resolution, this issue",
+       "column": "median_h",
+       "unit": "h",
+       "promised": 24,
+       "bad": true
+      }
+     ]
+    }
+   },
+   "T-0399": {
+    "ticket": "T-0399",
+    "customer": "Ananya Joshi",
+    "subject": "Double brokerage",
+    "body": "Contract note shows double brokerage.",
+    "issue": "brokerage charged twice",
+    "card": {
+     "kind": "briefing",
+     "title": "Brief for T-0399",
+     "queries": {
+      "q_1": {
+       "cypher": "MATCH (c:Customer)-[:RAISED]->(t:Ticket {id: $ticket})-[:ABOUT]->(i:Issue)-[:IN]->(a:ProductArea)-[:OWNED_BY]->(tm:Team)\nWHERE t.created_at <= $as_of\nRETURN c.name AS customer, t.id AS ticket, i.name AS issue, a.name AS area, tm.name AS team",
+       "graph": "mochi_company",
+       "params": {
+        "ticket": "T-0399",
+        "as_of": 1792281600000
+       },
+       "columns": [
+        "customer",
+        "ticket",
+        "issue",
+        "area",
+        "team"
+       ],
+       "rows": [
+        {
+         "customer": "Ananya Joshi",
+         "ticket": "T-0399",
+         "issue": "brokerage charged twice",
+         "area": "charges",
+         "team": "payments"
+        }
+       ],
+       "ran_at": 1792281600000
+      },
+      "q_2": {
+       "cypher": "MATCH (:Ticket {id: $ticket})-[:ABOUT]->(i:Issue)<-[:ABOUT]-(s:Ticket)-[:RESOLVED_BY]->(:Resolution)-[:BASED_ON]->(k:KBArticle)\nWHERE s.resolved_at <= $as_of\nRETURN k.id AS kb, k.promised_tat_hours AS promised_h,\n  round(10 * percentileDisc((s.resolved_at - s.created_at) / 3600000.0, 0.5)) / 10 AS median_h,\n  count(s) AS tickets\nORDER BY tickets DESC LIMIT 1",
+       "graph": "mochi_company",
+       "params": {
+        "ticket": "T-0399",
+        "as_of": 1792281600000
+       },
+       "columns": [
+        "kb",
+        "promised_h",
+        "median_h",
+        "tickets"
+       ],
+       "rows": [
+        {
+         "kb": "KB-13",
+         "promised_h": 24,
+         "median_h": 72.6,
+         "tickets": 21
+        }
+       ],
+       "ran_at": 1792281600000
+      },
+      "q_3": {
+       "cypher": "MATCH (c:Customer {id: $customer})-[:RAISED]->(t:Ticket)\nWHERE t.created_at <= $as_of AND t.created_at > $as_of - 90 * 86400000\nRETURN count(t) AS tickets_90d",
+       "graph": "mochi_company",
+       "params": {
+        "customer": "C-144",
+        "as_of": 1792281600000
+       },
+       "columns": [
+        "tickets_90d"
+       ],
+       "rows": [
+        {
+         "tickets_90d": 3
+        }
+       ],
+       "ran_at": 1792281600000
+      },
+      "q_4": {
+       "cypher": "MATCH (:Ticket {id: $ticket})-[:ABOUT]->(i:Issue)<-[:ABOUT]-(s:Ticket)-[:RESOLVED_BY]->(r:Resolution)\nWHERE s.resolved_at <= $as_of\nRETURN r.id AS resolution, r.summary AS summary, count(s) AS used\nORDER BY used DESC LIMIT 1",
+       "graph": "mochi_company",
+       "params": {
+        "ticket": "T-0399",
+        "as_of": 1792281600000
+       },
+       "columns": [
+        "resolution",
+        "summary",
+        "used"
+       ],
+       "rows": [
+        {
+         "resolution": "R-13",
+         "summary": "Reversed duplicate brokerage",
+         "used": 21
+        }
+       ],
+       "ran_at": 1792281600000
+      },
+      "q_5": {
+       "cypher": "MATCH (:Ticket {id: $ticket})-[:ABOUT]->(i:Issue)<-[:ABOUT]-(s:Ticket)<-[:SOLVED]-(u:AgentUser)\nWHERE s.created_at <= $as_of\nRETURN u.id AS agent, u.name AS name, count(s) AS solved\nORDER BY solved DESC LIMIT 1",
+       "graph": "mochi_company",
+       "params": {
+        "ticket": "T-0399",
+        "as_of": 1792281600000
+       },
+       "columns": [
+        "agent",
+        "name",
+        "solved"
+       ],
+       "rows": [
+        {
+         "agent": "A-4",
+         "name": "Arjun Pillai",
+         "solved": 14
+        }
+       ],
+       "ran_at": 1792281600000
+      },
+      "q_6": {
+       "cypher": "MATCH (:Ticket {id: $ticket})-[:ABOUT]->(i:Issue)\nOPTIONAL MATCH (r:Release)-[x:INTRODUCED]->(i)\nWHERE x.valid_from <= $as_of AND x.valid_until > $as_of\nRETURN r.version AS release",
+       "graph": "mochi_company",
+       "params": {
+        "ticket": "T-0399",
+        "as_of": 1792281600000
+       },
+       "columns": [
+        "release"
+       ],
+       "rows": [
+        {
+         "release": "none"
+        }
+       ],
+       "ran_at": 1792281600000
+      }
+     },
+     "path": {
+      "query_id": "q_1",
+      "nodes": [
+       {
+        "id": "c",
+        "label": "Customer",
+        "name": "Ananya Joshi"
+       },
+       {
+        "id": "t",
+        "label": "Ticket",
+        "name": "T-0399"
+       },
+       {
+        "id": "i",
+        "label": "Issue",
+        "name": "brokerage charged twice"
+       },
+       {
+        "id": "a",
+        "label": "ProductArea",
+        "name": "charges"
+       },
+       {
+        "id": "tm",
+        "label": "Team",
+        "name": "payments"
+       }
+      ],
+      "edges": [
+       {
+        "type": "RAISED",
+        "from": "c",
+        "to": "t"
+       },
+       {
+        "type": "ABOUT",
+        "from": "t",
+        "to": "i"
+       },
+       {
+        "type": "IN",
+        "from": "i",
+        "to": "a"
+       },
+       {
+        "type": "OWNED_BY",
+        "from": "a",
+        "to": "tm"
+       }
+      ]
+     },
+     "blocks": [
+      {
+       "type": "kpi",
+       "query_id": "q_2",
+       "label": "Median resolution, this issue",
+       "column": "median_h",
+       "unit": "h",
+       "promised": 24,
+       "bad": true
+      }
+     ]
+    }
+   },
+   "T-0398": {
+    "ticket": "T-0398",
+    "customer": "Pranav Nair",
+    "subject": "Account locked",
+    "body": "Dear support, My account got locked after I entered the wrong PIN.",
+    "issue": "account locked after failed PIN attempts",
+    "card": {
+     "kind": "briefing",
+     "title": "Brief for T-0398",
+     "queries": {
+      "q_1": {
+       "cypher": "MATCH (c:Customer)-[:RAISED]->(t:Ticket {id: $ticket})-[:ABOUT]->(i:Issue)-[:IN]->(a:ProductArea)-[:OWNED_BY]->(tm:Team)\nWHERE t.created_at <= $as_of\nRETURN c.name AS customer, t.id AS ticket, i.name AS issue, a.name AS area, tm.name AS team",
+       "graph": "mochi_company",
+       "params": {
+        "ticket": "T-0398",
+        "as_of": 1792281600000
+       },
+       "columns": [
+        "customer",
+        "ticket",
+        "issue",
+        "area",
+        "team"
+       ],
+       "rows": [
+        {
+         "customer": "Pranav Nair",
+         "ticket": "T-0398",
+         "issue": "account locked after failed PIN attempts",
+         "area": "login",
+         "team": "onboarding"
+        }
+       ],
+       "ran_at": 1792281600000
+      },
+      "q_2": {
+       "cypher": "MATCH (:Ticket {id: $ticket})-[:ABOUT]->(i:Issue)<-[:ABOUT]-(s:Ticket)-[:RESOLVED_BY]->(:Resolution)-[:BASED_ON]->(k:KBArticle)\nWHERE s.resolved_at <= $as_of\nRETURN k.id AS kb, k.promised_tat_hours AS promised_h,\n  round(10 * percentileDisc((s.resolved_at - s.created_at) / 3600000.0, 0.5)) / 10 AS median_h,\n  count(s) AS tickets\nORDER BY tickets DESC LIMIT 1",
+       "graph": "mochi_company",
+       "params": {
+        "ticket": "T-0398",
+        "as_of": 1792281600000
+       },
+       "columns": [
+        "kb",
+        "promised_h",
+        "median_h",
+        "tickets"
+       ],
+       "rows": [
+        {
+         "kb": "KB-02",
+         "promised_h": 48,
+         "median_h": 32.6,
+         "tickets": 11
+        }
+       ],
+       "ran_at": 1792281600000
+      },
+      "q_3": {
+       "cypher": "MATCH (c:Customer {id: $customer})-[:RAISED]->(t:Ticket)\nWHERE t.created_at <= $as_of AND t.created_at > $as_of - 90 * 86400000\nRETURN count(t) AS tickets_90d",
+       "graph": "mochi_company",
+       "params": {
+        "customer": "C-028",
+        "as_of": 1792281600000
+       },
+       "columns": [
+        "tickets_90d"
+       ],
+       "rows": [
+        {
+         "tickets_90d": 5
+        }
+       ],
+       "ran_at": 1792281600000
+      },
+      "q_4": {
+       "cypher": "MATCH (:Ticket {id: $ticket})-[:ABOUT]->(i:Issue)<-[:ABOUT]-(s:Ticket)-[:RESOLVED_BY]->(r:Resolution)\nWHERE s.resolved_at <= $as_of\nRETURN r.id AS resolution, r.summary AS summary, count(s) AS used\nORDER BY used DESC LIMIT 1",
+       "graph": "mochi_company",
+       "params": {
+        "ticket": "T-0398",
+        "as_of": 1792281600000
+       },
+       "columns": [
+        "resolution",
+        "summary",
+        "used"
+       ],
+       "rows": [
+        {
+         "resolution": "R-02",
+         "summary": "Unlocked account and sent PIN reset link",
+         "used": 11
+        }
+       ],
+       "ran_at": 1792281600000
+      },
+      "q_5": {
+       "cypher": "MATCH (:Ticket {id: $ticket})-[:ABOUT]->(i:Issue)<-[:ABOUT]-(s:Ticket)<-[:SOLVED]-(u:AgentUser)\nWHERE s.created_at <= $as_of\nRETURN u.id AS agent, u.name AS name, count(s) AS solved\nORDER BY solved DESC LIMIT 1",
+       "graph": "mochi_company",
+       "params": {
+        "ticket": "T-0398",
+        "as_of": 1792281600000
+       },
+       "columns": [
+        "agent",
+        "name",
+        "solved"
+       ],
+       "rows": [
+        {
+         "agent": "A-1",
+         "name": "Ritika Venkatesan",
+         "solved": 6
+        }
+       ],
+       "ran_at": 1792281600000
+      },
+      "q_6": {
+       "cypher": "MATCH (:Ticket {id: $ticket})-[:ABOUT]->(i:Issue)\nOPTIONAL MATCH (r:Release)-[x:INTRODUCED]->(i)\nWHERE x.valid_from <= $as_of AND x.valid_until > $as_of\nRETURN r.version AS release",
+       "graph": "mochi_company",
+       "params": {
+        "ticket": "T-0398",
+        "as_of": 1792281600000
+       },
+       "columns": [
+        "release"
+       ],
+       "rows": [
+        {
+         "release": "none"
+        }
+       ],
+       "ran_at": 1792281600000
+      }
+     },
+     "path": {
+      "query_id": "q_1",
+      "nodes": [
+       {
+        "id": "c",
+        "label": "Customer",
+        "name": "Pranav Nair"
+       },
+       {
+        "id": "t",
+        "label": "Ticket",
+        "name": "T-0398"
+       },
+       {
+        "id": "i",
+        "label": "Issue",
+        "name": "account locked after failed PIN attempts"
+       },
+       {
+        "id": "a",
+        "label": "ProductArea",
+        "name": "login"
+       },
+       {
+        "id": "tm",
+        "label": "Team",
+        "name": "onboarding"
+       }
+      ],
+      "edges": [
+       {
+        "type": "RAISED",
+        "from": "c",
+        "to": "t"
+       },
+       {
+        "type": "ABOUT",
+        "from": "t",
+        "to": "i"
+       },
+       {
+        "type": "IN",
+        "from": "i",
+        "to": "a"
+       },
+       {
+        "type": "OWNED_BY",
+        "from": "a",
+        "to": "tm"
+       }
+      ]
+     },
+     "blocks": [
+      {
+       "type": "kpi",
+       "query_id": "q_2",
+       "label": "Median resolution, this issue",
+       "column": "median_h",
+       "unit": "h",
+       "promised": 48,
+       "bad": false
+      }
+     ]
+    }
+   },
+   "T-0397": {
+    "ticket": "T-0397",
+    "customer": "Pranav Nair",
+    "subject": "Cancelled cheque not accepted",
+    "body": "Uploaded cancelled cheque twice, both rejected. This is urgent.",
+    "issue": "bank proof rejected",
+    "card": {
+     "kind": "briefing",
+     "title": "Brief for T-0397",
+     "queries": {
+      "q_1": {
+       "cypher": "MATCH (c:Customer)-[:RAISED]->(t:Ticket {id: $ticket})-[:ABOUT]->(i:Issue)-[:IN]->(a:ProductArea)-[:OWNED_BY]->(tm:Team)\nWHERE t.created_at <= $as_of\nRETURN c.name AS customer, t.id AS ticket, i.name AS issue, a.name AS area, tm.name AS team",
+       "graph": "mochi_company",
+       "params": {
+        "ticket": "T-0397",
+        "as_of": 1792281600000
+       },
+       "columns": [
+        "customer",
+        "ticket",
+        "issue",
+        "area",
+        "team"
+       ],
+       "rows": [
+        {
+         "customer": "Pranav Nair",
+         "ticket": "T-0397",
+         "issue": "bank proof rejected",
+         "area": "kyc",
+         "team": "onboarding"
+        }
+       ],
+       "ran_at": 1792281600000
+      },
+      "q_2": {
+       "cypher": "MATCH (:Ticket {id: $ticket})-[:ABOUT]->(i:Issue)<-[:ABOUT]-(s:Ticket)-[:RESOLVED_BY]->(:Resolution)-[:BASED_ON]->(k:KBArticle)\nWHERE s.resolved_at <= $as_of\nRETURN k.id AS kb, k.promised_tat_hours AS promised_h,\n  round(10 * percentileDisc((s.resolved_at - s.created_at) / 3600000.0, 0.5)) / 10 AS median_h,\n  count(s) AS tickets\nORDER BY tickets DESC LIMIT 1",
+       "graph": "mochi_company",
+       "params": {
+        "ticket": "T-0397",
+        "as_of": 1792281600000
+       },
+       "columns": [
+        "kb",
+        "promised_h",
+        "median_h",
+        "tickets"
+       ],
+       "rows": [
+        {
+         "kb": "KB-06",
+         "promised_h": 24,
+         "median_h": 14.3,
+         "tickets": 10
+        }
+       ],
+       "ran_at": 1792281600000
+      },
+      "q_3": {
+       "cypher": "MATCH (c:Customer {id: $customer})-[:RAISED]->(t:Ticket)\nWHERE t.created_at <= $as_of AND t.created_at > $as_of - 90 * 86400000\nRETURN count(t) AS tickets_90d",
+       "graph": "mochi_company",
+       "params": {
+        "customer": "C-028",
+        "as_of": 1792281600000
+       },
+       "columns": [
+        "tickets_90d"
+       ],
+       "rows": [
+        {
+         "tickets_90d": 5
+        }
+       ],
+       "ran_at": 1792281600000
+      },
+      "q_4": {
+       "cypher": "MATCH (:Ticket {id: $ticket})-[:ABOUT]->(i:Issue)<-[:ABOUT]-(s:Ticket)-[:RESOLVED_BY]->(r:Resolution)\nWHERE s.resolved_at <= $as_of\nRETURN r.id AS resolution, r.summary AS summary, count(s) AS used\nORDER BY used DESC LIMIT 1",
+       "graph": "mochi_company",
+       "params": {
+        "ticket": "T-0397",
+        "as_of": 1792281600000
+       },
+       "columns": [
+        "resolution",
+        "summary",
+        "used"
+       ],
+       "rows": [
+        {
+         "resolution": "R-06",
+         "summary": "Explained accepted bank proof formats",
+         "used": 10
+        }
+       ],
+       "ran_at": 1792281600000
+      },
+      "q_5": {
+       "cypher": "MATCH (:Ticket {id: $ticket})-[:ABOUT]->(i:Issue)<-[:ABOUT]-(s:Ticket)<-[:SOLVED]-(u:AgentUser)\nWHERE s.created_at <= $as_of\nRETURN u.id AS agent, u.name AS name, count(s) AS solved\nORDER BY solved DESC LIMIT 1",
+       "graph": "mochi_company",
+       "params": {
+        "ticket": "T-0397",
+        "as_of": 1792281600000
+       },
+       "columns": [
+        "agent",
+        "name",
+        "solved"
+       ],
+       "rows": [
+        {
+         "agent": "A-1",
+         "name": "Ritika Venkatesan",
+         "solved": 6
+        }
+       ],
+       "ran_at": 1792281600000
+      },
+      "q_6": {
+       "cypher": "MATCH (:Ticket {id: $ticket})-[:ABOUT]->(i:Issue)\nOPTIONAL MATCH (r:Release)-[x:INTRODUCED]->(i)\nWHERE x.valid_from <= $as_of AND x.valid_until > $as_of\nRETURN r.version AS release",
+       "graph": "mochi_company",
+       "params": {
+        "ticket": "T-0397",
+        "as_of": 1792281600000
+       },
+       "columns": [
+        "release"
+       ],
+       "rows": [
+        {
+         "release": "none"
+        }
+       ],
+       "ran_at": 1792281600000
+      }
+     },
+     "path": {
+      "query_id": "q_1",
+      "nodes": [
+       {
+        "id": "c",
+        "label": "Customer",
+        "name": "Pranav Nair"
+       },
+       {
+        "id": "t",
+        "label": "Ticket",
+        "name": "T-0397"
+       },
+       {
+        "id": "i",
+        "label": "Issue",
+        "name": "bank proof rejected"
+       },
+       {
+        "id": "a",
+        "label": "ProductArea",
+        "name": "kyc"
+       },
+       {
+        "id": "tm",
+        "label": "Team",
+        "name": "onboarding"
+       }
+      ],
+      "edges": [
+       {
+        "type": "RAISED",
+        "from": "c",
+        "to": "t"
+       },
+       {
+        "type": "ABOUT",
+        "from": "t",
+        "to": "i"
+       },
+       {
+        "type": "IN",
+        "from": "i",
+        "to": "a"
+       },
+       {
+        "type": "OWNED_BY",
+        "from": "a",
+        "to": "tm"
+       }
+      ]
+     },
+     "blocks": [
+      {
+       "type": "kpi",
+       "query_id": "q_2",
+       "label": "Median resolution, this issue",
+       "column": "median_h",
+       "unit": "h",
+       "promised": 24,
+       "bad": false
+      }
+     ]
+    }
+   },
+   "T-0396": {
+    "ticket": "T-0396",
+    "customer": "Meera Oberoi",
+    "subject": "Money debited, not in account",
+    "body": "Hi team, Money was debited from my bank but the trading balance did not increase. Please help. Following up on T-0061.",
+    "issue": "payment debited, funds not credited",
+    "card": {
+     "kind": "briefing",
+     "title": "Brief for T-0396",
+     "queries": {
+      "q_1": {
+       "cypher": "MATCH (c:Customer)-[:RAISED]->(t:Ticket {id: $ticket})-[:ABOUT]->(i:Issue)-[:IN]->(a:ProductArea)-[:OWNED_BY]->(tm:Team)\nWHERE t.created_at <= $as_of\nRETURN c.name AS customer, t.id AS ticket, i.name AS issue, a.name AS area, tm.name AS team",
+       "graph": "mochi_company",
+       "params": {
+        "ticket": "T-0396",
+        "as_of": 1792281600000
+       },
+       "columns": [
+        "customer",
+        "ticket",
+        "issue",
+        "area",
+        "team"
+       ],
+       "rows": [
+        {
+         "customer": "Meera Oberoi",
+         "ticket": "T-0396",
+         "issue": "payment debited, funds not credited",
+         "area": "funds",
+         "team": "payments"
+        }
+       ],
+       "ran_at": 1792281600000
+      },
+      "q_2": {
+       "cypher": "MATCH (:Ticket {id: $ticket})-[:ABOUT]->(i:Issue)<-[:ABOUT]-(s:Ticket)-[:RESOLVED_BY]->(:Resolution)-[:BASED_ON]->(k:KBArticle)\nWHERE s.resolved_at <= $as_of\nRETURN k.id AS kb, k.promised_tat_hours AS promised_h,\n  round(10 * percentileDisc((s.resolved_at - s.created_at) / 3600000.0, 0.5)) / 10 AS median_h,\n  count(s) AS tickets\nORDER BY tickets DESC LIMIT 1",
+       "graph": "mochi_company",
+       "params": {
+        "ticket": "T-0396",
+        "as_of": 1792281600000
+       },
+       "columns": [
+        "kb",
+        "promised_h",
+        "median_h",
+        "tickets"
+       ],
+       "rows": [
+        {
+         "kb": "KB-07",
+         "promised_h": 24,
+         "median_h": 73.4,
+         "tickets": 21
+        }
+       ],
+       "ran_at": 1792281600000
+      },
+      "q_3": {
+       "cypher": "MATCH (c:Customer {id: $customer})-[:RAISED]->(t:Ticket)\nWHERE t.created_at <= $as_of AND t.created_at > $as_of - 90 * 86400000\nRETURN count(t) AS tickets_90d",
+       "graph": "mochi_company",
+       "params": {
+        "customer": "C-064",
+        "as_of": 1792281600000
+       },
+       "columns": [
+        "tickets_90d"
+       ],
+       "rows": [
+        {
+         "tickets_90d": 11
+        }
+       ],
+       "ran_at": 1792281600000
+      },
+      "q_4": {
+       "cypher": "MATCH (:Ticket {id: $ticket})-[:ABOUT]->(i:Issue)<-[:ABOUT]-(s:Ticket)-[:RESOLVED_BY]->(r:Resolution)\nWHERE s.resolved_at <= $as_of\nRETURN r.id AS resolution, r.summary AS summary, count(s) AS used\nORDER BY used DESC LIMIT 1",
+       "graph": "mochi_company",
+       "params": {
+        "ticket": "T-0396",
+        "as_of": 1792281600000
+       },
+       "columns": [
+        "resolution",
+        "summary",
+        "used"
+       ],
+       "rows": [
+        {
+         "resolution": "R-07",
+         "summary": "Matched gateway reference and credited funds",
+         "used": 21
+        }
+       ],
+       "ran_at": 1792281600000
+      },
+      "q_5": {
+       "cypher": "MATCH (:Ticket {id: $ticket})-[:ABOUT]->(i:Issue)<-[:ABOUT]-(s:Ticket)<-[:SOLVED]-(u:AgentUser)\nWHERE s.created_at <= $as_of\nRETURN u.id AS agent, u.name AS name, count(s) AS solved\nORDER BY solved DESC LIMIT 1",
+       "graph": "mochi_company",
+       "params": {
+        "ticket": "T-0396",
+        "as_of": 1792281600000
+       },
+       "columns": [
+        "agent",
+        "name",
+        "solved"
+       ],
+       "rows": [
+        {
+         "agent": "A-3",
+         "name": "Neha Kulkarni",
+         "solved": 11
+        }
+       ],
+       "ran_at": 1792281600000
+      },
+      "q_6": {
+       "cypher": "MATCH (:Ticket {id: $ticket})-[:ABOUT]->(i:Issue)\nOPTIONAL MATCH (r:Release)-[x:INTRODUCED]->(i)\nWHERE x.valid_from <= $as_of AND x.valid_until > $as_of\nRETURN r.version AS release",
+       "graph": "mochi_company",
+       "params": {
+        "ticket": "T-0396",
+        "as_of": 1792281600000
+       },
+       "columns": [
+        "release"
+       ],
+       "rows": [
+        {
+         "release": "none"
+        }
+       ],
+       "ran_at": 1792281600000
+      }
+     },
+     "path": {
+      "query_id": "q_1",
+      "nodes": [
+       {
+        "id": "c",
+        "label": "Customer",
+        "name": "Meera Oberoi"
+       },
+       {
+        "id": "t",
+        "label": "Ticket",
+        "name": "T-0396"
+       },
+       {
+        "id": "i",
+        "label": "Issue",
+        "name": "payment debited, funds not credited"
+       },
+       {
+        "id": "a",
+        "label": "ProductArea",
+        "name": "funds"
+       },
+       {
+        "id": "tm",
+        "label": "Team",
+        "name": "payments"
+       }
+      ],
+      "edges": [
+       {
+        "type": "RAISED",
+        "from": "c",
+        "to": "t"
+       },
+       {
+        "type": "ABOUT",
+        "from": "t",
+        "to": "i"
+       },
+       {
+        "type": "IN",
+        "from": "i",
+        "to": "a"
+       },
+       {
+        "type": "OWNED_BY",
+        "from": "a",
+        "to": "tm"
+       }
+      ]
+     },
+     "blocks": [
+      {
+       "type": "kpi",
+       "query_id": "q_2",
+       "label": "Median resolution, this issue",
+       "column": "median_h",
+       "unit": "h",
+       "promised": 24,
+       "bad": true
+      }
+     ]
+    }
+   },
+   "T-0395": {
+    "ticket": "T-0395",
+    "customer": "Pranav Yadav",
+    "subject": "OTP not coming",
+    "body": "Hello, I am trying to log in but the SMS OTP never arrives.",
+    "issue": "OTP not received at login",
+    "card": {
+     "kind": "briefing",
+     "title": "Brief for T-0395",
+     "queries": {
+      "q_1": {
+       "cypher": "MATCH (c:Customer)-[:RAISED]->(t:Ticket {id: $ticket})-[:ABOUT]->(i:Issue)-[:IN]->(a:ProductArea)-[:OWNED_BY]->(tm:Team)\nWHERE t.created_at <= $as_of\nRETURN c.name AS customer, t.id AS ticket, i.name AS issue, a.name AS area, tm.name AS team",
+       "graph": "mochi_company",
+       "params": {
+        "ticket": "T-0395",
+        "as_of": 1792281600000
+       },
+       "columns": [
+        "customer",
+        "ticket",
+        "issue",
+        "area",
+        "team"
+       ],
+       "rows": [
+        {
+         "customer": "Pranav Yadav",
+         "ticket": "T-0395",
+         "issue": "OTP not received at login",
+         "area": "login",
+         "team": "onboarding"
+        }
+       ],
+       "ran_at": 1792281600000
+      },
+      "q_2": {
+       "cypher": "MATCH (:Ticket {id: $ticket})-[:ABOUT]->(i:Issue)<-[:ABOUT]-(s:Ticket)-[:RESOLVED_BY]->(:Resolution)-[:BASED_ON]->(k:KBArticle)\nWHERE s.resolved_at <= $as_of\nRETURN k.id AS kb, k.promised_tat_hours AS promised_h,\n  round(10 * percentileDisc((s.resolved_at - s.created_at) / 3600000.0, 0.5)) / 10 AS median_h,\n  count(s) AS tickets\nORDER BY tickets DESC LIMIT 1",
+       "graph": "mochi_company",
+       "params": {
+        "ticket": "T-0395",
+        "as_of": 1792281600000
+       },
+       "columns": [
+        "kb",
+        "promised_h",
+        "median_h",
+        "tickets"
+       ],
+       "rows": [
+        {
+         "kb": "KB-01",
+         "promised_h": 8,
+         "median_h": 6.9,
+         "tickets": 1
+        }
+       ],
+       "ran_at": 1792281600000
+      },
+      "q_3": {
+       "cypher": "MATCH (c:Customer {id: $customer})-[:RAISED]->(t:Ticket)\nWHERE t.created_at <= $as_of AND t.created_at > $as_of - 90 * 86400000\nRETURN count(t) AS tickets_90d",
+       "graph": "mochi_company",
+       "params": {
+        "customer": "C-021",
+        "as_of": 1792281600000
+       },
+       "columns": [
+        "tickets_90d"
+       ],
+       "rows": [
+        {
+         "tickets_90d": 2
+        }
+       ],
+       "ran_at": 1792281600000
+      },
+      "q_4": {
+       "cypher": "MATCH (:Ticket {id: $ticket})-[:ABOUT]->(i:Issue)<-[:ABOUT]-(s:Ticket)-[:RESOLVED_BY]->(r:Resolution)\nWHERE s.resolved_at <= $as_of\nRETURN r.id AS resolution, r.summary AS summary, count(s) AS used\nORDER BY used DESC LIMIT 1",
+       "graph": "mochi_company",
+       "params": {
+        "ticket": "T-0395",
+        "as_of": 1792281600000
+       },
+       "columns": [
+        "resolution",
+        "summary",
+        "used"
+       ],
+       "rows": [
+        {
+         "resolution": "R-32",
+         "summary": "Workaround: switch the customer to email OTP from the admin console",
+         "used": 19
+        }
+       ],
+       "ran_at": 1792281600000
+      },
+      "q_5": {
+       "cypher": "MATCH (:Ticket {id: $ticket})-[:ABOUT]->(i:Issue)<-[:ABOUT]-(s:Ticket)<-[:SOLVED]-(u:AgentUser)\nWHERE s.created_at <= $as_of\nRETURN u.id AS agent, u.name AS name, count(s) AS solved\nORDER BY solved DESC LIMIT 1",
+       "graph": "mochi_company",
+       "params": {
+        "ticket": "T-0395",
+        "as_of": 1792281600000
+       },
+       "columns": [
+        "agent",
+        "name",
+        "solved"
+       ],
+       "rows": [
+        {
+         "agent": "A-1",
+         "name": "Ritika Venkatesan",
+         "solved": 15
+        }
+       ],
+       "ran_at": 1792281600000
+      },
+      "q_6": {
+       "cypher": "MATCH (:Ticket {id: $ticket})-[:ABOUT]->(i:Issue)\nOPTIONAL MATCH (r:Release)-[x:INTRODUCED]->(i)\nWHERE x.valid_from <= $as_of AND x.valid_until > $as_of\nRETURN r.version AS release",
+       "graph": "mochi_company",
+       "params": {
+        "ticket": "T-0395",
+        "as_of": 1792281600000
+       },
+       "columns": [
+        "release"
+       ],
+       "rows": [
+        {
+         "release": "none"
+        }
+       ],
+       "ran_at": 1792281600000
+      }
+     },
+     "path": {
+      "query_id": "q_1",
+      "nodes": [
+       {
+        "id": "c",
+        "label": "Customer",
+        "name": "Pranav Yadav"
+       },
+       {
+        "id": "t",
+        "label": "Ticket",
+        "name": "T-0395"
+       },
+       {
+        "id": "i",
+        "label": "Issue",
+        "name": "OTP not received at login"
+       },
+       {
+        "id": "a",
+        "label": "ProductArea",
+        "name": "login"
+       },
+       {
+        "id": "tm",
+        "label": "Team",
+        "name": "onboarding"
+       }
+      ],
+      "edges": [
+       {
+        "type": "RAISED",
+        "from": "c",
+        "to": "t"
+       },
+       {
+        "type": "ABOUT",
+        "from": "t",
+        "to": "i"
+       },
+       {
+        "type": "IN",
+        "from": "i",
+        "to": "a"
+       },
+       {
+        "type": "OWNED_BY",
+        "from": "a",
+        "to": "tm"
+       }
+      ]
+     },
+     "blocks": [
+      {
+       "type": "kpi",
+       "query_id": "q_2",
+       "label": "Median resolution, this issue",
+       "column": "median_h",
+       "unit": "h",
+       "promised": 8,
+       "bad": false
+      }
+     ]
+    }
+   }
+  }
+ },
+ "asks": [
+  {
+   "id": "stuck",
+   "ask": "Why is Aditi’s order stuck?",
+   "keywords": [
+    "order",
+    "stuck",
+    "pending",
+    "executed",
+    "aditi",
+    "why",
+    "release",
+    "cause"
+   ],
+   "eval_id": "Q-22",
+   "answer": "Release 3.2.0 caused it, but 3.7.0 fixed it last night. I retired that cause. The fix that works: cancelled stuck order from dealer terminal.",
+   "card": {
+    "kind": "likely_cause",
+    "title": "Likely cause for T-0299",
+    "queries": {
+     "q_1": {
+      "cypher": "MATCH (c:Customer)-[:RAISED]->(t:Ticket {id: $ticket})-[:ABOUT]->(i:Issue)\nOPTIONAL MATCH (r:Release)-[x:INTRODUCED]->(i)\nWHERE x.valid_from <= $as_of AND x.valid_until > $as_of\nRETURN c.name AS customer, i.name AS issue, r.version AS release",
+      "graph": "mochi_company",
+      "params": {
+       "ticket": "T-0299",
+       "as_of": 1792281600000
+      },
+      "columns": [
+       "customer",
+       "issue",
+       "release"
+      ],
+      "rows": [
+       {
+        "customer": "Aditi Deshpande",
+        "issue": "order stuck in pending",
+        "release": "none"
+       }
+      ],
+      "ran_at": 1792281600000
+     },
+     "q_2": {
+      "cypher": "MATCH (r:Release)-[x:INTRODUCED]->(i:Issue {id: $issue})\nWHERE x.valid_until <= $as_of\nRETURN r.version AS was, x.valid_until AS retired_at",
+      "graph": "mochi_company",
+      "params": {
+       "issue": "I-11",
+       "as_of": 1792281600000
+      },
+      "columns": [
+       "was",
+       "retired_at"
+      ],
+      "rows": [
+       {
+        "was": "3.2.0",
+        "retired_at": 1792211280000
+       }
+      ],
+      "ran_at": 1792281600000
+     },
+     "q_3": {
+      "cypher": "MATCH (i:Issue {id: $issue})<-[:ABOUT]-(s:Ticket)-[:RESOLVED_BY]->(r:Resolution)\nWHERE s.resolved_at <= $as_of\nRETURN r.summary AS fix, count(s) AS used ORDER BY used DESC LIMIT 1",
+      "graph": "mochi_company",
+      "params": {
+       "issue": "I-11",
+       "as_of": 1792281600000
+      },
+      "columns": [
+       "fix",
+       "used"
+      ],
+      "rows": [
+       {
+        "fix": "Cancelled stuck order from dealer terminal",
+        "used": 17
+       }
+      ],
+      "ran_at": 1792281600000
+     }
+    },
+    "path": {
+     "query_id": "q_1",
+     "nodes": [
+      {
+       "id": "c",
+       "label": "Customer",
+       "name": "Aditi Deshpande"
+      },
+      {
+       "id": "t",
+       "label": "Ticket",
+       "name": "T-0299"
+      },
+      {
+       "id": "i",
+       "label": "Issue",
+       "name": "order stuck in pending"
+      }
+     ],
+     "edges": [
+      {
+       "type": "RAISED",
+       "from": "c",
+       "to": "t"
+      },
+      {
+       "type": "ABOUT",
+       "from": "t",
+       "to": "i"
+      }
+     ]
+    },
+    "blocks": [
+     {
+      "type": "table",
+      "query_id": "q_3",
+      "label": "What fixed it before",
+      "columns": [
+       "fix",
+       "used"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "who",
+   "ask": "Who knows stop-loss tickets best?",
+   "keywords": [
+    "who",
+    "knows",
+    "stop",
+    "loss",
+    "stop-loss",
+    "sl",
+    "trigger",
+    "expert",
+    "agent"
+   ],
+   "eval_id": "Q-31",
+   "answer": "Kabir Rao has solved the most. Ask them first.",
+   "card": {
+    "kind": "who_knows",
+    "title": "Who knows stop-loss not triggered",
+    "queries": {
+     "q_1": {
+      "cypher": "MATCH (u:AgentUser)-[:SOLVED]->(s:Ticket)-[:ABOUT]->(i:Issue {id: $issue}), (u)-[:MEMBER_OF]->(tm:Team)\nWHERE s.created_at <= $as_of\nRETURN u.name AS agent, tm.name AS team, count(s) AS solved ORDER BY solved DESC LIMIT 3",
+      "graph": "mochi_company",
+      "params": {
+       "issue": "I-12",
+       "as_of": 1792281600000
+      },
+      "columns": [
+       "agent",
+       "team",
+       "solved"
+      ],
+      "rows": [
+       {
+        "agent": "Kabir Rao",
+        "team": "trading",
+        "solved": 9
+       },
+       {
+        "agent": "Arjun Pillai",
+        "team": "payments",
+        "solved": 1
+       },
+       {
+        "agent": "Farhan Qadri",
+        "team": "onboarding",
+        "solved": 1
+       }
+      ],
+      "ran_at": 1792281600000
+     }
+    },
+    "path": {
+     "query_id": "q_1",
+     "nodes": [
+      {
+       "id": "u",
+       "label": "AgentUser",
+       "name": "Kabir Rao"
+      },
+      {
+       "id": "s",
+       "label": "Ticket",
+       "name": "9 tickets"
+      },
+      {
+       "id": "i",
+       "label": "Issue",
+       "name": "stop-loss not triggered"
+      }
+     ],
+     "edges": [
+      {
+       "type": "SOLVED",
+       "from": "u",
+       "to": "s"
+      },
+      {
+       "type": "ABOUT",
+       "from": "s",
+       "to": "i"
+      }
+     ]
+    },
+    "blocks": [
+     {
+      "type": "table",
+      "query_id": "q_1",
+      "label": "Most solved",
+      "columns": [
+       "agent",
+       "team",
+       "solved"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "spike",
+   "ask": "Which release broke the most?",
+   "keywords": [
+    "release",
+    "broke",
+    "spike",
+    "most",
+    "worst",
+    "caused",
+    "tickets",
+    "deploy"
+   ],
+   "eval_id": "Q-41",
+   "answer": "Release 3.2.0. Tickets on the issues it introduced jumped the week after it shipped.",
+   "card": {
+    "kind": "blast_radius",
+    "title": "Ticket spike after each release",
+    "queries": {
+     "q_1": {
+      "cypher": "MATCH (r:Release)-[x:INTRODUCED]->(i:Issue)<-[:ABOUT]-(t:Ticket)\nWHERE x.valid_from <= $as_of AND t.created_at >= r.shipped_at - 604800000 AND t.created_at < r.shipped_at + 604800000\nRETURN r.version AS release,\n  sum(CASE WHEN t.created_at < r.shipped_at THEN 1 ELSE 0 END) AS week_before,\n  sum(CASE WHEN t.created_at >= r.shipped_at THEN 1 ELSE 0 END) AS week_after\nORDER BY week_after - week_before DESC LIMIT 4",
+      "graph": "mochi_company",
+      "params": {
+       "as_of": 1792281600000
+      },
+      "columns": [
+       "release",
+       "week_before",
+       "week_after"
+      ],
+      "rows": [
+       {
+        "release": "3.2.0",
+        "week_before": 0,
+        "week_after": 28
+       },
+       {
+        "release": "3.5.0",
+        "week_before": 0,
+        "week_after": 28
+       },
+       {
+        "release": "3.6.0",
+        "week_before": 0,
+        "week_after": 5
+       },
+       {
+        "release": "3.1.0",
+        "week_before": 0,
+        "week_after": 1
+       }
+      ],
+      "ran_at": 1792281600000
+     }
+    },
+    "path": null,
+    "blocks": [
+     {
+      "type": "bars",
+      "query_id": "q_1",
+      "label": "Tickets the week after shipping",
+      "x": "release",
+      "y": "week_after"
+     }
+    ]
+   }
+  },
+  {
+   "id": "fix",
+   "ask": "What fixed double brokerage before?",
+   "keywords": [
+    "fixed",
+    "fix",
+    "double",
+    "brokerage",
+    "charged",
+    "twice",
+    "before",
+    "resolution",
+    "refund"
+   ],
+   "eval_id": "Q-33",
+   "answer": "Reversed duplicate brokerage. It is the most used fix for this issue.",
+   "card": {
+    "kind": "similar",
+    "title": "Fixes for brokerage charged twice",
+    "queries": {
+     "q_1": {
+      "cypher": "MATCH (i:Issue {id: $issue})<-[:ABOUT]-(s:Ticket)-[:RESOLVED_BY]->(r:Resolution)-[:BASED_ON]->(k:KBArticle)\nWHERE s.resolved_at <= $as_of\nRETURN r.summary AS fix, k.id AS kb, count(s) AS used ORDER BY used DESC LIMIT 3",
+      "graph": "mochi_company",
+      "params": {
+       "issue": "I-13",
+       "as_of": 1792281600000
+      },
+      "columns": [
+       "fix",
+       "kb",
+       "used"
+      ],
+      "rows": [
+       {
+        "fix": "Reversed duplicate brokerage",
+        "kb": "KB-13",
+        "used": 21
+       },
+       {
+        "fix": "Escalated to payments L2",
+        "kb": "none",
+        "used": 4
+       }
+      ],
+      "ran_at": 1792281600000
+     }
+    },
+    "path": {
+     "query_id": "q_1",
+     "nodes": [
+      {
+       "id": "i",
+       "label": "Issue",
+       "name": "brokerage charged twice"
+      },
+      {
+       "id": "s",
+       "label": "Ticket",
+       "name": "21 tickets"
+      },
+      {
+       "id": "r",
+       "label": "Resolution",
+       "name": "R-13"
+      },
+      {
+       "id": "k",
+       "label": "KBArticle",
+       "name": "KB-13"
+      }
+     ],
+     "edges": [
+      {
+       "type": "ABOUT",
+       "from": "s",
+       "to": "i"
+      },
+      {
+       "type": "RESOLVED_BY",
+       "from": "s",
+       "to": "r"
+      },
+      {
+       "type": "BASED_ON",
+       "from": "r",
+       "to": "k"
+      }
+     ]
+    },
+    "blocks": [
+     {
+      "type": "table",
+      "query_id": "q_1",
+      "label": "Most used fixes",
+      "columns": [
+       "fix",
+       "kb",
+       "used"
+      ]
+     }
+    ]
+   }
+  }
+ ],
+ "night": {
+  "retired": [
+   {
+    "event": "E-01",
+    "at": 1792203720000,
+    "label": "Release 3.3.0 causes bank proof rejected",
+    "now": "Fixed in 3.7.0",
+    "edge": "INTRODUCED"
+   },
+   {
+    "event": "E-02",
+    "at": 1792211280000,
+    "label": "Release 3.2.0 causes order stuck in pending",
+    "now": "Fixed in 3.7.0",
+    "edge": "INTRODUCED"
+   },
+   {
+    "event": "E-03",
+    "at": 1792220280000,
+    "label": "Pooja Menon is on premium",
+    "now": "Now on basic",
+    "edge": "ON_PLAN"
+   },
+   {
+    "event": "E-04",
+    "at": 1792224780000,
+    "label": "Release 3.6.0 causes AMC deducted unexpectedly",
+    "now": "Fixed in 3.7.0",
+    "edge": "INTRODUCED"
+   },
+   {
+    "event": "E-05",
+    "at": 1792232460000,
+    "label": "Siddharth Patil is on premium",
+    "now": "Now on basic",
+    "edge": "ON_PLAN"
+   },
+   {
+    "event": "E-06",
+    "at": 1792238940000,
+    "label": "Meera Oberoi is on premium",
+    "now": "Now on basic",
+    "edge": "ON_PLAN"
+   },
+   {
+    "event": "E-07",
+    "at": 1792247580000,
+    "label": "Diya Bhatt is on basic",
+    "now": "Now on premium",
+    "edge": "ON_PLAN"
+   },
+   {
+    "event": "E-08",
+    "at": 1792253700000,
+    "label": "Tanvi Kamath is on premium",
+    "now": "Now on basic",
+    "edge": "ON_PLAN"
+   },
+   {
+    "event": "E-09",
+    "at": 1792261860000,
+    "label": "Saanvi Mathur is on premium",
+    "now": "Now on basic",
+    "edge": "ON_PLAN"
+   },
+   {
+    "event": "E-10",
+    "at": 1792269360000,
+    "label": "Release 3.5.0 causes charts not loading",
+    "now": "Fixed in 3.7.0",
+    "edge": "INTRODUCED"
+   }
+  ],
+  "report": {
+   "id": "landing_morning_report_seed42",
+   "version": 1,
+   "title": "What I learned overnight",
+   "generated_at": 1792281600000,
+   "generated_by": "dream",
+   "topic": "morning report",
+   "queries": {
+    "q_1": {
+     "cypher": "MATCH (t:Ticket) WHERE t.ingested_at > $as_of - 86400000 AND t.ingested_at <= $as_of RETURN count(t) AS ingested",
+     "graph": "mochi_company",
+     "params": {
+      "as_of": 1792281600000
+     },
+     "columns": [
+      "ingested"
+     ],
+     "rows": [
+      {
+       "ingested": 15
+      }
+     ],
+     "ran_at": 1792281600000
+    },
+    "q_2": {
+     "cypher": "MATCH ()-[x:INTRODUCED|ON_PLAN]->() WHERE x.valid_until > $as_of - 86400000 AND x.valid_until <= $as_of RETURN count(x) AS retired",
+     "graph": "mochi_company",
+     "params": {
+      "as_of": 1792281600000
+     },
+     "columns": [
+      "retired"
+     ],
+     "rows": [
+      {
+       "retired": 10
+      }
+     ],
+     "ran_at": 1792281600000
+    },
+    "q_3": {
+     "cypher": "MATCH ()-[x:INTRODUCED|ON_PLAN]->()\nWHERE (x.valid_until > $as_of - 86400000 AND x.valid_until <= $as_of) OR (x.valid_from > $as_of - 86400000 AND x.valid_from <= $as_of)\nRETURN CASE WHEN x.valid_until <= $as_of THEN 'retired' ELSE 'added' END AS change, x.summary AS fact",
+     "graph": "mochi_company",
+     "params": {
+      "as_of": 1792281600000
+     },
+     "columns": [
+      "change",
+      "fact"
+     ],
+     "rows": [
+      {
+       "change": "retired",
+       "fact": "Release 3.3.0 causes bank proof rejected"
+      },
+      {
+       "change": "retired",
+       "fact": "Release 3.2.0 causes order stuck in pending"
+      },
+      {
+       "change": "retired",
+       "fact": "Pooja Menon is on premium"
+      },
+      {
+       "change": "retired",
+       "fact": "Release 3.6.0 causes AMC deducted unexpectedly"
+      },
+      {
+       "change": "retired",
+       "fact": "Siddharth Patil is on premium"
+      },
+      {
+       "change": "retired",
+       "fact": "Meera Oberoi is on premium"
+      },
+      {
+       "change": "retired",
+       "fact": "Diya Bhatt is on basic"
+      },
+      {
+       "change": "retired",
+       "fact": "Tanvi Kamath is on premium"
+      },
+      {
+       "change": "retired",
+       "fact": "Saanvi Mathur is on premium"
+      },
+      {
+       "change": "retired",
+       "fact": "Release 3.5.0 causes charts not loading"
+      },
+      {
+       "change": "added",
+       "fact": "bank proof rejected: fixed in 3.7.0"
+      },
+      {
+       "change": "added",
+       "fact": "order stuck in pending: fixed in 3.7.0"
+      },
+      {
+       "change": "added",
+       "fact": "Pooja Menon: now on basic"
+      },
+      {
+       "change": "added",
+       "fact": "AMC deducted unexpectedly: fixed in 3.7.0"
+      },
+      {
+       "change": "added",
+       "fact": "Siddharth Patil: now on basic"
+      },
+      {
+       "change": "added",
+       "fact": "Meera Oberoi: now on basic"
+      },
+      {
+       "change": "added",
+       "fact": "Diya Bhatt: now on premium"
+      },
+      {
+       "change": "added",
+       "fact": "Tanvi Kamath: now on basic"
+      },
+      {
+       "change": "added",
+       "fact": "Saanvi Mathur: now on basic"
+      },
+      {
+       "change": "added",
+       "fact": "charts not loading: fixed in 3.7.0"
+      }
+     ],
+     "ran_at": 1792281600000
+    },
+    "q_4": {
+     "cypher": "MATCH (s:Suggestion)-[:FROM]->(o:ObservedPattern)-[c:CONTRADICTS]->(k:KBArticle {id: $kb})\nWHERE c.valid_from <= $as_of AND c.valid_until > $as_of\nRETURN k.id AS kb, k.promised_tat_hours AS promised_h, o.measured_tat_hours AS measured_h, o.support_count AS tickets, s.text AS text",
+     "graph": "mochi_company",
+     "params": {
+      "kb": "KB-07",
+      "as_of": 1792281600000
+     },
+     "columns": [
+      "kb",
+      "promised_h",
+      "measured_h",
+      "tickets",
+      "text"
+     ],
+     "rows": [
+      {
+       "kb": "KB-07",
+       "promised_h": 24,
+       "measured_h": 73.4,
+       "tickets": 21,
+       "text": "Funds debited but not credited: practice takes 73.4h, the article promises 24h."
+      }
+     ],
+     "ran_at": 1792281600000
+    }
+   },
+   "body": "Overnight I read <num query_id=\"q_1\" column=\"ingested\">15</num> new tickets and retired <num query_id=\"q_2\" column=\"retired\">10</num> facts that stopped being true.\n\n<memdiff query_id=\"q_3\"/>\n\n<suggestion query_id=\"q_4\" tag=\"The docs and reality disagree\" edge=\"CONTRADICTS\" actions='[\"send_to_team:funds\",\"draft_kb:KB-07\",\"dismiss\"]'>\nKB-07 promises <num query_id=\"q_4\" column=\"promised_h\">24</num>h. Across <num query_id=\"q_4\" column=\"tickets\">21</num> tickets, practice took <num query_id=\"q_4\" column=\"measured_h\">73.4</num>h.\n</suggestion>"
+  },
+  "cluster": {
+   "cypher": "MATCH (t:Ticket)-[:ABOUT]->(i:Issue)\nWHERE t.ingested_at > $as_of - 86400000 AND t.ingested_at <= $as_of\nRETURN i.name AS issue, count(t) AS tickets ORDER BY tickets DESC LIMIT 5",
+   "graph": "mochi_company",
+   "params": {
+    "as_of": 1792281600000
+   },
+   "columns": [
+    "issue",
+    "tickets"
+   ],
+   "rows": [
+    {
+     "issue": "bank proof rejected",
+     "tickets": 3
+    },
+    {
+     "issue": "OTP not received at login",
+     "tickets": 2
+    },
+    {
+     "issue": "brokerage charged twice",
+     "tickets": 2
+    },
+    {
+     "issue": "AMC deducted unexpectedly",
+     "tickets": 2
+    },
+    {
+     "issue": "account locked after failed PIN attempts",
+     "tickets": 1
+    }
+   ],
+   "ran_at": 1792281600000
+  },
+  "ingested": [
+   {
+    "id": "T-0400",
+    "subject": "Charged twice for one trade",
+    "created_at": 1792277262000
+   },
+   {
+    "id": "T-0399",
+    "subject": "Double brokerage",
+    "created_at": 1792275274000
+   },
+   {
+    "id": "T-0398",
+    "subject": "Account locked",
+    "created_at": 1792271488000
+   },
+   {
+    "id": "T-0397",
+    "subject": "Cancelled cheque not accepted",
+    "created_at": 1792268447000
+   }
+  ]
+ },
+ "awake": {
+  "hours": {
+   "cypher": "MATCH (t:Ticket) WHERE t.created_at <= $as_of\nRETURN toInteger(((t.created_at + 19800000) % 86400000) / 3600000) AS hour, count(t) AS tickets ORDER BY hour",
+   "graph": "mochi_company",
+   "params": {
+    "as_of": 1792281600000
+   },
+   "columns": [
+    "hour",
+    "tickets"
+   ],
+   "rows": [
+    {
+     "hour": 0,
+     "tickets": 15
+    },
+    {
+     "hour": 1,
+     "tickets": 19
+    },
+    {
+     "hour": 2,
+     "tickets": 20
+    },
+    {
+     "hour": 3,
+     "tickets": 16
+    },
+    {
+     "hour": 4,
+     "tickets": 14
+    },
+    {
+     "hour": 5,
+     "tickets": 14
+    },
+    {
+     "hour": 6,
+     "tickets": 20
+    },
+    {
+     "hour": 7,
+     "tickets": 18
+    },
+    {
+     "hour": 8,
+     "tickets": 22
+    },
+    {
+     "hour": 9,
+     "tickets": 17
+    },
+    {
+     "hour": 10,
+     "tickets": 23
+    },
+    {
+     "hour": 11,
+     "tickets": 15
+    },
+    {
+     "hour": 12,
+     "tickets": 13
+    },
+    {
+     "hour": 13,
+     "tickets": 17
+    },
+    {
+     "hour": 14,
+     "tickets": 13
+    },
+    {
+     "hour": 15,
+     "tickets": 20
+    },
+    {
+     "hour": 16,
+     "tickets": 11
+    },
+    {
+     "hour": 17,
+     "tickets": 23
+    },
+    {
+     "hour": 18,
+     "tickets": 17
+    },
+    {
+     "hour": 19,
+     "tickets": 16
+    },
+    {
+     "hour": 20,
+     "tickets": 15
+    },
+    {
+     "hour": 21,
+     "tickets": 11
+    },
+    {
+     "hour": 22,
+     "tickets": 14
+    },
+    {
+     "hour": 23,
+     "tickets": 17
+    }
+   ],
+   "ran_at": 1792281600000
+  },
+  "offHours": {
+   "cypher": "MATCH (t:Ticket) WHERE t.created_at <= $as_of\nWITH toInteger(((t.created_at + 19800000) % 86400000) / 3600000) AS hour\nRETURN sum(CASE WHEN hour < 9 OR hour >= 18 THEN 1 ELSE 0 END) AS off_hours, count(*) AS total",
+   "graph": "mochi_company",
+   "params": {
+    "as_of": 1792281600000
+   },
+   "columns": [
+    "off_hours",
+    "total"
+   ],
+   "rows": [
+    {
+     "off_hours": 248,
+     "total": 400
+    }
+   ],
+   "ran_at": 1792281600000
+  }
+ },
+ "asof": {
+  "release": "3.2.0",
+  "before_ms": 1792203660000,
+  "after_ms": 1792281600000,
+  "before": 13,
+  "after": 8,
+  "query": {
+   "cypher": "MATCH (r:Release {version: $release})-[x:INTRODUCED]->(i:Issue)<-[:ABOUT]-(t:Ticket)\nWHERE x.valid_from <= $as_of AND x.valid_until > $as_of\n  AND t.created_at <= $as_of AND t.status IN ['open', 'pending']\nRETURN count(t) AS open_tickets",
+   "graph": "mochi_company",
+   "params": {
+    "release": "3.2.0",
+    "as_of": 1792281600000
+   },
+   "columns": [
+    "open_tickets"
+   ],
+   "rows": [
+    {
+     "open_tickets": 8
+    }
+   ],
+   "ran_at": 1792281600000
+  }
+ },
+ "tiers": {
+  "company": "mochi_company",
+  "reader": "mochi_reader",
+  "dream": "mochi_dream",
+  "demoUser": "user_demo",
+  "refusal": {
+   "case": "GRAPH.QUERY on company",
+   "command": "GRAPH.QUERY mochi_company \"CREATE (:Ticket {id:'evil'})\"",
+   "error": "(error) NOPERM User mochi_reader has no permissions to run the 'graph.QUERY' command"
+  }
+ }
+}

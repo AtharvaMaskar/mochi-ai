@@ -3,15 +3,16 @@
   "private": true,
   "type": "module",
   "engines": { "node": ">=24" },
-  "workspaces": ["contracts", "gen", "agent", "bench", "ui"],
+  "workspaces": ["contracts", "gen", "agent", "bench", "ui", "landing"],
   "scripts": {
     "gen": "npm run gen -w gen",
     "load": "npm run load -w gen",
     "dream": "npm run dream -w agent",
     "bench": "npm run bench -w bench",
     "dev": "npm run dev -w agent",
+    "landing": "npm run dev -w landing",
     "test": "npm test --workspaces --if-present",
-    "check": "tsc -p contracts && npm run check -w gen -w agent -w bench -w ui && node contracts/gen-css.ts --check"
+    "check": "tsc -p contracts && npm run check -w gen -w agent -w bench -w ui -w landing && node contracts/gen-css.ts --check"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
