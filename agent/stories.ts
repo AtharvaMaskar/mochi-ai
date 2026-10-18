@@ -68,6 +68,19 @@ export function setStoryStatus(on: Committer, id: string, vid: string | null, st
   }, ctx);
 }
 
+/** Delete a story and all its versions; signed-in only (any signed-in person, the same rule as publishing). The
+ *  dream's own reports are kept. Returns false when there is nothing the caller may delete. */
+export function deleteStory(on: Committer, id: string, vid: string | null) {
+  return on.commit(async (tx) => {
+    const doc = await tx.doc(StoryDoc);
+    const latest = doc.stories[id]?.at(-1) as { generated_by?: string } | undefined;
+    if (!latest || vid !== SIGNED_IN || latest.generated_by === 'dream') return false;
+    delete doc.stories[id];
+    if (doc.meta) delete doc.meta[id];
+    return true;
+  }, ctx);
+}
+
 /** Apply search/replace edits to a body. Each old_str must occur exactly once in the body as it stands at that edit. */
 export function applyEdits(body: string, edits: { old_str: string; new_str: string }[]): { ok: true; body: string } | { ok: false; error: string } {
   for (const [i, e] of edits.entries()) {

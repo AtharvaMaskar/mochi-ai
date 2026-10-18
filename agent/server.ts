@@ -10,7 +10,7 @@ import { GRAPH, type Story } from '@mochi/contracts';
 import { PiDurableAgent, PiRunner } from './agui.ts';
 import { DREAM_NOT_INSTALLED, loadDream, type DreamModule } from './dream-port.ts';
 import { openHarness, type Pi } from './harness.ts';
-import { commitStory, parseStoryRef, readStory, rerender, setStoryStatus, visible } from './stories.ts';
+import { commitStory, deleteStory, parseStoryRef, readStory, rerender, setStoryStatus, visible } from './stories.ts';
 import { StoryDoc } from './story-doc.ts';
 import { json, routeApi, startDraftPrewarm } from './api/index.ts';
 import { dreamState, streamDream } from './api/overview.ts';
@@ -80,6 +80,9 @@ export async function startServer(pi: Pi, opts: { port?: number; dream?: DreamMo
     if (story && req.method === 'POST' && story[2]) {
       const m = await setStoryStatus(pi.harness, decodeURIComponent(story[1]), viewer(req), story[2] === 'publish' ? 'published' : 'draft');
       return m ? json(res, 200, { kind: m.kind, status: m.status, published: m.published }) : json(res, 404, { error: 'story not found' });
+    }
+    if (story && req.method === 'DELETE' && !story[2]) {
+      return (await deleteStory(pi.harness, decodeURIComponent(story[1]), viewer(req))) ? json(res, 200, { deleted: true }) : json(res, 404, { error: 'story not found' });
     }
     if (story && req.method === 'GET' && !story[2]) {
       // A draft, or a version never published, is 404 to everyone but its owner: no hint that it exists.
