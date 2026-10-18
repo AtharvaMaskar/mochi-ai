@@ -1,9 +1,13 @@
-// The artifact panel beside the chat (Claude-style): the open story or dashboard with full receipts, its versions with
-// "what changed", Draft/Published, hold-to-publish (copies the public link), Unpublish, open as page, as-of.
-// Edits by chat arrive over the live socket and the panel moves to the new version.
-import { useEffect, useState } from 'react';
+// The artifact panel beside the chat (Claude-style): kind icon, title, version chip, status; one primary action
+// (hold-to-publish), open as page, an overflow menu (copy link, as-of, unpublish) and close. Edits by chat arrive over
+// the live socket and the panel moves to the new version.
+// Motion: the panel slides in over the rail on the compositor only (transform + opacity, 320 ms); when the slide ends
+// it settles into the layout (the chat column reflows once) and its content mounts, so nothing lays out mid-motion.
+// Close slides out (240 ms) in place, then unmounts.
+import { useEffect, useRef, useState } from 'react';
+import { Ellipsis, ExternalLink, FileText, LayoutDashboard, X } from 'lucide-react';
 import { StoryView, AsOfBanner } from './story.tsx';
-import { Button, NeedsYou, Segmented } from './ds.tsx';
+import { Button, NeedsYou } from './ds.tsx';
 import { api, shareUrl, storyHref, useData, useStory, type StoryMeta } from '../data/api.ts';
 
 /** "Live · updated 12s ago", ticking; "Frozen" under as-of. */
@@ -15,7 +19,49 @@ export function LiveSince({ at, frozen }: { at: number; frozen?: boolean }) {
   return <span className="mb-live-since" data-live><i aria-hidden="true" />Live · updated {s < 60 ? `${s}s` : `${Math.round(s / 60)} min`} ago</span>;
 }
 
-export function StoryPanel({ id, onClose }: { id: string; onClose: () => void }) {
+const OPEN_MS = 320, CLOSE_MS = 240;
+const still = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/** Keeps the panel mounted while it slides out, and holds its content back until the slide in has finished. */
+export function StoryPanel({ id, onClose }: { id: string | null; onClose: () => void }) {
+  const [s, set] = useState({ id, shown: id, closing: false, ready: false });
+  if (s.id !== id) set({ id, shown: id ?? s.shown, closing: !id && !!s.shown, ready: !!id && !!s.id && s.ready }); // derived, no extra commit
+  useEffect(() => {
+    if (s.closing) { const t = setTimeout(() => set((x) => ({ ...x, shown: null, closing: false, ready: false })), still() ? 0 : CLOSE_MS); return () => clearTimeout(t); }
+    if (s.shown && !s.ready) { const t = setTimeout(() => set((x) => ({ ...x, ready: true })), still() ? 0 : OPEN_MS); return () => clearTimeout(t); }
+  }, [s.closing, s.shown, s.ready]);
+  if (!s.shown) return null;
+  return <Panel id={s.shown} ready={s.ready} closing={s.closing} onClose={onClose} />;
+}
+
+type Item = { label: string; on: () => void };
+/** Icon-only "More" menu: closes on Escape (focus back to the trigger) and on an outside press. */
+function Overflow({ items }: { items: Item[] }) {
+  const [open, setOpen] = useState(false);
+  const host = useRef<HTMLDivElement>(null), trigger = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const down = (e: PointerEvent) => { if (!host.current?.contains(e.target as Node)) setOpen(false); };
+    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') { setOpen(false); trigger.current?.focus(); } };
+    addEventListener('pointerdown', down); addEventListener('keydown', key);
+    host.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
+    return () => { removeEventListener('pointerdown', down); removeEventListener('keydown', key); };
+  }, [open]);
+  return (
+    <div className="mb-menu-host" ref={host}>
+      <button ref={trigger} type="button" className="mb-icon-btn" aria-label="More" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}>
+        <Ellipsis size={16} strokeWidth={1.5} aria-hidden="true" />
+      </button>
+      {open && (
+        <div className="mb-menu" role="menu">
+          {items.map((i) => <button key={i.label} type="button" role="menuitem" className="mb-menu-item" onClick={() => { setOpen(false); i.on(); }}>{i.label}</button>)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Panel({ id, ready, closing, onClose }: { id: string; ready: boolean; closing: boolean; onClose: () => void }) {
   const [pick, setPick] = useState<number | undefined>(); // undefined = follow the latest
   const [asOf, setAsOf] = useState<number | undefined>();
   const [meta, setMeta] = useState<Partial<StoryMeta>>({});
@@ -29,57 +75,62 @@ export function StoryPanel({ id, onClose }: { id: string; onClose: () => void })
   const prev = useData(() => (shown && shown > 1 ? api.story(id, shown - 1) : Promise.resolve(undefined)), [id, shown]);
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 2600); return () => clearTimeout(t); }, [toast]);
 
+  const copy = async (url: string) => { await navigator.clipboard?.writeText(url).catch(() => {}); };
   const publish = async (on: boolean) => {
     try {
       const next = await api.publish(id, on);
-      setTimeout(() => setMeta(next), 900); // let the held button land first
-      if (on) {
-        const url = shareUrl(id, next.kind);
-        await navigator.clipboard?.writeText(url).catch(() => {});
-        setToast(`Published. Link copied: ${url}`);
-      } else setToast('Unpublished. Only you can see it now.');
+      setTimeout(() => setMeta(next), on ? 900 : 0); // let the held button land first
+      if (on) { const url = shareUrl(id, next.kind); await copy(url); setToast(`Published. Link copied: ${url}`); }
+      else setToast('Unpublished. Only you can see it now.');
     } catch (e) { setToast((e as Error).message); }
   };
 
   const versions = m?.versions ?? [];
   const latest = versions.at(-1);
   const live = m?.published?.at(-1);
+  const behind = m?.status === 'published' && live !== undefined && latest !== undefined && live < latest;
+  const show = ready && story && m;
+  const Icon = m?.kind === 'dashboard' ? LayoutDashboard : FileText;
+  const items: Item[] = show ? [
+    { label: 'Copy link', on: () => void copy(shareUrl(id, m.kind)).then(() => setToast('Link copied.')) },
+    asOf === undefined ? { label: 'As of the day before', on: () => setAsOf(story.generated_at - 86_400_000) } : { label: 'See it live', on: () => setAsOf(undefined) },
+    ...(m.owner && m.status === 'published' ? [{ label: 'Unpublish', on: () => void publish(false) }] : []),
+  ] : [];
   return (
-    <aside className="mb-panel" aria-label="Open story">
+    <aside className="mb-panel" data-closing={closing || undefined} data-settled={ready || undefined} aria-label="Open story">
       <header className="mb-panel-head">
         <div className="mb-panel-title">
-          <h2 className="t-title">{story?.title ?? 'Loading…'}</h2>
-          <Button variant="link" size="sm" onClick={onClose}>Close</Button>
-        </div>
-        {m && story && (
-          <div className="mb-panel-meta">
-            <span className="mb-badge" data-state={m.status}>{m.status === 'published' ? 'Published' : 'Draft'}</span>
-            <span className="t-caption muted">{m.kind === 'dashboard' ? 'Dashboard' : 'Story'}{m.status === 'published' && live && latest && live < latest ? ` · public link shows v${live}` : ''}</span>
-            <LiveSince at={r.updatedAt} frozen={asOf !== undefined} />
-          </div>
-        )}
-        {m && story && (
-          <div className="mb-panel-actions">
-            {versions.length > 1 && (
-              <Segmented label="Version" value={String(shown)} onChange={(v) => setPick(Number(v) === latest ? undefined : Number(v))}
-                options={versions.slice(-6).map((v) => ({ id: String(v), label: `v${v}` }))} />
+          {show ? (
+            <div className="mb-panel-name">
+              <Icon size={16} strokeWidth={1.5} aria-hidden="true" />
+              <h2 className="t-title">{story.title}</h2>
+              {versions.length > 1
+                ? <select className="mb-ver-chip" aria-label="Version" value={String(shown)} onChange={(e) => setPick(Number(e.target.value) === latest ? undefined : Number(e.target.value))}>
+                  {versions.map((v) => <option key={v} value={v}>v{v}</option>)}
+                </select>
+                : <span className="mb-ver-chip">v{shown}</span>}
+              <span className="mb-badge" data-state={m.status}>{m.status === 'published' ? 'Published' : 'Draft'}</span>
+            </div>
+          ) : <div className="mb-panel-name mb-skel" aria-label="Loading the story"><i style={{ width: '60%' }} /></div>}
+          <div className="mb-panel-tools">
+            {show && m.owner && (m.status !== 'published' || behind) && (
+              <Button key={`p${latest}`} variant="primary" size="sm" hold={700} success="Published" onClick={() => void publish(true)}>{behind ? `Publish v${latest}` : 'Publish'}</Button>
             )}
-            {m.owner && (m.status !== 'published' || (live !== undefined && latest !== undefined && live < latest)
-              ? <Button key="publish" variant="primary" size="sm" hold={700} success="Published" onClick={() => void publish(true)}>{m.status === 'published' ? `Publish v${latest}` : 'Publish'}</Button>
-              : m.owner && <Button key="unpublish" size="sm" hold={700} success="Unpublished" onClick={() => void publish(false)}>Unpublish</Button>)}
-            <a className="mb-btn mb-btn-secondary mb-btn-sm" href={storyHref(id, m.kind)} target="_blank" rel="noreferrer"><span className="mb-btn-label">Open as page</span></a>
-            {asOf === undefined
-              ? <Button variant="link" size="sm" onClick={() => setAsOf(story.generated_at - 86_400_000)}>As of the day before</Button>
-              : null}
+            {show && <a className="mb-icon-btn" href={storyHref(id, m.kind)} target="_blank" rel="noreferrer" aria-label="Open as page"><ExternalLink size={16} strokeWidth={1.5} aria-hidden="true" /></a>}
+            {show && <Overflow items={items} />}
+            <button type="button" className="mb-icon-btn" aria-label="Close" onClick={onClose}><X size={16} strokeWidth={1.5} aria-hidden="true" /></button>
           </div>
-        )}
+        </div>
+        <p className="mb-panel-caption t-caption muted">
+          {show ? <>{m.kind === 'dashboard' ? 'Dashboard' : 'Story'}{behind ? ` · public link shows v${live}` : ''}<LiveSince at={r.updatedAt} frozen={asOf !== undefined} /></> : ' '}
+        </p>
       </header>
       <div className="mb-panel-body">
-        {asOf !== undefined && <div className="mb-panel-asof"><AsOfBanner asOf={asOf} /><Button variant="link" size="sm" onClick={() => setAsOf(undefined)}>See it live</Button></div>}
-        {r.error ? <NeedsYou mood="sorry" title="I can't open this story" reason={r.error} />
-          : !story ? <div className="mb-skel" aria-label="Loading the story">{[90, 70, 80].map((w, i) => <i key={i} style={{ width: `${w}%` }} />)}</div>
+        {show && asOf !== undefined && <div className="mb-panel-asof"><AsOfBanner asOf={asOf} /></div>}
+        {r.error && ready ? <NeedsYou mood="sorry" title="I can't open this story" reason={r.error} />
+          : !show ? <div className="mb-skel mb-panel-skel" aria-label="Loading the story">{[90, 70, 80, 60, 85].map((w, i) => <i key={i} style={{ width: `${w}%` }} />)}</div>
           : <div className="mb-fade" key={story.version}>
-            <StoryView input={story} asOf={asOf} header={false} prev={prev.data?.story} dashboard={m?.kind === 'dashboard'} />
+            <StoryView input={story} asOf={asOf} header={false} prev={prev.data?.story} dashboard={m.kind === 'dashboard'} />
           </div>}
       </div>
       {toast && <div className="mb-toast" role="status">{toast}</div>}
