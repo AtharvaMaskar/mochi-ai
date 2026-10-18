@@ -167,9 +167,9 @@ export type DeskTicket = {
 export const tickets: DeskTicket[] = [
   {
     id: 'T-1042', name: 'Priya Raman', time: '09:42', subject: 'OTP never arrives since the app update',
-    type: 'Login and 2FA', p: 0.86, status: 'todo', unread: true, waitingFor: '3 h',
+    type: 'Login and 2FA', p: 0.86, status: 'todo', unread: true, waitingFor: '3h',
     customer: { name: 'Priya Raman', clientId: 'EC-204817', status: ['Active', 'F&O enabled'] },
-    noticed: 'Priya wrote about this on 2 Oct too. That ticket was closed after **a template reply**.',
+    noticed: 'Priya wrote about this on 2 Oct too. That ticket was closed after a **template reply**.',
     continues: 'T-0988',
     history: [
       { id: 'T-0988', on: '2 Oct', subject: 'OTP late during login', end: 'Closed after a template reply' },
@@ -187,7 +187,7 @@ export const tickets: DeskTicket[] = [
   },
   {
     id: 'T-1041', name: 'Kabir Shah', time: '09:30', subject: 'Payin from yesterday still not in my ledger',
-    type: 'Funds and payin', p: 0.58, status: 'todo', unread: true, waitingFor: '4 h',
+    type: 'Funds and payin', p: 0.58, status: 'todo', unread: true, waitingFor: '4h',
     customer: { name: 'Kabir Shah', clientId: 'EC-118340', status: ['Active'] },
     history: [{ id: 'T-0950', on: '29 Sep', subject: 'Payin delayed', end: 'Resolved after a reply' }],
     thread: [

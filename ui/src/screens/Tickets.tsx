@@ -25,7 +25,7 @@ export function Brief({ t, onClose }: { t: DeskTicket; onClose?: () => void }) {
     <MochiBrief loading={loading} mood={loading || t.reading ? 'thinking' : 'idle'}
       status={loading ? 'I’m pulling what I know…' : t.reading ? 'I’m still reading this ticket.' : 'Read when it arrived.'}
       aside={onClose && <button className="mb-x" aria-label="Close the brief" onClick={onClose}><Icon name="close" /></button>}>
-      <BriefSection label="What I noticed"><Noticed action={t.noticed ? 'Link the earlier ticket' : undefined} success="Linked">
+      <BriefSection label="What I noticed"><Noticed action={t.noticed && t.continues ? `Link #${t.continues}` : undefined} success="Linked">
         {t.noticed?.split("**").map((s, i) => (i % 2 ? <b key={i}>{s}</b> : s))}
       </Noticed></BriefSection>
       <BriefSection label="Customer" aside="E Corp back office" delay={0.08}>

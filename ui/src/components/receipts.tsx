@@ -93,33 +93,45 @@ export function NumPill(p: { query_id: string; column: string; value?: string; r
   );
 }
 
-/** The traversal as connected pills. Consecutive nodes share a row; a branch starts a new row from its parent. */
+/** The traversal as one continuous chain of pills; no node appears twice. Where the walk branches, the shorter
+ *  branch sits in a quiet group right after its node and the chain carries on from that node. */
 export function PathReceipt({ path }: { path: PathReceiptT }) {
   const byId = new Map(path.nodes.map((n) => [n.id, n]));
+  // spanning tree from the first node, children in edge order
+  const kids = new Map<string, { e: PathReceiptT['edges'][number]; to: string }[]>();
+  const queue = path.nodes.length ? [path.nodes[0].id] : [], seen = new Set(queue);
+  for (let i = 0; i < queue.length; i++) {
+    for (const e of path.edges) {
+      const to = e.from === queue[i] ? e.to : e.to === queue[i] ? e.from : null;
+      if (!to || seen.has(to) || !byId.has(to)) continue;
+      seen.add(to); queue.push(to);
+      kids.set(queue[i], [...(kids.get(queue[i]) ?? []), { e, to }]);
+    }
+  }
+  const depth = (id: string): number => Math.max(0, ...(kids.get(id) ?? []).map((k) => 1 + depth(k.to)));
   let seq = 0; // pills and edges draw left to right, 60 ms apart
   const d = () => ({ animationDelay: `${seq++ * 60}ms` });
-  const node = (id: string) => { const n = byId.get(id)!; return <span className="mb-node" style={d()} key={`n${id}${seq}`}><span className="mono">{n.label}</span>{n.name}</span>; };
-  const rows: ReactNode[][] = [];
-  path.nodes.forEach((n, k) => {
-    if (k === 0) { rows.push([node(n.id)]); return; }
-    const prev = path.nodes[k - 1].id;
-    const link = (j: string) => path.edges.find((e) => (e.from === j && e.to === n.id) || (e.to === j && e.from === n.id));
-    let e = link(prev), from = prev;
-    if (!e) { const earlier = path.nodes.slice(0, k).reverse().find((m) => link(m.id)); if (earlier) { e = link(earlier.id); from = earlier.id; } }
-    if (!e) { rows.push([node(n.id)]); return; }
-    if (from !== prev) rows.push([node(from)]);
-    const fwd = e.from === from;
-    // an edge and the node it reaches wrap together, so no arrow dangles at a line end
-    rows[rows.length - 1].push(
-      <span className="mb-hop" key={`h${k}`}>
-        <span className="mb-edge mb-edge-draw" style={d()} aria-label={`${fwd ? '' : 'reverse '}${e.type}`}>{fwd ? '→' : '←'} {e.type} {fwd ? '→' : '←'}</span>
-        {node(n.id)}
-      </span>);
-  });
+  const node = (id: string) => { const n = byId.get(id)!; return <span className="mb-node" style={d()} key={`n${id}`}><span className="mono">{n.label}</span>{n.name}</span>; };
+  const after = (id: string): ReactNode[] => {
+    const ks = [...(kids.get(id) ?? [])].sort((a, b) => depth(a.to) - depth(b.to)); // the deepest branch carries the chain
+    return ks.flatMap((k, i) => {
+      const fwd = k.e.from === id;
+      // an edge and the node it reaches wrap together, so no arrow dangles at a line end
+      const hop = [
+        <span className="mb-hop" key={`h${k.to}`}>
+          <span className="mb-edge mb-edge-draw" style={d()} aria-label={`${fwd ? '' : 'reverse '}${k.e.type}`}>{fwd ? '→' : '←'} {k.e.type} {fwd ? '→' : '←'}</span>
+          {node(k.to)}
+        </span>,
+        ...after(k.to)];
+      return i < ks.length - 1 ? [<span className="mb-path-side" key={`s${k.to}`}>{hop}</span>] : hop;
+    });
+  };
+  const start = path.nodes[0]?.id;
+  const loose = path.nodes.filter((n) => !seen.has(n.id)).map((n) => node(n.id));
   return (
     <div className="mb-path">
       <div className="mb-block-head"><span className="mb-block-label">The path I walked</span><QueryTag qid={path.query_id} /></div>
-      {rows.map((r, i) => <div className="mb-path-row" key={i}>{r}</div>)}
+      <div className="mb-path-row">{start && [node(start), ...after(start)]}{loose}</div>
     </div>
   );
 }

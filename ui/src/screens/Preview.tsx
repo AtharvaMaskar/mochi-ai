@@ -163,14 +163,14 @@ export function Preview() {
       </Sec>
 
       <Sec title="TicketThread">
-        <div style={{ maxWidth: 640 }}><TicketThread messages={tickets[0].thread} waitingFor="3 h" /></div>
+        <div style={{ maxWidth: 640 }}><TicketThread messages={tickets[0].thread} waitingFor="3h" /></div>
         <div style={{ maxWidth: 640 }}><TicketThread collapseAfter={3} messages={[...tickets[1].thread, ...tickets[0].thread, ...tickets[4].thread]} /></div>
       </Sec>
 
       <Sec title="MochiBrief, Noticed, CustomerHeader, CustomerHistory">
         <div className="mb-prev-box" style={{ maxWidth: 380 }}>
           <MochiBrief status="Read when it arrived.">
-            <BriefSection label="What I noticed"><Noticed action="Link the earlier ticket" success="Linked">Priya wrote about this on 2 Oct too. That ticket closed after <b>a template reply</b>.</Noticed></BriefSection>
+            <BriefSection label="What I noticed"><Noticed action="Link #T-0988" success="Linked">Priya wrote about this on 2 Oct too. That ticket closed after a <b>template reply</b>.</Noticed></BriefSection>
             <BriefSection label="Nothing noticed"><Noticed /></BriefSection>
             <BriefSection label="Customer" did={['Looked up the client in the back office']}>
               <CustomerHeader name="Priya Raman" clientId="EC-204817" status={['Active', 'F&O enabled']} source="Back office" age="2 min ago" />

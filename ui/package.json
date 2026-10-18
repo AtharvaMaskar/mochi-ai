@@ -9,7 +9,7 @@
     "dev": "vite",
     "build": "vite build",
     "test": "node --test \"fixtures/*.test.ts\"",
-    "check": "node check-tokens.ts && tsc -p . && vite build && node --test \"fixtures/*.test.ts\""
+    "check": "node check-tokens.ts && node ../contracts/type-lint.ts src && tsc -p . && vite build && node --test \"fixtures/*.test.ts\""
   },
   "dependencies": {
     "@mochi/contracts": "*",
