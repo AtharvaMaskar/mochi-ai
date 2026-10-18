@@ -38,7 +38,7 @@ COPY mochi-brain-blog.html story-skill.md ./
 COPY --from=build /srv/landing/dist landing/dist
 COPY --from=build /srv/ui/dist ui/dist
 RUN mkdir -p /data
-VOLUME /data
+# /data is mounted by the host: a Railway volume, or `-v` for plain docker. No VOLUME line: Railway refuses it.
 EXPOSE 4000
 # ponytail: no supervisor; if the sim or listener dies it stays down until the container restarts.
 CMD ["sh", "-c", "node sim/server.ts & node gen/listen.ts & exec node agent/server.ts"]
