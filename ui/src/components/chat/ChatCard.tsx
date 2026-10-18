@@ -1,18 +1,14 @@
-// A tool card in the chat stream. Exploration cards (graph queries, algorithms) arrive folded to one line: what Mochi
-// looked up, how many rows, and its receipt. The answer is the prose and tags below them; the rows are one click away.
-// Named tool cards (briefing, who knows, likely cause, ...) are answers themselves and open as before.
+// A tool card in the chat stream arrives folded to one line: what kind of lookup, its title, how many rows, and its
+// receipts. Mochi's answer is the prose below the cards; the rows are one click away.
 import { useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 import type { ToolCard as Card } from '@mochi/contracts';
-import { ToolCard } from '../blocks.tsx';
+import { KIND, ToolCard } from '../blocks.tsx';
 import { QueryTag, ReceiptProvider } from '../receipts.tsx';
 
-const FOLDED: Partial<Record<Card['kind'], string>> = { query: 'Graph query', algorithm: 'Graph algorithm' };
-
 export function ChatCard({ card }: { card: Card }) {
-  const kind = FOLDED[card.kind];
+  const kind = KIND[card.kind] ?? card.kind;
   const [open, setOpen] = useState(false);
-  if (!kind) return <div className="mb-chat-card"><ToolCard card={card} /></div>;
   const qids = Object.keys(card.queries);
   const rows = qids.reduce((n, q) => n + (card.queries[q]?.rows.length ?? 0), 0);
   return (

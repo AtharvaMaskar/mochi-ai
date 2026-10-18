@@ -236,7 +236,7 @@ export function BlockView({ v }: { v: Visual }) {
   }
 }
 
-const KIND: Record<ToolCardT['kind'], string> = {
+export const KIND: Record<ToolCardT['kind'], string> = {
   briefing: 'Briefing', likely_cause: 'Likely cause', who_knows: 'Who knows', clusters: 'Clusters', blast_radius: 'Blast radius', similar: 'Similar tickets',
   query: 'Graph query', algorithm: 'Graph algorithm',
 };

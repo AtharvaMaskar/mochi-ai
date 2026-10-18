@@ -17,7 +17,7 @@ export const READ_TOOL_SPECS: ReadToolSpec[] = [
   { name: 'likely_cause', description: 'The release that introduced the ticket\'s issue, if that link is still live.',
     parameters: Type.Object({ ticketId: Type.String() }), run: (db, a, t, g) => Q.likelyCause(db, a, t, g) },
   { name: 'who_knows', description: 'Agents ranked by how many tickets on this issue they solved.',
-    parameters: Type.Object({ issueId: Type.String({ description: 'Issue id (e.g. I-03) or its exact name' }) }), run: (db, a, t, g) => Q.whoKnows(db, a, t, g) },
+    parameters: Type.Object({ issueId: Type.String({ description: 'Issue id (e.g. I-03) or its exact name. If unsure, call with your best guess: a miss returns the list of issue ids.' }) }), run: (db, a, t, g) => Q.whoKnows(db, a, t, g) },
   { name: 'emerging_clusters', description: 'Ticket clusters the dream detected, ranked by growth over the window.',
     parameters: Type.Object({ days: Type.Optional(Type.Number()) }), run: (db, a, t, g) => Q.emergingClusters(db, { days: a.days ?? 7 }, t, g) },
   { name: 'blast_radius', description: 'For a release: affected customers, segments and open tickets, with the Release→Issue←Ticket←Customer path.',

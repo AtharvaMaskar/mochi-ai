@@ -323,6 +323,15 @@ RETURN a.id AS agent_id, a.name AS agent, tm.name AS team, solved, example_ticke
 ORDER BY solved DESC, agent_id LIMIT 5
 ```
 
+#### `whoKnowsIssues`
+
+```cypher
+/* mochi:who_knows.issues@v1 */
+MATCH (i:Issue) WHERE i.created_at <= $as_of
+RETURN i.id AS issue_id, i.name AS issue
+ORDER BY issue_id
+```
+
 #### `emergingClusters`
 
 ```cypher

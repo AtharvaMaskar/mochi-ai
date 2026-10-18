@@ -66,6 +66,11 @@ WITH a, i, count(s) AS solved, min(t.id) AS example_ticket
 OPTIONAL MATCH (a)-[:MEMBER_OF]->(tm:Team)
 RETURN a.id AS agent_id, a.name AS agent, tm.name AS team, solved, example_ticket, i.name AS issue
 ORDER BY solved DESC, agent_id LIMIT 5`,
+  // who_knows found nobody: is that because the issue is unsolved, or because the name matched no issue?
+  whoKnowsIssues: `/* mochi:who_knows.issues@v1 */
+MATCH (i:Issue) WHERE ${N('i')}
+RETURN i.id AS issue_id, i.name AS issue
+ORDER BY issue_id`,
   emergingClusters: `/* mochi:emerging_clusters@v1 */
 MATCH (t:Ticket)-[m:IN_CLUSTER]->(c:Cluster)
 WHERE ${E('m')} AND ${N('c')} AND ${N('t')}
@@ -266,10 +271,24 @@ export async function likelyCause(db: Db, args: { ticketId: string }, as_of: num
 export async function whoKnows(db: Db, args: { issueId: string }, as_of: number, graph: string = GRAPH.company): Promise<Result> {
   const q_1 = await runStored(db, graph, CYPHER.whoKnows, { issueId: args.issueId }, as_of);
   const top = q_1.rows[0];
+  if (!top) {
+    // Nobody, or no such issue? Say which, and hand back the issue list so the next call can use a real id.
+    const q_2 = await runStored(db, graph, CYPHER.whoKnowsIssues, {}, as_of);
+    const want = args.issueId.toLowerCase();
+    const known = q_2.rows.some((r) => String(r.issue_id).toLowerCase() === want || String(r.issue).toLowerCase() === want);
+    const queries = { q_1, q_2 };
+    const card: ToolCard = {
+      kind: 'who_knows',
+      title: known ? `Nobody has solved ${args.issueId} yet` : `I couldn't find an issue called "${args.issueId}". Use one of these ids.`,
+      queries, path: null,
+      blocks: known ? [] : [{ type: 'table', query_id: 'q_2', label: 'Known issues', columns: ['issue_id', 'issue'] }],
+    };
+    return { card, queries };
+  }
   const queries = { q_1 };
   const card: ToolCard = {
     kind: 'who_knows',
-    title: top ? `Who knows ${str(top.issue)}` : `Nobody has solved ${args.issueId} yet`,
+    title: `Who knows ${str(top.issue)}`,
     queries,
     path: top ? {
       query_id: 'q_1',
