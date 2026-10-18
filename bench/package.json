@@ -2,6 +2,13 @@
   "name": "@mochi/bench",
   "private": true,
   "type": "module",
-  "scripts": { "check": "node -e 0" },
-  "dependencies": { "@mochi/contracts": "*" }
+  "scripts": {
+    "bench": "node run.ts",
+    "check": "tsc -p . && node --test"
+  },
+  "dependencies": {
+    "@earendil-works/pi-ai": "1.3.0",
+    "@mochi/contracts": "*",
+    "falkordb": "^6.8.0"
+  }
 }
