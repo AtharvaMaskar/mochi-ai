@@ -37,6 +37,10 @@ export function Button(p: BtnProps) {
     ? <a ref={ref as RefObject<HTMLAnchorElement>} className={`${cls} t-label`} href={p.href} onPointerDown={down} onClick={click} aria-label={p.label}>{body}</a>
     : <button ref={ref as RefObject<HTMLButtonElement>} type={p.type ?? 'button'} className={`${cls} t-label`} onPointerDown={down} onClick={click} aria-label={p.label}>{body}</button>;
 }
+/** A Lucide icon from its path data (16px, 1.5 stroke, currentColor); decorative unless labelled. */
+export const Ico = ({ d }: { d: string[] }) => (
+  <svg className="ico" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">{d.map((x) => <path key={x} d={x} />)}</svg>
+);
 export const Check = () => <svg className="check" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5" /></svg>;
 
 // ---------- rolling number ----------

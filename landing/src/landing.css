@@ -17,7 +17,7 @@ button, input { font: inherit; color: inherit; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .defs { position: absolute; width: 0; height: 0; }
 .wrap { padding: 0 var(--edge); }
-.nav, main, .foot-board { position: relative; z-index: 1; }
+main, .site-foot { position: relative; z-index: 1; }
 [data-inview="false"] *, [data-inview="false"] *::before, [data-inview="false"] *::after { animation-play-state: paused !important; }
 
 /* ---------- the sky (landing exception) ---------- */
@@ -96,21 +96,41 @@ button, input { font: inherit; color: inherit; }
 }
 
 /* ---------- nav ---------- */
-.nav { height: 68px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: var(--space-6); padding: 0 var(--edge); border-bottom: 1px solid var(--line); color: var(--fg); }
+/* Resizable navbar (aceternity.md §9): quiet and full width at the top; past 80px a centred floating pill.
+   The pill's surface is --fg-inv, so it turns dark with the sky and its --fg text stays legible at every hour. */
+.nav { position: sticky; top: 0; z-index: 20; height: 68px; padding: 0 var(--edge); color: var(--fg); }
+.nav-body { position: relative; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: var(--space-6); height: 68px; max-width: 100%; margin: 0 auto; padding: 0;
+  border: 1px solid transparent; border-bottom-color: var(--line); border-radius: 0; background: transparent;
+  transition: max-width .7s var(--ease-spring), height .4s var(--ease-out), padding .4s var(--ease-out), transform .4s var(--ease-out), border-radius .4s var(--ease-out), background-color .3s, border-color .3s, box-shadow .3s, backdrop-filter .3s; }
+.nav[data-pill] .nav-body { max-width: 860px; height: 52px; padding: 0 var(--space-2) 0 var(--space-4); transform: translateY(6px); border-radius: var(--radius-pill);
+  border-color: var(--line); background: color-mix(in srgb, var(--fg-inv) 90%, transparent); backdrop-filter: blur(12px); box-shadow: var(--shadow-layer); }
 .brand { display: inline-flex; align-items: baseline; gap: 6px; text-decoration: none; color: var(--fg); justify-self: start; }
 .brand .mb-mochi { align-self: center; margin-right: 4px; }
 .wm { line-height: 1; }
 /* Small Mochis on a near-white sky: give the xs body its edge and a crisper core so it never reads as a blur. */
 .brand .mb-mochi-xs .mb-mochi-body, .brand-s .mb-mochi-xs .mb-mochi-body, .hint .mb-mochi-xs .mb-mochi-body { box-shadow: var(--shadow-mochi), inset 0 0 0 0.5px var(--border-strong); }
 .brand .mb-mochi-xs .mb-mochi-core, .brand-s .mb-mochi-xs .mb-mochi-core, .hint .mb-mochi-xs .mb-mochi-core { filter: blur(1.2px); }
-.nav-links { display: flex; gap: 40px; }
+.nav-links { display: flex; gap: 40px; transition: gap .4s var(--ease-out); }
+.nav[data-pill] .nav-links { gap: var(--space-6); }
 .nav-links a { position: relative; text-decoration: none; padding: 4px 0; color: var(--fg-2); transition: color .15s; }
 .nav-links a:hover { color: var(--fg); }
-.nav-end { justify-self: end; display: flex; align-items: center; gap: var(--space-6); }
-.nav-end .tlink { color: var(--fg-2); }
+.nav-end { justify-self: end; display: flex; align-items: center; gap: var(--space-3); }
+.ico { fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.nav-icon { display: inline-grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--fg-2); cursor: pointer; transition: color .15s, background-color .15s, transform .26s var(--ease-spring); }
+.nav-icon:hover { color: var(--fg); background: color-mix(in srgb, var(--fg) 8%, transparent); }
+.nav-icon:active { transform: scale(.92); transition-duration: .06s; }
+.nav-menu { display: none; }
 .nav .key-primary, .hero .key-primary { background: var(--fg); border-color: var(--fg); color: var(--fg-inv); }
-@media (max-width: 899px) { .nav-links { display: none; } .nav { grid-template-columns: 1fr auto; } }
-@media (max-width: 479px) { .nav-end .tlink { display: none; } }
+.nav-sheet { position: absolute; left: var(--edge); right: var(--edge); top: 64px; display: grid; gap: var(--space-1); padding: var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-lg);
+  background: var(--fg-inv); box-shadow: var(--shadow-layer); animation: rise .24s var(--ease-out); }
+.nav-sheet[hidden] { display: none; }
+.nav-sheet a { padding: var(--space-3) var(--space-3); border-radius: var(--radius-sm); text-decoration: none; color: var(--fg); }
+.nav-sheet a:hover, .nav-sheet a:focus-visible { background: color-mix(in srgb, var(--fg) 8%, transparent); }
+@media (max-width: 899px) { .nav-links { display: none; } .nav-body { grid-template-columns: 1fr auto; } .nav-menu { display: inline-grid; } }
+@media (max-width: 767px) { .nav[data-pill] { padding: 0 var(--space-2); } }
+@media (min-width: 900px) { .nav-sheet { display: none; } }
+@media (max-width: 479px) { .nav .nav-end > .nav-icon:first-child { display: none; } }
+@media (prefers-reduced-motion: reduce) { .nav-body, .nav-links { transition-duration: .01s; } .nav-sheet { animation: none; } }
 
 /* ---------- hero: text on the edge, the desk on a diagonal → flat, pinned, live ---------- */
 .hero { position: relative; }
