@@ -49,16 +49,24 @@ test('POST /api/dream/run answers 503 without agent/dream/', async () => {
   assert.match(await r.text(), /dream not installed/);
 });
 
-test('POST /api/dream/run calls runDreamNow with the writer when the dream is present', async () => {
-  const dream = (await loadDream('./__test__/dream-double.ts'))!;
+test('POST /api/dream/run runs the real dream; its morning report is served by GET /api/stories/:id', { timeout: 60_000 }, async () => {
+  const dream = (await loadDream())!;
   const s2 = await startServer(t.pi, { dream });
   try {
-    const r = await fetch(`http://localhost:${s2.port}/api/dream/run?asOf=123`, { method: 'POST' });
+    const asOf = T0 + 45 * DAY;
+    const r = await fetch(`http://localhost:${s2.port}/api/dream/run?asOf=${asOf}`, { method: 'POST' });
     assert.equal(r.status, 200);
-    const { calls } = (await import('./__test__/dream-double.ts')) as { calls: Record<string, unknown>[] };
-    assert.equal(calls.at(-1)!.as_of, 123);
-    assert.ok(calls.at(-1)!.db && typeof calls.at(-1)!.commitStory === 'function');
-  } finally { await s2.close(); }
+    const report = await r.json() as { story_id: string; as_of: number; story_errors: string[] };
+    assert.equal(report.as_of, asOf);
+    assert.deepEqual(report.story_errors, []);
+    const g = await fetch(`http://localhost:${s2.port}/api/stories/${report.story_id}`);
+    assert.equal(g.status, 200);
+    const { story } = await g.json() as { story: { id: string; version: number; generated_by: string; topic: string } };
+    assert.deepEqual([story.id, story.version, story.generated_by, story.topic], [report.story_id, 1, 'dream', 'morning_report']);
+  } finally {
+    await s2.close();
+    for (const x of ['_prev', '_scratch']) await db.selectGraph(G + x).delete().catch(() => {});
+  }
 });
 
 test('GET /api/stories/:id[@n]?asOf re-runs stored queries and returns as_of', async () => {

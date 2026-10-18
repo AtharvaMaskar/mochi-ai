@@ -1,9 +1,10 @@
-// Arm D: the graph. Each question is routed to agent/queries; the prompt holds only query rows and the path.
+// Arm D: the graph. The answer model calls agent-core's read tools; the prompt holds only query rows and the path.
+import type { AssistantMessage, Message, Tool, ToolCall } from '@earendil-works/pi-ai';
 import { GRAPH, type EvalQuestion } from '@mochi/contracts';
-import { applyEvent, loadDataset, queries, runDreamNow, type Db, type QueryResult } from '../deps.ts';
+import { applyEvent, loadDataset, READ_TOOL_SPECS, runDreamNow, type Db, type QueryResult } from '../deps.ts';
 import { UNINGEST } from '../cypher.ts';
-import { ZERO, type Usage } from '../llm.ts';
-import { ANSWER_SYSTEM, ask, timed, type Arm, type Ctx } from './index.ts';
+import { add, ZERO, type Usage } from '../llm.ts';
+import { ANSWER_SYSTEM, timed, type Arm, type Ctx } from './index.ts';
 
 /** A db whose selectGraph(mochi_company) lands on bench's own graph, so the brain is never touched. */
 export const remap = (db: Db, to: string): Db => ({ selectGraph: (name: string) => db.selectGraph(name === GRAPH.company ? to : name) });
@@ -18,63 +19,74 @@ export function render(results: QueryResult[]): string {
   }).join('\n\n');
 }
 
-/** Dream token usage carries no cost field; price it from the catalog so the --max-usd guard sees it. */
-export function dreamUsage(ctx: Ctx, steps: { input: number; output: number }[]): Usage {
-  const p = ctx.llm.model().cost;
-  return steps.reduce<Usage>((u, s) => ({ input: u.input + s.input, output: u.output + s.output, cost: u.cost + (s.input * p.input + s.output * p.output) / 1e6 }), ZERO);
+/**
+ * The world as the product has it: the seed load, then one dream pass that LLM-ingests the demo day (the loader
+ * leaves those tickets without ABOUT). Events are withheld; main and staleness replay them. Skipped if it exists.
+ */
+export async function ensureWorld(ctx: Ctx, graph = ctx.names.world, fresh = false) {
+  if (!fresh && (await ctx.db.list()).includes(graph)) return;
+  await loadDataset(ctx.dataset, ctx.db, { graph, fresh: true });
+  const graphs = { company: graph, prev: `${graph}_prev`, scratch: `${graph}_scratch` };
+  await runDreamNow({ db: ctx.db, llm: ctx.llm, caller: 'world_dream', graphs });
+  for (const g of [graphs.prev, graphs.scratch]) await ctx.db.selectGraph(g).delete().catch(() => {});
 }
 
-/** Loads the seed world graph unless it already exists (events only touch temporal edges). */
-export async function ensureWorld(ctx: Ctx) {
-  if (!(await ctx.db.list()).includes(ctx.names.world)) await loadDataset(ctx.dataset, ctx.db, { graph: ctx.names.world, fresh: true });
-}
+const TOOL_SYSTEM = `${ANSWER_SYSTEM} Look the answer up in the company graph with the tools first; ids in the question name what to look up.`;
+const ROUNDS = 3;
 
-export function armD(ctx: Ctx, o: { ingest?: boolean; graph?: string } = {}): Arm & { route(q: EvalQuestion): Promise<QueryResult[]> } {
+const textOf = (m: AssistantMessage) => m.content.flatMap((c) => (c.type === 'text' ? [c.text] : [])).join('').trim();
+
+export function armD(ctx: Ctx, o: { ingest?: boolean; graph?: string } = {}): Arm & { tools(q: EvalQuestion): Promise<{ answer: string; usage: Usage; retrieval_ms: number; calls: string[] }> } {
   const n = ctx.names, d = ctx.dataset, world = o.graph ?? n.world;
   const db = remap(ctx.db, world);
   const asOf = () => Math.max(Date.now(), d.generated_at);
-  const ids = (xs: { id: string }[]) => new Set(xs.map((x) => x.id));
-  const tickets = ids(d.tickets), issues = ids(d.issues), customers = ids(d.customers);
-  const versions = new Set(d.releases.map((r) => r.version));
+  const specs = new Map<string, (typeof READ_TOOL_SPECS)[number]>(READ_TOOL_SPECS.map((s) => [s.name, s]));
+  const tools: Tool[] = READ_TOOL_SPECS.map(({ name, description, parameters }) => ({ name, description, parameters }));
 
-  // ponytail: deterministic id routing, no LLM tool-picking. Upgrade to an LLM router if eval
-  // questions stop naming the entity they ask about.
-  async function route(q: EvalQuestion): Promise<QueryResult[]> {
-    const found = q.question.match(/\b[A-Z]{1,4}-\d+\b|\b\d+\.\d+\.\d+\b/g) ?? [];
-    const t = asOf(), calls: Promise<QueryResult>[] = [];
-    for (const id of new Set(found)) {
-      if (tickets.has(id)) calls.push(queries.briefing(db, { ticketId: id }, t), queries.likelyCause(db, { ticketId: id }, t));
-      else if (issues.has(id)) calls.push(queries.whoKnows(db, { issueId: id }, t));
-      else if (versions.has(id)) calls.push(queries.blastRadius(db, { version: id }, t));
-      else if (customers.has(id)) {
-        // A customer has no query of its own; brief their latest ticket (routing only, nothing enters the prompt).
-        const last = d.tickets.filter((x) => x.customer_id === id).sort((a, b) => b.created_at - a.created_at)[0];
-        if (last) calls.push(queries.briefing(db, { ticketId: last.id }, t));
+  // pi-ai tool calling over the same six read tools agent-core exposes; every round's tokens are counted.
+  async function loop(q: EvalQuestion) {
+    const messages: Message[] = [{ role: 'user', content: q.question, timestamp: Date.now() }];
+    let usage = ZERO, retrieval_ms = 0;
+    const calls: string[] = [];
+    for (let round = 0; ; round++) {
+      const last = round === ROUNDS; // the final round offers no tools, so the model must answer
+      const r = await ctx.llm.turn('arm_d', { systemPrompt: TOOL_SYSTEM, messages, ...(last ? {} : { tools }) });
+      usage = add(usage, r.usage);
+      messages.push(r.msg);
+      const wanted = r.msg.content.filter((c): c is ToolCall => c.type === 'toolCall');
+      if (!wanted.length || last) return { answer: textOf(r.msg), usage, retrieval_ms, calls };
+      for (const c of wanted) {
+        const spec = specs.get(c.name);
+        calls.push(`${c.name}(${JSON.stringify(c.arguments)})`);
+        let isError = false;
+        const [out, ms] = await timed(async () => {
+          try { return spec ? render([await spec.run(db, c.arguments, asOf(), GRAPH.company)]) : `unknown tool ${c.name}`; }
+          catch (e) { isError = true; return `error: ${(e as Error).message}`; }
+        });
+        retrieval_ms += ms;
+        messages.push({ role: 'toolResult', toolCallId: c.id, toolName: c.name, content: [{ type: 'text', text: out }], isError, timestamp: Date.now() } as Message);
       }
     }
-    if (!calls.length) calls.push(queries.emergingClusters(db, { days: 7 }, t), queries.searchSimilar(db, { text: q.question, k: 5 }, t));
-    return Promise.all(calls);
   }
 
   return {
     arch: 'D',
-    route,
+    tools: loop,
     async prepare() {
-      await loadDataset(d, ctx.db, { graph: world, fresh: true });
+      await ensureWorld(ctx, world, true);
       if (o.ingest === false) return ZERO;
-      // Ingestion cost: the dream's LLM extraction over every ticket, on a throwaway copy.
+      // Ingestion cost (SPEC §3): the dream's LLM extraction over every ticket, on a throwaway copy.
       await loadDataset(d, ctx.db, { graph: n.ingest, fresh: true });
       await ctx.db.selectGraph(n.ingest).query(UNINGEST);
-      const report = await runDreamNow({ db: ctx.db, model: ctx.llm.model(), graphs: { company: n.ingest, prev: n.ingestPrev, scratch: n.ingestScratch } });
+      const before = ctx.llm.byCaller.arm_d_dream ?? ZERO;
+      await runDreamNow({ db: ctx.db, llm: ctx.llm, caller: 'arm_d_dream', graphs: { company: n.ingest, prev: n.ingestPrev, scratch: n.ingestScratch } });
       for (const g of [n.ingest, n.ingestPrev, n.ingestScratch]) await ctx.db.selectGraph(g).delete().catch(() => {});
-      const u = dreamUsage(ctx, report.usage);
-      ctx.llm.record('arm_d_dream', u);
-      return u;
+      const after = ctx.llm.byCaller.arm_d_dream ?? ZERO;
+      return { input: after.input - before.input, output: after.output - before.output, cost: after.cost - before.cost };
     },
     async answer(q) {
-      const [results, retrieval_ms] = await timed(() => route(q));
-      const r = await ctx.llm.complete('arm_d', ask(render(results), q), { system: ANSWER_SYSTEM });
-      return { answer: r.text, usage: r.usage, retrieval_ms };
+      const r = await loop(q);
+      return { answer: r.answer, usage: r.usage, retrieval_ms: r.retrieval_ms };
     },
     async apply(e) {
       const [, ms] = await timed(() => applyEvent(e, ctx.db.selectGraph(world), e.at));

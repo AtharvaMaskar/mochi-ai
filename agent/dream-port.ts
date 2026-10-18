@@ -1,10 +1,10 @@
 // The only way agent-core reaches agent/dream/ (owned by the add-dream change). The specifier is a variable, so tsc
 // never resolves it and the agent builds and runs without the dream installed.
-import type { AnyTask, PromptSection } from '@earendil-works/pi-durable';
+import type { AnyTask } from '@earendil-works/pi-durable';
 
 export type DreamModule = {
   DreamTask?: AnyTask;
-  morningSection?: PromptSection;
+  useDb?(f: () => Promise<unknown>): void;
   runDreamNow(args: Record<string, unknown>): Promise<Record<string, unknown>>;
 };
 

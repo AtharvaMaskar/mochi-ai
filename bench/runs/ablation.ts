@@ -3,7 +3,7 @@
 import type { Eval, PlantedMismatch, Results } from '@mochi/contracts';
 import { loadDataset, runDreamNow, runMismatchRules, type MismatchEdge } from '../deps.ts';
 import { corpus, type Ctx } from '../arms/index.ts';
-import { dreamUsage } from '../arms/d.ts';
+import { ZERO } from '../llm.ts';
 
 type Finding = { kind: 'contradicts' | 'undocumented'; kb_id: string | null; area: string };
 
@@ -29,9 +29,10 @@ export async function runAblation(ctx: Ctx, ev: Eval): Promise<Pick<Results, 'mi
   const n = ctx.names, graphs = { company: n.ablation, prev: n.ablationPrev, scratch: n.ablationScratch };
   // The rules read ObservedPatterns, which the dream's practice step writes: one dream pass on a fresh load first.
   await loadDataset(ctx.dataset, ctx.db, { graph: n.ablation, fresh: true });
-  const report = await runDreamNow({ db: ctx.db, model: ctx.llm.model(), graphs });
-  const spent = dreamUsage(ctx, report.usage);
-  ctx.llm.record('ablation_dream', spent);
+  const before = ctx.llm.byCaller.ablation_dream ?? ZERO;
+  await runDreamNow({ db: ctx.db, llm: ctx.llm, caller: 'ablation_dream', graphs });
+  const after = ctx.llm.byCaller.ablation_dream ?? ZERO;
+  const spent = { input: after.input - before.input, output: after.output - before.output };
   const edges: MismatchEdge[] = await runMismatchRules(ctx.db, graphs);
   for (const g of Object.values(graphs)) await ctx.db.selectGraph(g).delete().catch(() => {});
   // Rules use no LLM; the tokens are that dream pass's, so the graph side is not shown as free.

@@ -23,6 +23,8 @@ export type Pattern = {
 export const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 export const hash = (s: string) => createHash('sha256').update(s).digest('hex').slice(0, 10);
 export const runIdOf = (as_of: number) => as_of.toString(36);
+/** Provider input tokens including prompt-cache reads and writes (Anthropic reports those apart from `input`). */
+export const inputTokens = (u: { input: number; cacheRead?: number; cacheWrite?: number }) => u.input + (u.cacheRead ?? 0) + (u.cacheWrite ?? 0);
 
 export function median(xs: number[]): number {
   const s = [...xs].sort((a, b) => a - b), m = s.length >> 1;

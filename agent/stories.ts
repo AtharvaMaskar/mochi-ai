@@ -11,18 +11,20 @@ type Reader = { snapshot(token: typeof StoryDoc, context: typeof ctx): Promise<R
 
 export type Draft = Omit<Story, 'id' | 'version'> & { id?: string };
 
-/** Commit a new version (or a new story when `id` is absent). Nothing is stored unless parseStory passes. */
-export async function commitStory(on: Committer, draft: Draft): Promise<{ ok: true; story: Story } | { ok: false; errors: string[] }> {
+/** Append a version inside an open Pi transaction (the one StoryDoc writer). Nothing is stored unless parseStory passes. */
+export async function appendStory(tx: Pick<Tx, 'doc'>, draft: Draft): Promise<{ ok: true; story: Story } | { ok: false; errors: string[] }> {
   const id = draft.id ?? newStoryId();
-  return on.commit(async (tx) => {
-    const doc = await tx.doc(StoryDoc);
-    const versions = doc.stories[id] ?? [];
-    const story = { ...draft, id, version: versions.length + 1 } as Story;
-    const parsed = parseStory(story);
-    if (!parsed.ok) return parsed;
-    doc.stories[id] = [...versions, structuredClone(parsed.story) as JsonObject];
-    return { ok: true as const, story: parsed.story };
-  }, ctx);
+  const doc = await tx.doc(StoryDoc);
+  const versions = doc.stories[id] ?? [];
+  const parsed = parseStory({ ...draft, id, version: versions.length + 1 } as Story);
+  if (!parsed.ok) return parsed;
+  doc.stories[id] = [...versions, structuredClone(parsed.story) as JsonObject];
+  return { ok: true as const, story: parsed.story };
+}
+
+/** Commit a new version (or a new story when `id` is absent). */
+export function commitStory(on: Committer, draft: Draft) {
+  return on.commit((tx) => appendStory(tx, draft), ctx);
 }
 
 /** Version `n` (1-based), or the latest. */

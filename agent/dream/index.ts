@@ -4,14 +4,14 @@
 import { readFileSync } from 'node:fs';
 import { createModels } from '@earendil-works/pi-ai/models';
 import { anthropicProvider } from '@earendil-works/pi-ai/providers/anthropic';
-import { defineTask, section } from '@earendil-works/pi-durable';
+import { defineTask } from '@earendil-works/pi-durable';
 import { GRAPH, validateDataset, type ContradictionEvent, type Story } from '@mochi/contracts';
 import { applyEvent } from '@mochi/gen';
-import { StoryDoc } from '../story-doc.ts';
+import { appendStory } from '../stories.ts';
 import { Q } from './cypher.ts';
 import { ingest, type Hook, type Memo } from './ingest.ts';
-import { buildReport, summarize } from './report.ts';
-import { hash, norm, rows, runIdOf, runMismatchRules, writeSuggestions, type MismatchEdge } from './rules.ts';
+import { buildReport } from './report.ts';
+import { hash, inputTokens, norm, rows, runIdOf, runMismatchRules, writeSuggestions, type MismatchEdge } from './rules.ts';
 import type { Db, DreamGraphs, DreamModel, DreamReport, StepUsage } from './types.ts';
 
 export type { DreamReport, DreamGraphs, DreamModel } from './types.ts';
@@ -46,7 +46,13 @@ export type RunOptions = {
   memo?: Memo;
   /** Called between steps (tests count, crash tests throw). */
   onStep?: Hook;
+  /** agent-core's commitStory: the report lands in StoryDoc, served by GET /api/stories/:id and the WebSocket. */
+  commitStory?: (story: Story) => Promise<unknown>;
 };
+
+// DreamTask's connection. Task input is JSON, so the harness injects its writer here (default: agent/db.ts mochi_dream).
+let dbOf: () => Promise<Db> = async () => (await import('../db.ts')).writer();
+export function useDb(f: () => Promise<Db>) { dbOf = f; }
 
 export async function runDreamNow(opts: RunOptions): Promise<DreamReport> {
   const t0 = Date.now();
@@ -56,6 +62,7 @@ export async function runDreamNow(opts: RunOptions): Promise<DreamReport> {
   const graphs: DreamGraphs = { ...DEFAULT_GRAPHS, ...opts.graphs };
   const company = db.selectGraph(graphs.company);
   const llm = typeof opts.model === 'object' ? opts.model : resolveModel(opts.model);
+  if (!llm.models?.complete) throw new Error('runDreamNow: model must be a DreamModel {models, model}');
   const memo: Memo = opts.memo ?? ((_k, f) => f());
   const hook: Hook = opts.onStep ?? (() => {});
   const extract: StepUsage = { input: 0, output: 0, calls: 0 }, suggest: StepUsage = { input: 0, output: 0, calls: 0 };
@@ -92,7 +99,7 @@ export async function runDreamNow(opts: RunOptions): Promise<DreamReport> {
       systemPrompt: 'You write two plain sentences for a support lead about a mismatch between company doctrine and practice. No numbers, no markdown, no lists.',
       messages: [{ role: 'user', content: JSON.stringify(proseFacts(e)), timestamp: Date.now() }],
     }, { maxTokens: 160, thinkingEnabled: false } as any); // two sentences; no extended thinking
-    suggest.input += msg.usage.input; suggest.output += msg.usage.output; suggest.calls++;
+    suggest.input += inputTokens(msg.usage); suggest.output += msg.usage.output; suggest.calls++;
     const text = msg.content.flatMap((c) => (c.type === 'text' ? [c.text] : [])).join(' ').trim();
     return msg.stopReason === 'error' || !text ? null : text;
   });
@@ -104,6 +111,7 @@ export async function runDreamNow(opts: RunOptions): Promise<DreamReport> {
 
   // 8 · morning report
   const { story, errors } = await buildReport(db, graphs.company, as_of, sugg);
+  if (story && opts.commitStory) await opts.commitStory(story);
   await hook('report');
 
   return {
@@ -171,28 +179,7 @@ async function commitDoctrine(db: Db, company: string, teams: string[], as_of: n
   return [...new Set(ids)];
 }
 
-// ── Story commit, prompt section, background task ─────────────────────────────────────────────
-
-/** Append a story version to agent-core's StoryDoc (id → versions[]). Use inside a Pi commit. */
-export async function commitStory(tx: { doc: (token: typeof StoryDoc) => Promise<any> }, story: Story) {
-  const doc = await tx.doc(StoryDoc);
-  const versions: Story[] = doc[story.id] ?? [];
-  doc[story.id] = [...versions, { ...story, version: versions.length + 1 }];
-}
-
-export function latestMorningReport(doc: Readonly<Record<string, readonly Story[]>> | undefined): Story | undefined {
-  let best: Story | undefined;
-  for (const versions of Object.values(doc ?? {})) {
-    const s = versions.at(-1);
-    if (s?.generated_by === 'dream' && s.topic === 'morning_report' && (!best || s.generated_at > best.generated_at)) best = s;
-  }
-  return best;
-}
-
-export const morningSection = section('morning_report', async (input: any, ctx) => {
-  const s = latestMorningReport(await input.read.snapshot(StoryDoc, ctx));
-  return s && summarize(s);
-});
+// ── Background task ─────────────────────────────────────────────────────────────────────────
 
 type Summary = { run_id: string; as_of: number; story_id: string | null; retired: number; ingested: number; suggestions: number; errors: string[] };
 type DreamInput = { every?: number; first?: number; graphs?: Partial<DreamGraphs>; model?: { provider: string; id: string } };
@@ -216,9 +203,8 @@ export const DreamTask = defineTask<DreamInput, DreamState, null>({
       const m = task.input.model ?? { provider: 'anthropic', id: process.env.MOCHI_MODEL ?? 'claude-haiku-5-5' };
       const model = rt.models.getModel(m.provider, m.id);
       if (!model) throw new Error(`unknown model ${m.provider}/${m.id}`);
-      const { writer } = await import('../db.ts');
       const report = await runDreamNow({
-        db: await writer(), as_of, graphs: task.input.graphs, model: { models: rt.models, model },
+        db: await dbOf(), as_of, graphs: task.input.graphs, model: { models: rt.models, model },
         memo: async (key, compute) => {
           const hit = await rt.memo<any>(key, ctx);
           return hit !== undefined ? hit : rt.memo<any>(key, (await compute()) as any, ctx);
@@ -227,7 +213,7 @@ export const DreamTask = defineTask<DreamInput, DreamState, null>({
       const last: Summary = { run_id: report.run_id, as_of, story_id: report.story_id, retired: report.retired,
         ingested: report.ingested, suggestions: report.suggestions.length, errors: report.story_errors };
       await rt.commit(async (tx) => {
-        if (report.story) await commitStory(tx as any, report.story);
+        if (report.story) await appendStory(tx, report.story);
         return { status: 'running', checkpoint: { phase: 'wait', next: rt.now() + everyOf(task.input), last } };
       }, ctx);
     },

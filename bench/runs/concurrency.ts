@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import type { Results } from '@mochi/contracts';
 import { applyEvent, queries, runDreamNow } from '../deps.ts';
 import { LIVE_PLANS, PER_USER_WRITE, TORN_BATCHES, UNINGEST } from '../cypher.ts';
-import { remap, dreamUsage, ensureWorld } from '../arms/d.ts';
+import { remap, ensureWorld } from '../arms/d.ts';
 import type { Ctx } from '../arms/index.ts';
 import { pct } from './main.ts';
 import { connect } from '../db.ts';
@@ -65,8 +65,7 @@ export async function runConcurrency(ctx: Ctx): Promise<Pick<Results, 'concurren
       await copy(ctx, n.world, n.conc);
       await ctx.db.selectGraph(n.conc).query(UNINGEST);
       const writer = (async () => {
-        const report = await runDreamNow({ db: ctx.db, model: ctx.llm.model(), graphs: { company: n.conc, prev: n.concPrev, scratch: n.concScratch } });
-        ctx.llm.record('concurrency_dream', dreamUsage(ctx, report.usage));
+        await runDreamNow({ db: ctx.db, llm: ctx.llm, caller: 'concurrency_dream', graphs: { company: n.conc, prev: n.concPrev, scratch: n.concScratch } });
         for (const e of d.contradiction_events) await applyEvent(e, ctx.db.selectGraph(n.conc), e.at);
       })();
       const [r] = await Promise.all([readers(ctx, N, n.conc, writer, true), writer]);

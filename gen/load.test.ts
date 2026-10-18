@@ -51,6 +51,11 @@ test('exactly the demo-day tickets lack ingested_at', async () => {
   const demo = d.tickets.filter((t) => t.created_at >= now - 86_400_000).map((t) => t.id).sort();
   const r = await rows<{ id: string }>('MATCH (t:Ticket) WHERE t.ingested_at IS NULL RETURN t.id AS id ORDER BY id');
   assert.deepEqual(r.map((x) => x.id), demo);
+  const [{ n }] = await rows<{ n: number }>('MATCH (t:Ticket)-[e:ABOUT|RESOLVED_BY]->() WHERE t.ingested_at IS NULL RETURN count(e) AS n');
+  assert.equal(n, 0, 'demo-day tickets carry no extracted edges; the dream creates them');
+  // Stand-in for a perfect dream extraction, so the eval checks below compare against the JSON ground truth.
+  await g.query('UNWIND $rows AS r MATCH (t:Ticket {id: r.t}), (i:Issue {id: r.i}) MERGE (t)-[:ABOUT]->(i)',
+    { params: { rows: d.tickets.filter((t) => t.created_at >= now - 86_400_000 && t.issue_id).map((t) => ({ t: t.id, i: t.issue_id })) } as any });
 });
 
 const plain = (bucket: string, re: RegExp) => ev.questions.filter((q) => q.bucket === bucket && !q.after_event && re.test(q.question));

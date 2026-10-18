@@ -8,7 +8,7 @@
     "gen": "npm run gen -w gen",
     "load": "npm run load -w gen",
     "dream": "npm run dream -w agent",
-    "bench": "npm run bench -w bench",
+    "bench": "npm run bench -w bench --",
     "dev": "npm run dev -w agent",
     "test": "npm test --workspaces --if-present",
     "check": "tsc -p contracts && npm run check -w gen -w agent -w bench -w ui && node contracts/gen-css.ts --check"

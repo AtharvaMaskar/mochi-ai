@@ -3,7 +3,7 @@
 import { z } from 'zod';
 import { AreaName, ResolutionKind } from '@mochi/contracts';
 import { Q } from './cypher.ts';
-import { norm, rows, runIdOf } from './rules.ts';
+import { inputTokens, norm, rows, runIdOf } from './rules.ts';
 import type { Db, DreamModel, StepUsage } from './types.ts';
 
 export const BATCH = 20;
@@ -74,7 +74,7 @@ export async function ingest(db: Db, graph: string, as_of: number, llm: DreamMod
         systemPrompt: systemPrompt(issues),
         messages: [{ role: 'user', content: JSON.stringify(tickets), timestamp: Date.now() }],
       }, { maxTokens: 4096, thinkingEnabled: false } as any);
-      opts.usage.input += msg.usage.input; opts.usage.output += msg.usage.output; opts.usage.calls++;
+      opts.usage.input += inputTokens(msg.usage); opts.usage.output += msg.usage.output; opts.usage.calls++;
       const text = msg.content.flatMap((c) => (c.type === 'text' ? [c.text] : [])).join('');
       return parseExtraction(text, ids);
     });
