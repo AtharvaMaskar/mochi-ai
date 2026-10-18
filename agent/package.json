@@ -11,7 +11,7 @@
     "dev": "node --env-file=../.env server.ts",
     "dream": "node --env-file=../.env scripts/dream.ts",
     "crash-demo": "node --env-file=../.env scripts/crash-demo.ts",
-    "test": "EMBED_PROVIDER=local node --test --test-timeout=120000",
+    "test": "EMBED_PROVIDER=local node --test --test-concurrency=1 --test-timeout=120000",
     "check": "tsc -p . && npm test"
   },
   "dependencies": {

@@ -48,6 +48,8 @@ function edges(d: ValidDataset, until: number): EdgeSpec[] {
     { type: 'OWNED_BY', from: ['ProductArea', 'name'], to: ['Team', 'name'], rows: d.product_areas.map((a) => ab(a.name, a.team)) },
     { type: 'MEMBER_OF', from: ['AgentUser', 'id'], to: ['Team', 'name'], rows: d.agents.map((a) => ab(a.id, a.team)) },
     { type: 'IN', from: ['Issue', 'id'], to: ['ProductArea', 'name'], rows: d.issues.map((i) => ab(i.id, i.area)) },
+    // An SLA policy is keyed by segment x priority, not area, so it sits in every area; the dream's policy rule filters by segment and priority.
+    { type: 'IN', from: ['Policy', 'id'], to: ['ProductArea', 'name'], rows: d.sla_policies.flatMap((p) => d.product_areas.map((a) => ab(p.id, a.name))) },
     { type: 'BASED_ON', from: ['Resolution', 'id'], to: ['KBArticle', 'id'], rows: d.resolutions.filter((r) => r.kb_id).map((r) => ab(r.id, r.kb_id)) },
     { type: 'RAISED', from: ['Customer', 'id'], to: ['Ticket', 'id'], rows: loaded.map((t) => ab(t.customer_id, t.id)) },
     { type: 'ABOUT', from: ['Ticket', 'id'], to: ['Issue', 'id'], rows: extracted.filter((t) => t.issue_id).map((t) => ab(t.id, t.issue_id)) },

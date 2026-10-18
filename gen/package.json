@@ -9,7 +9,7 @@
     "gen": "node --env-file-if-exists=../.env derive.ts",
     "listen": "node --env-file-if-exists=../.env listen.ts",
     "load": "node --env-file-if-exists=../.env load.ts",
-    "test": "EMBED_PROVIDER=local node --test --test-timeout=120000",
+    "test": "EMBED_PROVIDER=local node --test --test-concurrency=1 --test-timeout=120000",
     "check": "tsc -p . && npm test"
   },
   "dependencies": {

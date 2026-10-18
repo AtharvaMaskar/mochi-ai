@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { tinyDataset, tinyEval, type PlantedMismatch } from '@mochi/contracts';
+import { GRAPH, tinyDataset, tinyEval, type PlantedMismatch } from '@mochi/contracts';
+import { connect } from './db.ts';
 import { armA } from './arms/a.ts';
 import { armB } from './arms/b.ts';
 import { armC } from './arms/c.ts';
@@ -70,7 +71,10 @@ test('concurrency: 4 runs, no torn reads, no bench graphs left', async () => {
   } finally { await ctx.cleanup(); }
 });
 
-test('isolation: every refusal case is refused for mochi_reader', async () => {
+test('isolation: every refusal case is refused for mochi_reader', async (t) => {
+  const admin = await connect();
+  const loaded = (await admin.list().finally(() => admin.close())).includes(GRAPH.company);
+  if (!loaded) return t.skip(`${GRAPH.company} not loaded: run npm run load first`);
   const r = await runIsolation();
   assert.equal(r.tier_isolation!.cases.length, 4);
   for (const c of r.tier_isolation!.cases) assert.equal(c.refused, true, `${c.case}: ${c.error}`);

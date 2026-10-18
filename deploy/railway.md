@@ -3,7 +3,7 @@
 Two services in one Railway project:
 
 - **FalkorDB**, from Railway's FalkorDB template. It has a persistent volume and the hosted Browser.
-- **app**, this repo's `Dockerfile`. One Node process serves `/` (landing), `/app` (desk), `/blog`, `/api/*` and later `/sim/*`, and owns the Pi SQLite.
+- **app**, this repo's `Dockerfile`. The agent process serves `/` (landing), `/app` (desk), `/blog` and `/api/*`, and owns the Pi SQLite. The same container also runs the sim helpdesk on `localhost:4010` and its webhook listener on `localhost:4011`. These two are internal: the desk reads tickets from the sim, and the listener writes the live tickets into `mochi_company`. Neither needs a public port.
 
 The app reaches FalkorDB over Railway's private network as three ACL users. The `default` user is for the Browser only.
 
@@ -54,6 +54,10 @@ Make four throwaway passwords (`openssl rand -hex 16`, four times):
    | `MOCHI_JUDGE_MODEL` | `claude-opus-5-5` |
    | `MOCHI_SQLITE` | `/data/mochi.sqlite` |
    | `PORT` | `4000` |
+   | `SIM_SPEED` (optional) | replay speed, default `60` (x real time) |
+   | `SIM_START`, `SIM_PAUSED` (optional) | replay start (epoch ms) and start paused (`true`) |
+
+   `SIM_URL` (`http://localhost:4010`), `SIM_API_KEY` (`sim-key`), `SIM_WEBHOOK_URL` (`http://localhost:4011/webhook`) and `SIM_LISTEN_PORT` (`4011`) default to the in-container values. Leave them unset.
 
    The code connects with host and port (`agent/db.ts`), not a URL. `FALKORDB_PRIVATE_URL` is the same endpoint (`redis://default:…@<private domain>:6379`). It is useful for `redis-cli -u` from another service.
 3. App service, then **Settings**, then **Volumes**, then **Add Volume**, mount path `/data`. This holds the Pi SQLite: checkpoints, transcripts and stories. Without it, every redeploy loses the stories and the crash-resume state.
