@@ -1,7 +1,7 @@
 // The ticket as a conversation: messages on a spine, the time between them, folded email noise,
 // and the next reply at the end: Mochi's model draft, its fix plan, and one primary action (claim, then send).
 import { useEffect, useRef, useState } from 'react';
-import { Ellipsis, Globe, Lock, Mail, MessageSquare, Phone, type LucideIcon } from 'lucide-react';
+import { Ellipsis, Globe, Lock, Mail, MessageSquare, Phone, Sparkles, type LucideIcon } from 'lucide-react';
 import { Button, DrawnCheck, Mochi, NeedsYou } from './ds.tsx';
 import { QueryTag, ReceiptProvider } from './receipts.tsx';
 import { api, fmtClock, fmtDay, type Draft, type DraftHint, type Msg } from '../data/api.ts';
@@ -143,8 +143,8 @@ function Composer(p: Next) {
           )}
           {draft && (
             <div className="mb-tt-tone">
-              <Button variant="ai-secondary" size="sm" disabled={busy} onClick={() => run('rewrite')}>Rewrite</Button>
-              {TONES.map((t) => <Button key={t.hint} variant="ai-secondary" size="sm" disabled={busy} onClick={() => run(t.hint)}>{t.label}</Button>)}
+              <Button variant="secondary" size="sm" disabled={busy} onClick={() => run('rewrite')}>{ic(Sparkles)}Rewrite</Button>
+              {TONES.map((t) => <Button key={t.hint} variant="secondary" size="sm" disabled={busy} onClick={() => run(t.hint)}>{ic(Sparkles)}{t.label}</Button>)}
             </div>
           )}
         </>}
