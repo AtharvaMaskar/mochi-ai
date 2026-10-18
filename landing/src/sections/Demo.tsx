@@ -8,11 +8,12 @@ import { useInView } from '../parts/ui';
 // Keep in step with public/chapters.vtt.
 export const CHAPTERS = [
   { id: 'problem', label: 'Problem', at: 0, line: 'Every ticket starts from zero today.' },
-  { id: 'briefing', label: 'Briefing', at: 25, line: 'A brief with its path, from five hops of Cypher.' },
-  { id: 'crash', label: 'Crash', at: 65, line: 'Kill the server mid-brief. It resumes.' },
-  { id: 'dream', label: 'Dream', at: 95, line: 'One night: ingest, cluster, retire, mismatch, report.' },
-  { id: 'tabs', label: 'Two tabs', at: 135, line: 'Two agents share one memory while the dream writes.' },
-  { id: 'bench', label: 'Benchmark', at: 160, line: 'Four memory designs, the same questions.' },
+  { id: 'briefing', label: 'Briefing', at: 19, line: 'A brief waiting on the ticket: likely cause, fix, owning team.' },
+  { id: 'receipts', label: 'Receipts', at: 30, line: 'The path it walked, and the Cypher behind a number.' },
+  { id: 'draft', label: 'Draft', at: 46, line: 'Mochi drafts the reply from the fix; you claim and work the steps.' },
+  { id: 'dream', label: 'Dream', at: 60, line: 'The morning report: retired facts, and docs that drifted from practice.' },
+  { id: 'chat', label: 'Chat', at: 102, line: 'Name a ticket with @ and ask; every answer is read from the graph.' },
+  { id: 'bench', label: 'Benchmark', at: 140, line: 'Five memory designs, the same questions.' },
 ];
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
