@@ -4,7 +4,7 @@ import type { Dataset, EvalQuestion, ContradictionEvent } from '@mochi/contracts
 import type { Llm, Usage } from '../llm.ts';
 
 export type Arch = 'A' | 'B' | 'C' | 'D' | 'E';
-export type Answer = { answer: string; usage: Usage; retrieval_ms: number; truncated?: boolean };
+export type Answer = { answer: string; usage: Usage; retrieval_ms: number; truncated?: boolean; reads?: number };
 export type Arm = {
   arch: Arch;
   /** Builds the arm's memory from the dataset; returns ingestion tokens. */

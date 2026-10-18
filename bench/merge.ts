@@ -13,12 +13,33 @@ import { PRICES } from './prices.ts';
 type Part = Partial<Results> & { decision_traces?: Traces; partial: true; only: string; run_at: number; seed: number; models: string[]; judge_model: string; dry: boolean; spent_usd: number };
 // Arm D+trace (bench/arms/trace.ts) lives outside the frozen Results schema: carried through under its own key.
 type Mode = { n: number; accuracy: number; cost_usd_mean: number; input_tokens_mean: number; output_tokens_mean: number; tool_calls_mean: number; p50_ms: number };
-type Traces = { summary: Record<string, Mode>; chat?: { summary: Record<string, Mode>; tasks: number }; staleness: { fresh: { D: number; 'D+trace': number; of: number }; traces_closed_by_retirement: number } };
+type Approach = Omit<Mode, 'tool_calls_mean'> & { llm_calls_mean: number; reads_mean?: number; setup_usd?: number; source?: string; staleness?: { fresh: number; stale_resurfaced?: number; of: number } };
+type Traces = { summary: Record<string, Mode>; chat?: { summary: Record<string, Mode>; tasks: number }; staleness: { fresh: { D: number; 'D+trace': number; of: number }; traces_closed_by_retirement: number };
+  approaches?: Record<string, Approach> };
+
+// Learning-from-past-tickets comparison (bench/arms/lessons.ts): D and graph traces come from this run's summary, so
+// the two never drift. LLM calls = tool calls + 1 for the tool loop; 2 (pick or retrieve, then answer) for the rest.
+const LABEL: Record<string, string> = { D: 'D', graph_traces_warm_replay: 'graph traces (warm replay)', C: 'file memory C', C_lessons: 'C + LESSONS.md',
+  devin_knowledge: 'Devin-style Knowledge (modelled on Devin\'s documented Knowledge feature, not Devin itself)', vector_lessons: 'vector lessons top-3', sql_lessons: 'SQL lessons' };
+export function withApproaches(t: Traces): Traces {
+  if (!t.approaches || !t.summary) return t;
+  const from = (k: string, fresh: number, source: string): Approach => {
+    const { tool_calls_mean, ...m } = t.summary[k];
+    return { ...m, llm_calls_mean: tool_calls_mean + 1, source, staleness: { fresh, of: t.staleness.fresh.of } };
+  };
+  return { ...t, approaches: { D: from('D', t.staleness.fresh.D, 'decision_traces.summary.D'), graph_traces_warm_replay: from('warm_replay', t.staleness.fresh['D+trace'], 'decision_traces.summary.warm_replay'), ...t.approaches } };
+}
 
 export function traceLedgerRow(t: Traces): Results['ledger'][number] {
   if (!t.summary) return { feature: 'decision traces', mechanism: 'mochi_traces Trace/Step/Query graph', measured_against: 'arm D', result: 'not measured', status: 'not_measured' };
   const m = (k: string) => { const x = t.summary[k]; return x ? `${k} ${Math.round(x.accuracy * x.n)}/${x.n}, $${x.cost_usd_mean.toFixed(6)}/task, ${Math.round(x.input_tokens_mean)} in tok, ${x.tool_calls_mean} calls, p50 ${Math.round(x.p50_ms)}ms` : `${k} not run`; };
   const f = t.staleness.fresh;
+  if (t.approaches) {
+    const a = Object.entries(t.approaches).map(([k, x]) => `${LABEL[k] ?? k} ${Math.round(x.accuracy * x.n)}/${x.n}, $${x.cost_usd_mean.toFixed(6)}/task${x.setup_usd ? ` + $${x.setup_usd.toFixed(3)} dream once` : ''}, ${Math.round(x.input_tokens_mean)}/${Math.round(x.output_tokens_mean)} tok, ${x.llm_calls_mean} LLM calls, p50 ${Math.round(x.p50_ms)}ms${x.staleness ? `, fresh ${x.staleness.fresh}/${x.staleness.of}${x.staleness.stale_resurfaced !== undefined ? ` (stale resurfaced ${x.staleness.stale_resurfaced})` : ''}` : ''}`);
+    return { feature: 'decision traces', mechanism: 'mochi_traces Trace/Step/Query graph, Trace.embedding vector index, SIMILAR_TO-first ticket lookup, receipts re-checked at as_of',
+      measured_against: 'learning-from-past-tickets approaches on the same 40 later tickets, lessons from the same 40 earlier resolved tickets (bench/arms/lessons.ts); staleness after 10 retirements',
+      result: a.join('; '), status: 'measured' };
+  }
   const chat = t.chat ? `; chat on ${t.chat.tasks} paraphrased eval questions: ${['D', 'warm_replay'].map((k) => { const x = t.chat!.summary[k]; return x ? `${k} ${Math.round(x.accuracy * x.n)}/${x.n}, $${x.cost_usd_mean.toFixed(6)}/task` : `${k} not run`; }).join(' vs ')}` : '';
   return { feature: 'decision traces', mechanism: 'mochi_traces Trace/Step/Query graph, Trace.embedding vector index, SIMILAR_TO-first ticket lookup, receipts re-checked at as_of',
     measured_against: 'arm D on later unseen tickets (likely cause, what fixed similar); journal warmed on earlier resolved tickets; staleness harness after retirements',
@@ -55,7 +76,7 @@ export function merge(parts: Part[], defaultModel = process.env.MOCHI_MODEL ?? '
   // The ticket run and the optional chat run (key `chat`) are separate partials; their keys must not overlap.
   const traces = parts.flatMap((x) => (x.decision_traces ? [x.decision_traces] : []));
   if (new Set(traces.flatMap(Object.keys)).size < traces.reduce((s, t) => s + Object.keys(t).length, 0)) throw new Error('decision_traces partials overlap; give one of each');
-  const dt = traces.length ? (Object.assign({}, ...traces) as Traces) : undefined;
+  const dt = traces.length ? withApproaches(Object.assign({}, ...traces) as Traces) : undefined;
   const ledger = [...buildLedger({ ...head, ...body }), ...(dt ? [traceLedgerRow(dt)] : [])];
   return { results: { ...head, ...body, ledger, ...(dt ? { decision_traces: dt } : {}) }, spent: parts.reduce((s, x) => s + x.spent_usd, 0) };
 }

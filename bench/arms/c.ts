@@ -2,7 +2,7 @@
 // writes MEMORY.md plus per-area notes; answering is a pick-files call, then an answer call.
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { add, type Usage } from '../llm.ts';
+import { add, ZERO, type Usage } from '../llm.ts';
 import { ANSWER_SYSTEM, ask, corpus, eventText, timed, type Arm, type Ctx } from './index.ts';
 
 const FORMAT = 'Output every file as a line "=== FILE: <name>.md ===" followed by its content. Output nothing else.';
@@ -24,8 +24,12 @@ export function parseFiles(text: string, fallback = true): Map<string, string> {
   return files;
 }
 
-export function armC(ctx: Ctx): Arm {
-  const dir = join(ctx.artifacts, 'memory');
+export const LESSONS = 'LESSONS.md';
+
+/** o.dreamed: share one dream pass between instances (filled on first prepare). o.lessons: an append-only LESSONS.md
+ *  added after the dream; the maintain pass never sees or rewrites it (bench/arms/lessons.ts). */
+export function armC(ctx: Ctx, o: { dreamed?: Map<string, string>; lessons?: string; dir?: string } = {}): Arm {
+  const dir = join(ctx.artifacts, o.dir ?? 'memory');
   let files = new Map<string, string>();
   const dump = (f: Map<string, string>) => f.size ? [...f].map(([n, c]) => `=== FILE: ${n} ===\n${c}`).join('\n\n') : '(empty)';
   const save = () => {
@@ -37,10 +41,20 @@ export function armC(ctx: Ctx): Arm {
   return {
     arch: 'C',
     async prepare() {
-      const r = await ctx.llm.complete('arm_c_dream', corpus(ctx.dataset), { system: DREAM, maxTokens: 32000 });
-      files = parseFiles(r.text);
+      let usage = ZERO;
+      if (o.dreamed?.size) files = new Map(o.dreamed);
+      else {
+        const r = await ctx.llm.complete('arm_c_dream', corpus(ctx.dataset), { system: DREAM, maxTokens: 32000 });
+        files = parseFiles(r.text);
+        usage = r.usage;
+        for (const [n, c] of files) o.dreamed?.set(n, c);
+      }
+      if (o.lessons) {
+        files.set(LESSONS, o.lessons);
+        files.set('MEMORY.md', `${files.get('MEMORY.md') ?? ''}\n${LESSONS}: one lesson per resolved ticket (summary, cause, fix, KB), appended as tickets close.`.trim());
+      }
       save();
-      return r.usage;
+      return usage;
     },
     async answer(q) {
       let usage: Usage;
@@ -53,11 +67,11 @@ export function armC(ctx: Ctx): Arm {
         return new Map([...files].filter(([n]) => want.has(n) || n === 'MEMORY.md'));
       });
       const r = await ctx.llm.complete('arm_c', ask(dump(chosen), q), { system: ANSWER_SYSTEM });
-      return { answer: r.text, usage: add(usage!, r.usage), retrieval_ms };
+      return { answer: r.text, usage: add(usage!, r.usage), retrieval_ms, reads: chosen.size };
     },
     async apply(e) {
-      const [r, ms] = await timed(() => ctx.llm.complete('arm_c_maintain', `${dump(files)}\n\nEvent:\n${eventText(e)}`, { system: MAINTAIN, maxTokens: 32000 }));
-      for (const [n, c] of parseFiles(r.text, false)) files.set(n, c);
+      const [r, ms] = await timed(() => ctx.llm.complete('arm_c_maintain', `${dump(new Map([...files].filter(([n]) => n !== LESSONS)))}\n\nEvent:\n${eventText(e)}`, { system: MAINTAIN, maxTokens: 32000 }));
+      for (const [n, c] of parseFiles(r.text, false)) if (n !== LESSONS) files.set(n, c);
       save();
       return { usage: r.usage, ms };
     },
