@@ -125,6 +125,9 @@ RETURN count(u) AS n`,
   // ── 6b · suggestions ─────────────────────────────────────────────────────────────────────
   feedback: `MATCH (:AgentUser)-[f:FEEDBACK]->(s:Suggestion) RETURN s.id AS id, f.verdict AS verdict, f.at AS at`,
   suggestions: `MATCH (s:Suggestion) WHERE ${NODE_AS_OF('s')} RETURN s.id AS id, s.key AS key, s.status AS status, s.expires_at AS expires_at, s.created_at AS created_at ORDER BY s.created_at, s.id`,
+  // The morning report always shows what is still open, not only what tonight created.
+  openSuggestions: `MATCH (s:Suggestion) WHERE s.status = 'open' AND s.created_at <= $as_of
+RETURN s.id AS id, s.key AS key, s.edge AS edge, s.area AS area, s.text AS text ORDER BY s.created_at DESC, s.id LIMIT 3`,
   setSuggestionStatus: `UNWIND $rows AS r MATCH (s:Suggestion {id: r.id}) WHERE s.status <> r.status SET s.status = r.status`,
   owner: `MATCH (:ProductArea {name: $area})-[:OWNED_BY]->(team:Team) RETURN team.name AS team`,
   createSuggestions: `UNWIND $rows AS r

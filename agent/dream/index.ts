@@ -11,7 +11,7 @@ import { appendStory } from '../stories.ts';
 import { Q } from './cypher.ts';
 import { ingest, type Hook, type Memo } from './ingest.ts';
 import { buildReport } from './report.ts';
-import { hash, inputTokens, norm, rows, runIdOf, runMismatchRules, writeSuggestions, type MismatchEdge } from './rules.ts';
+import { hash, inputTokens, norm, rows, runIdOf, runMismatchRules, writeSuggestions, type MismatchEdge, type SuggestionOut } from './rules.ts';
 import type { Db, DreamGraphs, DreamModel, DreamReport, StepUsage } from './types.ts';
 
 export type { DreamReport, DreamGraphs, DreamModel } from './types.ts';
@@ -114,7 +114,9 @@ export async function runDreamNow(opts: RunOptions): Promise<DreamReport> {
   await hook('doctrine');
 
   // 8 · morning report
-  const { story, errors } = await buildReport(db, graphs.company, as_of, sugg);
+  // A quiet night creates no new suggestions; the report still lists the open ones, so a known mismatch never drops off.
+  const open = sugg.length ? sugg : ((await rows(db, graphs.company, Q.openSuggestions, { as_of })) as unknown as SuggestionOut[]).map((s) => ({ ...s, prose: 'model' as const }));
+  const { story, errors } = await buildReport(db, graphs.company, as_of, open);
   if (story && opts.commitStory) await opts.commitStory(story);
   await hook('report');
 
