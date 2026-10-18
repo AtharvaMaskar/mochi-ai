@@ -10,15 +10,48 @@ import { Q, R } from '../agent/dream/cypher.ts';
 const README = new URL('../README.md', import.meta.url);
 const RESULTS = new URL('../bench/results.json', import.meta.url);
 
-const block = (name: string, cypher: string) => `#### \`${name}\`\n\n\`\`\`cypher\n${cypher}\n\`\`\``;
-const group = (title: string, src: string, rows: [string, string][]) =>
-  [`### ${title}\n\nSource: \`${src}\`.`, ...rows.map(([n, c]) => block(n, c))].join('\n\n');
+// One-line purpose per query, shown in the collapsed summary. A query missing here renders with its name only.
+const PURPOSE: Record<string, string> = {
+  'briefing.profile': 'ticket → customer → live plan → issue', 'briefing.recent': "the customer's last three other tickets",
+  'briefing.similar': 'ticket → issue ← solved tickets → resolution → KB path', 'briefing.similarVector': 'vector neighbours → resolution → KB (fallback path)',
+  'briefing.suggestions': 'open doctrine-vs-practice suggestions for the owning team', likelyCause: 'ticket → issue ← release that introduced it (live edge)',
+  whoKnows: 'agents who solved this issue, with their team', whoKnowsIssues: 'issue list for who-knows lookups',
+  emergingClusters: 'live clusters ranked by growth in a window', 'blastRadius.segments': 'release → issues → tickets → customers, by segment',
+  'blastRadius.totals': 'customers, tickets and open tickets hit by a release', 'blastRadius.affected': 'the affected tickets and customers',
+  'blastRadius.owner': 'release → issue → product area → owning team', searchSimilar: 'free-text vector search over tickets',
+  'customerProfile.profile': 'customer and live plan', 'customerProfile.history': 'closed tickets and how each ended',
+  'customerProfile.open': 'open tickets', 'customerProfile.merged': 'duplicates merged into a primary ticket',
+  'entity.customerActivity': 'open tickets and last contact', 'entity.ticket': 'one ticket with customer and resolution',
+  'entity.kb': 'KB article with owning team and promise', 'entity.search': 'search box: tickets, customers, issues',
+  deskGuess: "queue guess: each ticket's issue and best-supported fix", deskCounts: 'desk header counts: ingested, pending, clusters, retired, mismatches',
+  pendingTickets: 'tickets the dream has not ingested yet', areas: 'product areas for extraction', issues: 'known issues for extraction',
+  ingestBatch: 'MERGE extracted issues and resolutions, mark tickets ingested', knn: 'six nearest tickets by vector index',
+  ticketIds: 'tickets to embed and link', liveSimilar: 'current SIMILAR_TO edges', retireSimilar: 'close SIMILAR_TO edges that dropped out',
+  createSimilar: 'create new temporal SIMILAR_TO edges', windowPairs: "last 7 days' ticket → issue pairs for clustering",
+  projectPairs: 'project those pairs into algo_scratch', labelPropagation: 'label propagation on the projection',
+  retireClusterEdges: 'close IN_CLUSTER edges for tickets that moved', createClusterEdges: 'create new IN_CLUSTER edges',
+  kbResolved: 'measured resolution times per KB article', policyResolved: 'measured resolution times per policy',
+  workarounds: 'workarounds used with no KB article', writePatterns: 'write ObservedPattern nodes with SEEN_IN evidence',
+  retireMismatches: "close last run's mismatch edges", contradictsKB: 'pattern CONTRADICTS a KB article',
+  contradictsPolicy: 'pattern CONTRADICTS a policy', undocumented: 'pattern UNDOCUMENTED in a product area',
+  feedback: 'right/wrong feedback on suggestions', suggestions: 'all suggestions, for expiry and status',
+  openSuggestions: 'open suggestions for a quiet-night report', setSuggestionStatus: 'apply feedback and expiry',
+  owner: 'owning team of a product area', createSuggestions: 'suggestion FROM pattern, FOR owning team',
+  candidates: 'unreviewed doctrine candidates taught in chat', commitPolicies: 'commit reviewed teachings as Policy',
+  markReviewed: 'mark candidates reviewed', counts: 'node and edge totals for the report',
+  memdiff: 'facts retired and added in the last day', clusters: 'clusters with day-over-day trend',
+  ingested: 'tickets ingested in the last day', suggestion: 'one suggestion with its evidence edge and team',
+};
+const block = (name: string, cypher: string) =>
+  `<details><summary><b>${name}</b>${PURPOSE[name] ? ` · ${PURPOSE[name]}` : ''}</summary>\n\n\`\`\`cypher\n${cypher}\n\`\`\`\n\n</details>`;
+const group = (title: string, note: string, src: string, rows: [string, string][]) =>
+  [`### ${title}\n\n${note} Source: \`${src}\`.`, rows.map(([n, c]) => block(n, c)).join('\n')].join('\n\n');
 
 function cypherSection(): string {
   return [
-    group('Agent queries (the five load-bearing queries + similarity)', 'agent/queries/index.ts', allCypher()),
-    group('Dream queries (the only writer of mochi_company)', 'agent/dream/cypher.ts', Object.entries(Q)),
-    group('Morning report stored queries', 'agent/dream/cypher.ts', Object.entries(R)),
+    group('Agent queries', 'All read-only, run as `mochi_reader` through `GRAPH.RO_QUERY`, and every one filters on `$as_of`.', 'agent/queries/index.ts', allCypher()),
+    group('Dream queries', 'The dream, as `mochi_dream`, is the only writer of `mochi_company`; changed facts are retired with `valid_until`, never deleted.', 'agent/dream/cypher.ts', Object.entries(Q)),
+    group('Morning report queries', 'Stored with the report and re-run read-only at `$as_of` on refresh.', 'agent/dream/cypher.ts', Object.entries(R)),
   ].join('\n\n');
 }
 
