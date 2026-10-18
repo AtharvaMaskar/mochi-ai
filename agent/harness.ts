@@ -18,6 +18,7 @@ import type { DreamModule } from './dream-port.ts';
 import { DEMO_USER_GRAPH, briefWithMemory, readPreferences, rememberPreference } from './memory.ts';
 import type * as Q from './queries/index.ts';
 import { READ_TOOL_SPECS } from './queries/tools.ts';
+import { SCHEMA_PROMPT } from './queries/graph-tools.ts';
 import { commitStory, latestDreamStory } from './stories.ts';
 import { StoryDoc } from './story-doc.ts';
 
@@ -54,7 +55,8 @@ export const READ_TOOLS = READ_TOOL_SPECS.map((s) => s.name);
 
 const PREAMBLE = `You are Mochi, the support copilot for E Corp Securities (a fictional broker; all data is synthetic).
 Company memory lives in a FalkorDB graph. Answer from tool results only: briefing, likely_cause, who_knows,
-emerging_clusters, blast_radius, search_similar and customer_profile each return a card the user sees, plus stored query ids (q_<n>).
+emerging_clusters, blast_radius, search_similar, customer_profile, query_graph (your own read-only Cypher) and graph_algorithm
+each return a card the user sees, plus stored query ids (q_<n>).
 Every number you state must come from a stored query: wrap it as <num query_id="q_n" column="col">value</num>.
 Prefer story tags (<kpi>, <bars>, <table>, …) over prose for data. Use render_html only when no tag fits.
 build_story saves a shareable report from your stored queries. teach records a doctrine candidate for the dream to
@@ -122,9 +124,11 @@ export async function openHarness(cfg: HarnessConfig = {}) {
       name: spec.name, description: spec.description, parameters: spec.parameters as ReturnType<typeof Type.Object>, replay: 'safe',
       structuredOutputSchema: Type.Unknown(),
       execute: async (args, api) => {
-        let { card: raw } = await spec.run(await read(), args, Date.now(), graph, cfg.embed);
+        const caller = await callerOf(api);
+        const team = GRAPH.team(caller.team);
+        const graphs = (g: string) => (g === team ? 'read' : g === userGraph || /^cust_[a-z0-9_]+$/.test(g) ? 'user' : null);
+        let { card: raw } = await spec.run(await read(), args, Date.now(), graph, cfg.embed, { write: await write() as never, user: await user(), graphs });
         if (spec.name === 'briefing') {
-          const caller = await callerOf(api);
           raw = await briefWithMemory(raw, await user(), { user: caller.user, userGraph, session: String(api.conversationId), episodeId: `EP-S${api.conversationId}-${api.taskId}` });
         }
         const v = validateCard(raw);
@@ -230,15 +234,24 @@ CREATE (d:DoctrineCandidate {id: $id, text: $text, source: 'teach', taught_by: $
 
     feedback: defineTool({
       name: 'feedback', replay: 'unsafe',
-      description: 'Mark a dream suggestion right or wrong; the dream reads it next cycle.',
-      parameters: Type.Object({ suggestionId: Type.String(), verdict: Type.Union([Type.Literal('right'), Type.Literal('wrong')]) }),
+      description: 'Mark a dream suggestion right or wrong (suggestionId), or review a doctrine candidate (candidateId, e.g. DC-…): right commits it at the next dream, wrong dismisses it.',
+      parameters: Type.Object({ suggestionId: Type.Optional(Type.String()), candidateId: Type.Optional(Type.String()), verdict: Type.Union([Type.Literal('right'), Type.Literal('wrong')]) }),
       execute: async (args, api) => {
         const caller = await callerOf(api);
-        await (await user()).selectGraph(GRAPH.team(caller.team)).query(`MERGE (a:AgentUser {id: $user})
+        const g = (await user()).selectGraph(GRAPH.team(caller.team));
+        if (args.candidateId) {
+          const r = await g.query<{ id: string }>(`MATCH (d:DoctrineCandidate {id: $candidateId}) WHERE d.reviewed_at IS NULL
+SET d.reviewed = $right, d.reviewed_by = $user, d.reviewed_at = CASE WHEN $right THEN null ELSE $now END
+RETURN d.id AS id`, { params: { candidateId: args.candidateId, right: args.verdict === 'right', user: caller.user, now: Date.now() } });
+          if (!r.data?.length) return { output: text(`no open candidate ${args.candidateId}`), isError: true };
+          return { output: text(`candidate ${args.candidateId} marked ${args.verdict}`) };
+        }
+        if (!args.suggestionId) return { output: text('feedback needs suggestionId or candidateId'), isError: true };
+        await g.query(`MERGE (a:AgentUser {id: $user})
 ON CREATE SET a.created_at = $now, a.source = 'session'
 MERGE (s:Suggestion {id: $suggestionId})
 ON CREATE SET s.created_at = $now, s.source = 'session'
-CREATE (a)-[:FEEDBACK {verdict: $verdict, at: $now}]->(s)`, { params: { ...args, user: caller.user, now: Date.now() } });
+CREATE (a)-[:FEEDBACK {verdict: $verdict, at: $now}]->(s)`, { params: { suggestionId: args.suggestionId, verdict: args.verdict, user: caller.user, now: Date.now() } });
         return { output: text(`feedback ${args.verdict} on ${args.suggestionId} recorded`) };
       },
     }),
@@ -273,6 +286,7 @@ CREATE (a)-[:FEEDBACK {verdict: $verdict, at: $now}]->(s)`, { params: { ...args,
     sections: [
       section('preamble', () => PREAMBLE, { tag: false }),
       section('viz_grammar', () => VIZ_GRAMMAR),
+      section('graph_schema', () => SCHEMA_PROMPT),
       morningReport,
       yourMemory,
     ],

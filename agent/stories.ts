@@ -43,6 +43,8 @@ export async function latestDreamStory(on: Reader): Promise<Story | undefined> {
 /** Re-run every stored query read-only at `as_of`; prose stays, rows refresh. */
 export async function rerender(db: Db, story: Story, as_of: number): Promise<{ story: Story; as_of: number }> {
   const queries = Object.fromEntries(await Promise.all(Object.entries(story.queries).map(async ([qid, q]) => {
+    // A scratch-projection receipt (graph_algorithm on temporal edges) is a snapshot: the reader cannot rebuild it.
+    if (q.graph.endsWith('scratch')) return [qid, q] as const;
     const { as_of: _drop, ...params } = q.params;
     return [qid, await runStored(db, q.graph, q.cypher, params, as_of)] as const;
   })));

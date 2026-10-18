@@ -35,6 +35,8 @@ test('root conversation: every read tool returns a contract-valid card', async (
         fauxToolCall('who_knows', { issueId: 'I-1' }), fauxToolCall('emerging_clusters', { days: 7 }),
         fauxToolCall('blast_radius', { version: '2.4.0' }), fauxToolCall('search_similar', { text: 'order not placed', k: 2 }),
         fauxToolCall('customer_profile', { customerId: 'C-1' }),
+        fauxToolCall('query_graph', { cypher: 'MATCH (t:Ticket) WHERE t.created_at <= $as_of RETURN t.id AS ticket ORDER BY ticket LIMIT 5', purpose: 'tickets' }),
+        fauxToolCall('graph_algorithm', { algorithm: 'components', purpose: 'repeat contacts' }),
       ], { stopReason: 'toolUse' }),
       fauxAssistantMessage('done'),
     ]);

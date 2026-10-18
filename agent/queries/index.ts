@@ -4,7 +4,7 @@
 import { EDGE_AS_OF, GRAPH, NODE_AS_OF, type PathReceipt, type StoredQuery, type ToolCard } from '@mochi/contracts';
 
 type Row = Record<string, unknown>;
-export type Db = { selectGraph(name: string): { roQuery<T>(q: string, o?: { params?: Record<string, unknown> }): Promise<{ data?: T[] }> } };
+export type Db = { selectGraph(name: string): { roQuery<T>(q: string, o?: { params?: Record<string, unknown>; TIMEOUT?: number }): Promise<{ data?: T[] }> } };
 export type Result = { card: ToolCard; queries: Record<string, StoredQuery> };
 export type EmbedFn = (texts: string[]) => Promise<number[][]>;
 

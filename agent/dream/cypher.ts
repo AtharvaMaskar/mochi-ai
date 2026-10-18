@@ -27,7 +27,32 @@ FOREACH (_ IN CASE WHEN r.res_kind <> '' THEN [1] ELSE [] END |
   MERGE (res:Resolution {id: r.res_id})
   ON CREATE SET res.kind = r.res_kind, res.summary = r.res_summary, res.created_at = $as_of, res.source = 'dream', res.source_ticket = r.ticket_id
   MERGE (t)-[:RESOLVED_BY]->(res))
+WITH t, r
+FOREACH (_ IN CASE WHEN r.issue2_id <> '' THEN [1] ELSE [] END |
+  MERGE (a2:ProductArea {name: r.area2})
+  MERGE (i2:Issue {id: r.issue2_id})
+  ON CREATE SET i2.name = r.issue2_name, i2.first_seen = t.created_at, i2.created_at = $as_of, i2.source = 'dream', i2.source_ticket = r.ticket_id
+  MERGE (i2)-[:IN]->(a2)
+  MERGE (t)-[x:ABOUT]->(i2)
+  ON CREATE SET x.source = 'dream', x.created_at = $as_of, x.batch_id = $batch_id, x.second_issue = true)
 RETURN count(t) AS written`,
+
+  // ── 2b · SIMILAR_TO: nightly kNN over ticket embeddings (score is a distance; smaller = closer) ─────
+  knn: `UNWIND $ids AS id
+MATCH (t:Ticket {id: id}) WHERE t.embedding IS NOT NULL AND ${NODE_AS_OF('t')}
+CALL db.idx.vector.queryNodes('Ticket', 'embedding', 7, t.embedding) YIELD node, score
+WITH t, node, score WHERE node <> t AND ${NODE_AS_OF('node')}
+RETURN t.id AS a, node.id AS b, score ORDER BY a, score, b`,
+  ticketIds: `MATCH (t:Ticket) WHERE ${NODE_AS_OF('t')} RETURN t.id AS id ORDER BY id`,
+  liveSimilar: `MATCH (a:Ticket)-[s:SIMILAR_TO]->(b:Ticket) WHERE ${EDGE_AS_OF('s')} RETURN a.id AS a, b.id AS b`,
+  retireSimilar: `UNWIND $rows AS r
+MATCH (:Ticket {id: r.a})-[s:SIMILAR_TO]->(:Ticket {id: r.b}) WHERE ${EDGE_AS_OF('s')}
+SET s.valid_until = $as_of
+RETURN count(s) AS retired`,
+  createSimilar: `UNWIND $rows AS r
+MATCH (a:Ticket {id: r.a}), (b:Ticket {id: r.b})
+CREATE (a)-[s:SIMILAR_TO {score: r.score, valid_from: $as_of, valid_until: ${VALID_FOREVER}, source: 'dream', created_at: $as_of}]->(b)
+RETURN count(s) AS created`,
 
   // ── 4 · clusters ─────────────────────────────────────────────────────────────────────────
   windowPairs: `MATCH (t:Ticket)-[:ABOUT]->(i:Issue)
@@ -116,7 +141,7 @@ RETURN count(DISTINCT s) AS n`,
   candidates: `MATCH (d:DoctrineCandidate)-[:IN]->(a:ProductArea)
 WHERE d.reviewed_at IS NULL AND d.text IS NOT NULL
 RETURN id(d) AS nid, d.text AS text, a.name AS area, d.promised_tat_hours AS promised, d.steps AS steps,
-  d.taught_by AS taught_by, d.source_session AS source_session, d.created_at AS created_at
+  d.taught_by AS taught_by, d.source_session AS source_session, d.created_at AS created_at, coalesce(d.reviewed, false) AS reviewed
 ORDER BY d.created_at, nid`,
   commitPolicies: `UNWIND $rows AS r
 MATCH (a:ProductArea {name: r.area})

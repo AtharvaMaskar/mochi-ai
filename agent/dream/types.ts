@@ -13,7 +13,7 @@ export type StepUsage = { input: number; output: number; calls: number };
 export type DreamReport = {
   run_id: string; as_of: number; ms: number;
   retired: number; // facts retired: events + cluster moves + superseded mismatch edges
-  retired_by: { events: number; clusters: number; mismatches: number };
+  retired_by: { events: number; clusters: number; mismatches: number; similar: number };
   created: Record<string, number>;
   ingested: number; dropped: number;
   batches: { id: string; size: number }[];

@@ -157,9 +157,16 @@ flowchart LR
 ```
 
 - **FalkorDB** holds all memory and context. Hand-written Cypher, no ORM, no Graphiti. Vector search uses FalkorDB's vector index on `Ticket.embedding` (384-dim MiniLM, computed locally). Clusters use `algo.labelPropagation`. Remove FalkorDB and nothing works.
-- **Pi Durable** (`@earendil-works/pi-durable`) is the agent harness. SQLite holds checkpoints and transcripts only, never memory. The root conversation is the support channel. The `mochi-graph` extension gives read tools (`briefing`, `likely_cause`, `who_knows`, `emerging_clusters`, `blast_radius`, `search_similar`, `build_story`, `render_html`), all replay-safe, and write tools (`record_resolution`, `teach`, `feedback`) with no replay: after a crash the model is told the call was interrupted, and it is never silently repeated. User conversations do not get `record_resolution`.
+- **Pi Durable** (`@earendil-works/pi-durable`) is the agent harness. SQLite holds checkpoints and transcripts only, never memory. The root conversation is the support channel. The `mochi-graph` extension gives read tools (`briefing`, `likely_cause`, `who_knows`, `emerging_clusters`, `blast_radius`, `search_similar`, `customer_profile`, `query_graph`, `graph_algorithm`, `build_story`, `render_html`), all replay-safe, and write tools (`record_resolution`, `teach`, `feedback`) with no replay: after a crash the model is told the call was interrupted, and it is never silently repeated. User conversations do not get `record_resolution`.
+- **`query_graph` and `graph_algorithm`.** For questions no fixed tool covers, the model writes its own Cypher against a schema section generated from `contracts/graph.ts`. Its Cypher is model-written, so it is not in the list below; each run is stored as a `q_<n>` receipt with its exact text. It is read-only because the database enforces it (`GRAPH.RO_QUERY` as `mochi_reader`); code adds a write precheck, contract-name check, mandatory `$as_of`, a 5 s timeout and a 200-row cap. `graph_algorithm` runs whitelisted FalkorDB algorithms. Edge sets with no temporal edge run on `mochi_company` through `GRAPH.RO_QUERY`. Any temporal edge means a live-edge projection (`EDGE_AS_OF`) into `algo_scratch`, and that projection is part of the receipt. What each one runs on:
+  - `shortest_path`: `algo.SPpaths` over the contract edges, ≤ 4 hops, both directions, returned as a path receipt.
+  - `pagerank`: `SIMILAR_TO` plus `SOLVED` projected reversed (Ticket→AgentUser), so rank lands on whoever solved tickets that sit at the centre of the similarity graph. Spearman against solved-count degree: 0.923 on the seeded data (OpenAI embeddings).
+  - `communities`: label propagation over live `Ticket·SIMILAR_TO`. Adjusted Rand index against the issue labels: 0.309, so it does not just return the issue labels.
+  - `components`: WCC over `Customer/Ticket` via `RAISED`, `FOLLOWS`, `MERGED_INTO` (repeat-contact loops).
+  - `betweenness`: Ticket/Issue/ProductArea via `ABOUT`, `SIMILAR_TO`, `IN`, sampled with seed 42. It ranks issues and areas that bridge similar tickets across issues.
+  - `neighbourhood`: `algo.bfs` over one edge type, depth ≤ 2.
 - **CopilotKit chat.** The web chat uses CopilotKit's headless React packages and speaks AG-UI to our endpoint, hosted inside the agent process next to the harness. Answers render as tool cards built by our code (numbers come from query rows, never from model tokens), then story tags, then sandboxed HTML as a last resort. The sandbox allows only `mochi.css` tokens, no network, and no literal digits: every figure is a placeholder filled from a stored query.
-- **The dream** is a Pi Durable background task on a timer (`MOCHI_DREAM_EVERY_MS`, default 24 h), or `npm run dream`, or `POST /api/dream/run`. Steps: snapshot (`GRAPH.COPY` to `mochi_company_prev`) → ingest (LLM extraction into `MERGE` Cypher, marked by `ingested_at`) → invalidate (contradiction events retire old edges) → clusters → practice (ObservedPatterns) → mismatch rules → suggestions → doctrine review → morning report. The mismatch rules are plain arithmetic and Cypher, no LLM: a pattern whose measured time exceeds a promise by more than 25% with at least 5 supporting tickets becomes `CONTRADICTS`; a workaround used often but in no KB becomes `UNDOCUMENTED`. The LLM writes only the suggestion prose. Teachings from chat land as `DoctrineCandidate` nodes; the dream reviews and commits them as `Policy` with `taught_by` and `source_session`.
+- **The dream** is a Pi Durable background task on a timer (`MOCHI_DREAM_EVERY_MS`, default 24 h), or `npm run dream`, or `POST /api/dream/run`. Steps: snapshot (`GRAPH.COPY` to `mochi_company_prev`) → ingest (LLM extraction into `MERGE` Cypher, marked by `ingested_at`; a second issue in the same email adds a second `ABOUT`) → similarity (each ticket's 6 nearest neighbours by vector index, kept when the distance is within the night's median, become temporal `SIMILAR_TO` edges) → invalidate (contradiction events retire old edges) → clusters → practice (ObservedPatterns) → mismatch rules → suggestions → doctrine review → morning report. The mismatch rules are plain arithmetic and Cypher, no LLM: a pattern whose measured time exceeds a promise by more than 25% with at least 5 supporting tickets becomes `CONTRADICTS`; a workaround used often but in no KB becomes `UNDOCUMENTED`. The LLM writes only the suggestion prose. Teachings from chat land as `DoctrineCandidate` nodes; the dream reviews and commits them as `Policy` with `taught_by` and `source_session`.
 - **The simulated helpdesk** (`sim/`, landing soon, change `add-sim`). A fictional, Freshdesk-shaped ticketing system with about 3,000 E Corp Securities tickets and their mail threads: follow-ups, duplicates, merges, CC'd parties, auto-replies, bounces, spam, forwards, Hinglish. It serves a `/api/v2/` REST API with Basic auth and pagination, POSTs webhooks on a replay clock (`/sim/clock`), and keeps its ground truth in a file it never serves. `gen/listen.ts` takes each webhook, fetches the ticket and writes it to the graph as pending; the dream does the extraction. The graph, the eval and the benchmark all come from that one source. Facts never pass through the LLM: Haiku only rewords tone, and the paraphrase cache is committed so reruns cost nothing.
 
 ## Receipts and `?asOf=`
@@ -452,7 +459,55 @@ FOREACH (_ IN CASE WHEN r.res_kind <> '' THEN [1] ELSE [] END |
   MERGE (res:Resolution {id: r.res_id})
   ON CREATE SET res.kind = r.res_kind, res.summary = r.res_summary, res.created_at = $as_of, res.source = 'dream', res.source_ticket = r.ticket_id
   MERGE (t)-[:RESOLVED_BY]->(res))
+WITH t, r
+FOREACH (_ IN CASE WHEN r.issue2_id <> '' THEN [1] ELSE [] END |
+  MERGE (a2:ProductArea {name: r.area2})
+  MERGE (i2:Issue {id: r.issue2_id})
+  ON CREATE SET i2.name = r.issue2_name, i2.first_seen = t.created_at, i2.created_at = $as_of, i2.source = 'dream', i2.source_ticket = r.ticket_id
+  MERGE (i2)-[:IN]->(a2)
+  MERGE (t)-[x:ABOUT]->(i2)
+  ON CREATE SET x.source = 'dream', x.created_at = $as_of, x.batch_id = $batch_id, x.second_issue = true)
 RETURN count(t) AS written
+```
+
+#### `knn`
+
+```cypher
+UNWIND $ids AS id
+MATCH (t:Ticket {id: id}) WHERE t.embedding IS NOT NULL AND t.created_at <= $as_of
+CALL db.idx.vector.queryNodes('Ticket', 'embedding', 7, t.embedding) YIELD node, score
+WITH t, node, score WHERE node <> t AND node.created_at <= $as_of
+RETURN t.id AS a, node.id AS b, score ORDER BY a, score, b
+```
+
+#### `ticketIds`
+
+```cypher
+MATCH (t:Ticket) WHERE t.created_at <= $as_of RETURN t.id AS id ORDER BY id
+```
+
+#### `liveSimilar`
+
+```cypher
+MATCH (a:Ticket)-[s:SIMILAR_TO]->(b:Ticket) WHERE s.valid_from <= $as_of AND s.valid_until > $as_of RETURN a.id AS a, b.id AS b
+```
+
+#### `retireSimilar`
+
+```cypher
+UNWIND $rows AS r
+MATCH (:Ticket {id: r.a})-[s:SIMILAR_TO]->(:Ticket {id: r.b}) WHERE s.valid_from <= $as_of AND s.valid_until > $as_of
+SET s.valid_until = $as_of
+RETURN count(s) AS retired
+```
+
+#### `createSimilar`
+
+```cypher
+UNWIND $rows AS r
+MATCH (a:Ticket {id: r.a}), (b:Ticket {id: r.b})
+CREATE (a)-[s:SIMILAR_TO {score: r.score, valid_from: $as_of, valid_until: 253402300799000, source: 'dream', created_at: $as_of}]->(b)
+RETURN count(s) AS created
 ```
 
 #### `windowPairs`
@@ -626,7 +681,7 @@ RETURN count(DISTINCT s) AS n
 MATCH (d:DoctrineCandidate)-[:IN]->(a:ProductArea)
 WHERE d.reviewed_at IS NULL AND d.text IS NOT NULL
 RETURN id(d) AS nid, d.text AS text, a.name AS area, d.promised_tat_hours AS promised, d.steps AS steps,
-  d.taught_by AS taught_by, d.source_session AS source_session, d.created_at AS created_at
+  d.taught_by AS taught_by, d.source_session AS source_session, d.created_at AS created_at, coalesce(d.reviewed, false) AS reviewed
 ORDER BY d.created_at, nid
 ```
 

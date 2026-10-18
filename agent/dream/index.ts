@@ -80,6 +80,10 @@ export async function runDreamNow(opts: RunOptions): Promise<DreamReport> {
   const ing = await ingest(db, graphs.company, as_of, llm, { memo, hook, usage: extract });
   await hook('ingest');
 
+  // 2b · SIMILAR_TO: the kNN graph the algorithms run on.
+  const sim = await buildSimilar(db, graphs.company, as_of);
+  await hook('similar');
+
   // 3 · invalidate: due events through gen's idempotent applyEvent.
   let eventsRetired = 0;
   for (const e of (opts.events ?? loadEvents()).filter((e) => e.at <= as_of).sort((a, b) => a.at - b.at || a.id.localeCompare(b.id)))
@@ -116,10 +120,10 @@ export async function runDreamNow(opts: RunOptions): Promise<DreamReport> {
 
   return {
     run_id: run, as_of, ms: Date.now() - t0,
-    retired: eventsRetired + cl.retired + rules.retired,
-    retired_by: { events: eventsRetired, clusters: cl.retired, mismatches: rules.retired },
+    retired: eventsRetired + cl.retired + rules.retired + sim.retired,
+    retired_by: { events: eventsRetired, clusters: cl.retired, mismatches: rules.retired, similar: sim.retired },
     created: { tickets_ingested: ing.ingested, patterns: rules.patterns.length, mismatch_edges: rules.written,
-      suggestions: sugg.length, policies: policies.length, cluster_edges: cl.created },
+      suggestions: sugg.length, policies: policies.length, cluster_edges: cl.created, similar_edges: sim.created },
     ingested: ing.ingested, dropped: ing.dropped, batches: ing.batches,
     clusters: { count: cl.ids.length, ids: cl.ids, retired: cl.retired, receipts: { projection: `${Q.windowPairs}\n// → ${graphs.scratch}:\n${Q.projectPairs}`, algorithm: Q.labelPropagation } },
     mismatches: rules.edges, suggestions: sugg.map((s) => s.id), policies,
@@ -131,6 +135,41 @@ export async function runDreamNow(opts: RunOptions): Promise<DreamReport> {
 const proseFacts = (e: MismatchEdge) => e.type === 'CONTRADICTS'
   ? { mismatch: 'measured resolution time is far above what the document promises', document: e.target, area: e.area }
   : { mismatch: 'a repeated workaround appears in no document', workaround: e.summary, area: e.area };
+
+/** τ is a percentile of the graph's own kNN distances, not a fixed number, so it holds for any embedding provider
+ *  (MiniLM 384-d or OpenAI 1536-d). Measured on the seeded 3,015 MiniLM tickets (k=6): the median neighbour distance
+ *  is 0.130, which leaves about 3 edges per ticket. */
+export const SIMILAR_PERCENTILE = 0.5;
+
+/** Nightly kNN: each ticket's ≤6 nearest neighbours within τ. Unchanged pairs stay live; dropped pairs are retired by
+ *  valid_until; new pairs are created. Batches of 1,000 because RESULTSET_SIZE truncates at 10k rows (gotcha 5). */
+export async function buildSimilar(db: Db, company: string, as_of: number, tauOverride?: number) {
+  const ids = (await rows<{ id: string }>(db, company, Q.ticketIds, { as_of })).map((r) => r.id);
+  const knn: { a: string; b: string; score: number }[] = [];
+  type K = { a: string; b: string; score: number };
+  const batch = (b: string[]) => rows<K>(db, company, Q.knn, { ids: b, as_of });
+  try {
+    for (let i = 0; i < ids.length; i += 1000) {
+      const b = ids.slice(i, i + 1000);
+      // A ticket embedded by another provider (dimension mismatch) fails the whole batch: retry one by one, skip it.
+      knn.push(...await batch(b).catch(async (e) => {
+        if (!/dimension/i.test(String(e))) throw e;
+        return (await Promise.all(b.map((id) => batch([id]).catch(() => [] as K[])))).flat();
+      }));
+    }
+  } catch (e) { if (/vector|index/i.test(String(e))) return { retired: 0, created: 0, tau: null }; throw e; } // no vector index yet
+  const sorted = knn.map((r) => r.score).sort((x, y) => x - y);
+  const tau = tauOverride ?? sorted[Math.floor(SIMILAR_PERCENTILE * (sorted.length - 1))] ?? 0;
+  const next = knn.filter((r) => r.score <= tau);
+  const live = await rows<{ a: string; b: string }>(db, company, Q.liveSimilar, { as_of });
+  const key = (r: { a: string; b: string }) => `${r.a}|${r.b}`;
+  const want = new Set(next.map(key)), have = new Set(live.map(key));
+  const gone = live.filter((r) => !want.has(key(r))), fresh = next.filter((r) => !have.has(key(r)));
+  let retired = 0, created = 0;
+  for (let i = 0; i < gone.length; i += 2000) retired += (await rows<{ retired: number }>(db, company, Q.retireSimilar, { rows: gone.slice(i, i + 2000), as_of }))[0].retired;
+  for (let i = 0; i < fresh.length; i += 2000) created += (await rows<{ created: number }>(db, company, Q.createSimilar, { rows: fresh.slice(i, i + 2000), as_of }))[0].created;
+  return { retired, created, tau };
+}
 
 async function clusters(db: Db, graphs: DreamGraphs, as_of: number) {
   const pairs = await rows<{ t: string; i: string; name: string }>(db, graphs.company, Q.windowPairs, { as_of });
@@ -160,20 +199,24 @@ async function clusters(db: Db, graphs: DreamGraphs, as_of: number) {
 async function commitDoctrine(db: Db, company: string, teams: string[], as_of: number): Promise<string[]> {
   const ids: string[] = [];
   for (const team of teams) {
-    const cands = await rows<{ nid: number; text: string; area: string; promised: number | null; steps: string[] | null; taught_by: string | null; source_session: string | null }>(db, team, Q.candidates);
+    const cands = await rows<{ nid: number; text: string; area: string; promised: number | null; steps: string[] | null; taught_by: string | null; source_session: string | null; reviewed: boolean }>(db, team, Q.candidates);
     if (!cands.length) continue;
-    const first = new Map<string, (typeof cands)[number]>();
+    // A candidate is committed only when two distinct sessions taught the same text, or a lead marked it reviewed.
+    const groups = new Map<string, typeof cands>();
     for (const c of cands.filter((c) => c.text.trim())) {
       const key = `${c.area}|${norm(c.text)}`;
-      if (!first.has(key)) first.set(key, c); // the earliest teaching keeps the provenance
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(c); // ordered by created_at: the earliest teaching keeps the provenance
     }
-    const list = [...first.values()].map((c) => ({
+    const ready = [...groups.values()].filter((g) => g.some((c) => c.reviewed) || new Set(g.map((c) => c.source_session ?? `nid:${c.nid}`)).size >= 2);
+    const list = ready.map(([c]) => ({
       id: `POL-${c.area}-${hash(norm(c.text))}`, area: c.area, text: c.text.trim(), promised: c.promised, steps: c.steps,
       taught_by: c.taught_by ?? 'unknown', source_session: c.source_session ?? 'unknown',
     }));
     // Identical text in one area merges onto one Policy id, so a duplicate is committed once.
     if (list.length) await rows(db, company, Q.commitPolicies, { rows: list, as_of });
-    await rows(db, team, Q.markReviewed, { ids: cands.map((c) => c.nid), as_of });
+    const done = ready.flat().map((c) => c.nid);
+    if (done.length) await rows(db, team, Q.markReviewed, { ids: done, as_of });
     ids.push(...list.map((p) => p.id));
   }
   return [...new Set(ids)];

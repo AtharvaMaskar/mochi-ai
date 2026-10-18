@@ -126,6 +126,20 @@ test('full fixture run: every step of the dream', async (t) => {
   });
 });
 
+test('5.3 a single taught candidate is not committed; two sessions teaching the same text are', async (t) => {
+  const f = await fixture('doctrine');
+  t.after(f.cleanup);
+  const teach = (text: string, s: string) => f.rows(`MATCH (a:ProductArea {name:'funds'}) CREATE (d:DoctrineCandidate {text:$text, source:'teach', taught_by:'A-1', source_session:$s, created_at:$at})-[:IN]->(a)`, { text, s, at: AS_OF - H }, f.graphs.teams![0]);
+  await teach('payouts after 6pm settle next day', 'S-1');
+  await teach('KYC re-upload needs a fresh selfie', 'S-1');
+  await teach('kyc re-upload needs a fresh selfie.', 'S-2');
+  await runDreamNow({ db: f.db, as_of: AS_OF, model: fauxModel(), graphs: f.graphs, events: [] });
+  const p = await f.rows(`MATCH (p:Policy) WHERE p.source = 'teach' RETURN p.text AS text`);
+  assert.deepEqual(p, [{ text: 'KYC re-upload needs a fresh selfie' }]);
+  const open = await f.rows(`MATCH (d:DoctrineCandidate) WHERE d.reviewed_at IS NULL RETURN d.text AS text`, {}, f.graphs.teams![0]);
+  assert.deepEqual(open, [{ text: 'payouts after 6pm settle next day' }]);
+});
+
 test('5.2 a FEEDBACK wrong edge suppresses a new Suggestion and sets status wrong', async (t) => {
   const f = await fixture('feedback');
   t.after(f.cleanup);

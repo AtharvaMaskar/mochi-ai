@@ -13,6 +13,7 @@ export const Extraction = z.object({
   issue: z.string().trim().min(3).max(120),
   area: AreaName,
   resolution: z.object({ kind: ResolutionKind, summary: z.string().trim().min(3).max(240) }).optional(),
+  second_issue: z.object({ issue: z.string().trim().min(3).max(120), area: AreaName }).optional(),
 });
 export type Extraction = z.infer<typeof Extraction>;
 
@@ -25,7 +26,8 @@ export type Hook = (step: string) => void | Promise<void>;
 export function systemPrompt(issues: IssueRow[]): string {
   return [
     'You extract entities from customer-support tickets of a fictional stock broker into a closed vocabulary.',
-    'Reply with JSON only, no prose: {"items":[{"ticket_id":string,"issue":string,"area":string,"resolution"?:{"kind":string,"summary":string}}]}.',
+    'Reply with JSON only, no prose: {"items":[{"ticket_id":string,"issue":string,"area":string,"resolution"?:{"kind":string,"summary":string},"second_issue"?:{"issue":string,"area":string}}]}.',
+    'Add second_issue only when the customer raises a second, different problem in the same message.',
     `area must be one of: ${AreaName.options.join(', ')}.`,
     `resolution.kind must be one of: ${ResolutionKind.options.join(', ')}. Include resolution only for resolved or closed tickets.`,
     'issue is a short canonical issue class (e.g. "payment debited, order not placed"). Reuse an existing issue name when it fits:',
@@ -88,9 +90,14 @@ export async function ingest(db: Db, graph: string, as_of: number, llm: DreamMod
       const known = (t.issue_id && byId.get(t.issue_id)) || byKey.get(`${norm(x.issue)}|${x.area}`);
       const issue = known ?? { id: `I-${x.area}-${slug(x.issue)}`, name: x.issue, area: x.area };
       byKey.set(`${norm(issue.name)}|${issue.area}`, issue);
+      const s2 = x.second_issue && areas.has(x.second_issue.area) ? x.second_issue : null;
+      const k2 = s2 ? byKey.get(`${norm(s2.issue)}|${s2.area}`) ?? { id: `I-${s2.area}-${slug(s2.issue)}`, name: s2.issue, area: s2.area } : null;
+      if (k2) byKey.set(`${norm(k2.name)}|${k2.area}`, k2);
+      const second = k2 && k2.id !== issue.id ? k2 : null;
       const resolved = (t.status === 'resolved' || t.status === 'closed') && !t.res_id && x.resolution;
       return { ticket_id: t.id, issue_id: issue.id, issue_name: issue.name, area: issue.area,
-        res_id: `RES-${t.id}`, res_kind: resolved ? x.resolution!.kind : '', res_summary: resolved ? x.resolution!.summary : '' };
+        res_id: `RES-${t.id}`, res_kind: resolved ? x.resolution!.kind : '', res_summary: resolved ? x.resolution!.summary : '',
+        issue2_id: second?.id ?? '', issue2_name: second?.name ?? '', area2: second?.area ?? '' };
     });
     if (!out.length) continue;
     const batch_id = `${run}:${k}`;
