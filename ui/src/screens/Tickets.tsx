@@ -2,9 +2,11 @@
 // The queue and threads come from the helpdesk (through the agent); the brief, guess and history from the graph.
 import { useEffect, useState } from 'react';
 import { Segmented, Button, NeedsYou, Icon, Confidence } from '../components/ds.tsx';
-import { TicketRow, MochiBrief, BriefSection, Noticed, CustomerHeader, CustomerHistory } from '../components/desk.tsx';
-import { ToolCard } from '../components/blocks.tsx';
-import { QueryTag, ReceiptProvider, useReceipts } from '../components/receipts.tsx';
+import { PanelRightOpen, PanelRightClose } from 'lucide-react';
+import type { StoredQuery, Visual } from '@mochi/contracts';
+import { TicketRow, MochiBrief, Noticed, Disclosure, useStored } from '../components/desk.tsx';
+import { BlockView, Table, Suggestion, FixGroups, HistoryList, groupFixes, historyRows } from '../components/blocks.tsx';
+import { QueryTag, NumPill, PathReceipt, ReceiptProvider, useReceipts } from '../components/receipts.tsx';
 import { useWidth } from '../components/shell.tsx';
 import { ConversationThread } from '../components/thread.tsx';
 import { draftReply } from '../components/thread-text.ts';
@@ -24,16 +26,20 @@ function writingFor(t: TicketDetail): string | null {
   return name && String(name).toLowerCase() !== t.requester.name.toLowerCase() ? String(name) : null;
 }
 
-/** The confidence word opens the query that computed it. */
+/** The confidence word opens the query that computed it; the likely fix carries its count from the same query. */
 function GuessWord({ g }: { g: Guess }) {
-  const { open } = useReceipts();
+  const { open, queries } = useReceipts();
+  const support = queries[g.query_id!]?.rows.find((r) => r.issue === g.issue)?.support_count;
   return (
-    <div className="mb-row-status">
-      <span className="mb-row-type">{g.issue}</span>
-      <Button variant="link" size="sm" aria-label="Open the receipt for this confidence" onClick={(e) => open(g.query_id!, e.currentTarget, g.basis === 'graph' ? 'confidence' : 'score')}>
-        <Confidence p={g.p!} />
-      </Button>
-      <span className="t-caption muted">{g.basis === 'graph' ? 'Share of resolved tickets on this issue fixed this way' : 'Closest resolved ticket by meaning (no issue link yet)'}</span>
+    <div className="mb-sum-guess">
+      <p className="mb-sum-lead"><span>{g.issue}</span>
+        <Button variant="link" size="sm" aria-label="Open the receipt for this confidence" onClick={(e) => open(g.query_id!, e.currentTarget, g.basis === 'graph' ? 'confidence' : 'score')}>
+          <Confidence p={g.p!} hidePct />
+        </Button>
+      </p>
+      {g.resolution && <p className="mb-sum-line">Likely fix: {g.resolution}
+        {typeof support === 'number' && <> · worked on <NumPill query_id={g.query_id!} column="support_count" row={queries[g.query_id!].rows.findIndex((r) => r.issue === g.issue)} /> similar tickets</>}</p>}
+      <p className="t-caption muted">{g.basis === 'graph' ? 'Share of resolved tickets on this issue fixed this way' : 'Closest resolved ticket by meaning (no issue link yet)'}</p>
     </div>
   );
 }
@@ -45,35 +51,84 @@ function ViewTabs({ view, counts, onChange }: { view: string; counts?: Record<st
     options={VIEWS.map((v) => ({ id: v.id, label: v.label, count: counts?.[v.id] }))} onCount={counts && ((id, el) => open('q_0', el, id))} />;
 }
 
+const qname = (q?: StoredQuery) => (q && /mochi:([\w.]+)@/.exec(q.cypher)?.[1]) || '';
+const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+
 export function Brief({ t, onClose }: { t: TicketDetail; onClose?: () => void }) {
   const brief = useData(() => api.brief(t.id), [t.id]);
-  const c = t.customer?.queries.q_1.rows[0];
-  const history = (t.customer?.queries.q_2.rows ?? []).filter((r) => r.ticket !== t.id)
-    .map((r) => ({ id: String(r.ticket), on: fmtDay(Number(r.created_at)), subject: String(r.subject), end: String(r.ended) }));
-  const others = (t.customer?.queries.q_3.rows ?? []).filter((r) => r.ticket !== t.id).length;
+  const [wide, setWide] = useStored('mochi.brief.wide');
+  const c = t.customer?.queries.q_1?.rows[0];
+  const others = (t.customer?.queries.q_3?.rows ?? []).filter((r) => r.ticket !== t.id).length;
   const g = t.guess;
   const noticed = t.merged_into ? <>This ticket was <b>merged into {t.merged_into}</b>. Answer there.</>
     : others ? <>This customer has <b>{others === 1 ? 'one other open ticket' : `${others} other open tickets`}</b>.</> : null;
+
+  // The brief's blocks, picked by the stored query's name. The customer table is the customer line above, so it is not repeated.
+  const card = brief.data, qs = card?.queries ?? {};
+  const blocks = (card?.blocks ?? []) as Visual[];
+  const named = (n: string) => blocks.find((b) => qname(qs[b.query_id]) === n);
+  const sugg = blocks.filter((b): b is Extract<Visual, { type: 'suggestion' }> => b.type === 'suggestion');
+  const similar = named('briefing.similar'), prefs = named('memory.preferences');
+  const hist = ['briefing.recent', 'memory.customer_before'].map(named).filter((b) => b !== undefined);
+  const used = new Set([named('briefing.profile'), similar, prefs, ...hist, ...sugg]);
+  const rest = blocks.filter((b) => !used.has(b));
+  const team = sugg.map((s) => qs[s.query_id]?.rows[0]?.team).find(Boolean);
+  const histN = historyRows(qs, hist.map((b) => b.query_id), t.id).length;
+  const fixes = similar ? groupFixes(qs[similar.query_id]?.rows ?? []) : [];
+  const memN = prefs ? qs[prefs.query_id]?.rows.length ?? 0 : 0;
+  const pathTypes = card?.path ? [card.path.nodes[0]?.label, card.path.nodes.at(-1)?.label].filter(Boolean).join(' to ') : '';
+
   return (
-    <MochiBrief loading={brief.loading && !brief.data} mood={brief.loading || !t.ingested ? 'thinking' : 'idle'}
+    <MochiBrief loading={brief.loading && !brief.data} mood={brief.loading || !t.ingested ? 'thinking' : 'idle'} wide={wide}
       status={brief.loading ? 'I’m pulling what I know…' : !t.in_memory ? 'This ticket isn’t in my memory yet.' : !t.ingested ? 'I’ll read this ticket properly at the next dream.' : 'Read when it arrived.'}
-      aside={onClose && <button className="mb-x" aria-label="Close the brief" onClick={onClose}><Icon name="close" /></button>}>
-      <BriefSection label="What I noticed"><Noticed>{noticed}</Noticed></BriefSection>
-      <BriefSection label="Customer" aside="From memory" delay={0.08}>
-        <CustomerHeader name={t.requester.name} clientId={t.customer_id ?? undefined} state={c ? 'found' : 'not_found'}
-          status={c ? [c.segment, c.plan, c.city].filter(Boolean).map(String) : undefined} />
-      </BriefSection>
-      <BriefSection label="Briefing" delay={0.16}>
-        {brief.data ? <ToolCard card={brief.data} />
-          : brief.error ? <NeedsYou reason={brief.error} action="Try again" onAction={brief.reload} /> : null}
-      </BriefSection>
-      <BriefSection label="My guess" delay={0.2}>
-        {g?.issue && g.p !== null && g.query_id
-          ? <ReceiptProvider queries={t.guess_queries}><GuessWord g={g} /></ReceiptProvider>
-          : <><div className="mb-row-status"><span className="mb-row-type">Can’t tell</span></div>
-            <NeedsYou reason={t.in_memory ? 'I can’t link this ticket to a known issue or a similar resolved ticket yet.' : 'This ticket hasn’t reached my memory yet.'} /></>}
-      </BriefSection>
-      <BriefSection label="Earlier tickets" delay={0.24}><CustomerHistory tickets={history} /></BriefSection>
+      aside={<span className="mb-brief-acts">
+        <button className="mb-x mb-brief-wide" aria-label={wide ? 'Narrow the brief' : 'Expand the brief'} aria-pressed={wide} onClick={() => setWide(!wide)}>
+          {wide ? <PanelRightClose className="mb-icon" size={16} strokeWidth={1.5} aria-hidden="true" /> : <PanelRightOpen className="mb-icon" size={16} strokeWidth={1.5} aria-hidden="true" />}
+        </button>
+        {onClose && <button className="mb-x" aria-label="Close the brief" onClick={onClose}><Icon name="close" /></button>}
+      </span>}>
+      <section className="mb-sum" aria-label="Summary">
+        <div className="mb-sum-part"><h3 className="mb-sum-eyebrow">What I noticed</h3><Noticed>{noticed}</Noticed></div>
+        <div className="mb-sum-part"><h3 className="mb-sum-eyebrow">My guess</h3>
+          {g?.issue && g.p !== null && g.query_id
+            ? <ReceiptProvider queries={t.guess_queries}><GuessWord g={g} /></ReceiptProvider>
+            : <><p className="mb-sum-lead">Can’t tell</p>
+              <NeedsYou reason={t.in_memory ? 'I can’t link this ticket to a known issue or a similar resolved ticket yet.' : 'This ticket hasn’t reached my memory yet.'} /></>}
+        </div>
+        <ReceiptProvider queries={qs}>
+          {team ? <p className="mb-sum-line">Owning team: <b>{String(team)}</b> <QueryTag qid={sugg[0].query_id} /></p> : null}
+        </ReceiptProvider>
+        <div className="mb-sum-part"><h3 className="mb-sum-eyebrow">Customer</h3>
+          {c ? <ReceiptProvider queries={t.customer!.queries}>
+            <p className="mb-sum-line mb-sum-cust"><span className="mb-sum-cust-text" title={[c.name, c.customer_id, c.segment, c.plan, c.city].filter(Boolean).join(' · ')}>
+              <b>{String(c.name)}</b> · <span className="mono">{String(c.customer_id)}</span>{[c.segment, c.plan, c.city].filter(Boolean).map((x) => ` · ${x}`).join('')}</span>
+              <QueryTag qid="q_1" /></p>
+            {t.requester.name !== c.name && <p className="t-caption muted">{t.requester.name}, writing for {String(c.name)}</p>}
+          </ReceiptProvider> : <p className="mb-sum-line">{t.requester.name} · not found in the back office</p>}
+        </div>
+        <ReceiptProvider queries={qs}>{sugg.map((s, i) => <Suggestion key={i} {...s} compact />)}</ReceiptProvider>
+      </section>
+
+      {brief.error && !card && <NeedsYou reason={brief.error} action="Try again" onAction={brief.reload} />}
+      {card && <ReceiptProvider queries={qs}>
+        <div className="mb-evid">
+          {card.path && <Disclosure id="path" label="The path I walked" preview={plural(card.path.nodes.length, 'step') + (pathTypes ? ` · ${pathTypes}` : '')} pills={<QueryTag qid={card.path.query_id} />}>
+            <PathReceipt path={card.path} bare />
+          </Disclosure>}
+          {similar && <Disclosure id="similar" label="What fixed similar tickets" pills={<QueryTag qid={similar.query_id} />}
+            preview={fixes.length ? `${plural(fixes.length, 'fix', 'fixes')} · ${plural(fixes.reduce((n, f) => n + f.tickets.length, 0), 'ticket')}` : 'None yet'}>
+            <FixGroups query_id={similar.query_id} />
+          </Disclosure>}
+          {hist.length > 0 && <Disclosure id="history" label="Customer history" preview={histN ? plural(histN, 'earlier ticket') : 'None yet'}
+            pills={<span className="mb-disc-pills">{hist.map((b) => <QueryTag key={b.query_id} qid={b.query_id} />)}</span>}>
+            <HistoryList qids={hist.map((b) => b.query_id)} exclude={t.id} />
+          </Disclosure>}
+          {prefs?.type === 'table' && <Disclosure id="memory" label="From your memory" preview={memN ? plural(memN, 'note') : 'None yet'} pills={<QueryTag qid={prefs.query_id} />}>
+            <Table {...prefs} brief bare />
+          </Disclosure>}
+          {rest.map((b, i) => b.type === 'table' ? <Table key={i} {...b} brief exclude={t.id} /> : <BlockView key={i} v={b} />)}
+        </div>
+      </ReceiptProvider>}
     </MochiBrief>
   );
 }

@@ -93,26 +93,83 @@ export function Line(v: Extract<Visual, { type: 'line' }>) {
   );
 }
 
-export function Table(v: Extract<Visual, { type: 'table' }>) {
-  const all = useRows(v.query_id);
+const HEAD: Record<string, string> = { kb: 'KB article', sla: 'SLA', tat: 'TAT', kpi: 'KPI' };
+/** snake_case column → "Sentence case" header, with a few known words. */
+export const humanise = (c: string) => HEAD[c] ?? (c.charAt(0).toUpperCase() + c.slice(1)).replaceAll('_', ' ');
+/** Columns that are plumbing, not facts: hidden in the brief. */
+const internal = (c: string) => c === 'source_session' || (c.endsWith('_id') && c !== 'ticket');
+const isTicket = (c: string, v: unknown) => c === 'ticket' || /^T-\d+$/.test(String(v));
+const None = () => <p className="mb-none">None yet.</p>;
+
+/** `brief` hides internal columns; `exclude` drops the ticket being viewed; `bare` drops the head (a disclosure shows it). */
+export function Table(v: Extract<Visual, { type: 'table' }> & { brief?: boolean; exclude?: string; bare?: boolean }) {
+  const all = useRows(v.query_id).filter((r) => !v.exclude || r.ticket !== v.exclude);
   const [open, setOpen] = useState(false);
   const rows = open ? all : all.slice(0, 10);
+  const cols = v.brief ? v.columns.filter((c) => !internal(c)) : v.columns;
   const numCol = (c: string) => rows.length > 0 && rows.every((r) => isNum(r[c]));
   return (
     <div className="mb-block" {...useFlash(v.query_id)}>
-      <Head label={v.label} qid={v.query_id} />
-      <div className="mb-table-wrap">
+      {!v.bare && <Head label={v.label} qid={v.query_id} />}
+      {all.length === 0 ? <None /> : <div className="mb-table-wrap">
         <table className="mb-table">
-          <thead><tr>{v.columns.map((c) => <th key={c} data-num={numCol(c) || undefined}>{c}</th>)}</tr></thead>
-          <tbody>{rows.map((r, i) => <tr key={i}>{v.columns.map((c) => <td key={c} data-num={numCol(c) || undefined}>{isNum(r[c]) ? <RollingNumber value={fmt(r[c])} /> : fmt(r[c])}</td>)}</tr>)}</tbody>
+          <thead><tr>{cols.map((c) => <th key={c} data-num={numCol(c) || undefined}>{humanise(c)}</th>)}</tr></thead>
+          <tbody>{rows.map((r, i) => <tr key={i}>{cols.map((c) => <td key={c} data-num={numCol(c) || undefined} className={isTicket(c, r[c]) ? 'mb-tid' : undefined}>{isNum(r[c]) ? <RollingNumber value={fmt(r[c])} /> : fmt(r[c])}</td>)}</tr>)}</tbody>
         </table>
-      </div>
+      </div>}
       {all.length > 10 && (
         <button className="mb-table-more t-caption" onClick={() => setOpen(!open)}>
           {open ? 'Show fewer' : `Showing 10 of ${all.length} · show all`}
         </button>
       )}
     </div>
+  );
+}
+
+/** Similar-fix rows grouped by resolution + KB article, client-side; the stored query and its pill are unchanged. */
+export function groupFixes(rows: Record<string, unknown>[]) {
+  const g = new Map<string, { resolution: string; kb: string | null; tickets: string[] }>();
+  for (const r of rows) {
+    const k = JSON.stringify([r.resolution, r.kb ?? null]);
+    if (!g.has(k)) g.set(k, { resolution: fmt(r.resolution), kb: r.kb ? String(r.kb) : null, tickets: [] });
+    g.get(k)!.tickets.push(String(r.ticket));
+  }
+  return [...g.values()].sort((a, b) => b.tickets.length - a.tickets.length);
+}
+export function FixGroups({ query_id }: { query_id: string }) {
+  const groups = groupFixes(useRows(query_id));
+  if (!groups.length) return <None />;
+  return (
+    <ul className="mb-fixes">
+      {groups.map((f) => (
+        <li key={f.resolution + f.kb}>
+          <span className="mb-fix-what">{f.resolution} <span className="mb-fix-n">· {f.tickets.length} {f.tickets.length === 1 ? 'ticket' : 'tickets'}</span></span>
+          {f.kb && <span className="mb-fix-sub" title={f.kb}>{f.kb}</span>}
+          <span className="mb-fix-ids">{f.tickets.map((t) => <span key={t} className="mb-tid">{t}</span>)}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** One customer history from several stored queries (tickets, remembered episodes), deduped by ticket and
+ *  without the ticket being viewed. */
+export function historyRows(queries: Record<string, { rows: Record<string, unknown>[] }>, qids: string[], exclude: string) {
+  const seen = new Set<string>([exclude]);
+  return qids.flatMap((q) => (queries[q]?.rows ?? []).flatMap((r) => {
+    const id = String(r.ticket);
+    if (seen.has(id)) return [];
+    seen.add(id);
+    return [{ id, text: fmt(r.subject ?? r.summary), end: r.status ? humanise(String(r.status)) : undefined }];
+  }));
+}
+export function HistoryList({ qids, exclude }: { qids: string[]; exclude: string }) {
+  const rows = historyRows(useReceipts().queries, qids, exclude);
+  if (!rows.length) return <None />;
+  return (
+    <ul className="mb-fixes">
+      {rows.map((r) => <li key={r.id}><span className="mb-fix-what"><span className="mb-tid">{r.id}</span> {r.text}</span>{r.end && <span className="mb-fix-sub">{r.end}</span>}</li>)}
+    </ul>
   );
 }
 
@@ -140,12 +197,13 @@ const actionLabel = (a: string) => {
   if (verb === 'dismiss') return ['Dismiss', 'Dismissed'];
   return [a.replaceAll('_', ' '), 'Done'];
 };
-export function Suggestion(v: Extract<Visual, { type: 'suggestion' }>) {
+/** A mismatch suggestion on the NeedsYou surface. `compact` is the short form inside the brief's summary card. */
+export function Suggestion(v: Extract<Visual, { type: 'suggestion' }> & { compact?: boolean }) {
   const [done, setDone] = useState<string | null>(null);
   return (
-    <div className="mb-block mb-sugg" {...useFlash(v.query_id)}>
-      <div className="mb-block-head"><span className="mb-edge">{v.edge}</span><QueryTag qid={v.query_id} /></div>
-      <div className="mb-sugg-tag">{v.tag}</div>
+    <div className={`mb-block mb-sugg${v.compact ? ' mb-sugg-compact' : ''}`} {...useFlash(v.query_id)}>
+      <div className="mb-block-head"><span className="mb-sugg-eyebrow">{humanise(v.edge.toLowerCase())}{v.compact && ` · ${v.tag}`}</span><QueryTag qid={v.query_id} /></div>
+      {!v.compact && <div className="mb-sugg-tag">{v.tag}</div>}
       <StoryMarkdown text={v.text} />
       <div className="mb-sugg-acts">
         {done ? <span className="mb-did"><DrawnCheck />{done}</span> : v.actions.map((a, i) => {

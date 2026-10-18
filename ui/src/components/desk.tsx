@@ -2,6 +2,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Mochi, Confidence, Button, DrawnCheck, Icon, type Mood, type IconName } from './ds.tsx';
 import type { ThreadMessage } from '../../fixtures/index.ts';
+import { ChevronDown } from 'lucide-react';
 
 const STATUS = {
   todo: { text: 'To answer', dot: 'var(--warning-dot)' },
@@ -25,8 +26,8 @@ export function TicketRow(p: { name: string; time: string; subject: string; type
         <span className="mb-row-status">
           {p.reading ? <><span className="mb-withmochi" aria-hidden="true" />Reading</> : <><span className="mb-row-dot" style={{ background: st.dot }} />{st.text}</>}
         </span>
-        {!p.reading && <span className="mb-row-status">
-          <span className="mb-row-type">{p.type ?? "Can't tell"}</span>
+        {!p.reading && <span className="mb-row-status mb-row-cause">
+          <span className="mb-row-type" title={p.type ?? "Can't tell"}>{p.type ?? "Can't tell"}</span>
           {p.p !== undefined && <Confidence p={p.p} hidePct />}
         </span>}
       </span>
@@ -73,9 +74,33 @@ export function TicketThread({ messages, collapseAfter = 6, waitingFor }: { mess
   );
 }
 
-export function MochiBrief(p: { mood?: Mood; title?: string; status?: string; still?: boolean; aside?: ReactNode; loading?: boolean; children?: ReactNode }) {
+/** A per-browser boolean in localStorage; storage can throw (private window, blocked site data), so it falls back. */
+export function useStored(key: string, init = false): [boolean, (v: boolean) => void] {
+  const [v, setV] = useState(() => { try { const s = localStorage.getItem(key); return s === null ? init : s === '1'; } catch { return init; } });
+  return [v, (n) => { setV(n); try { localStorage.setItem(key, n ? '1' : '0'); } catch { /* not remembered */ } }];
+}
+
+/** A collapsible evidence section: label, one-line preview and its receipt pills; open state remembered per section. */
+export function Disclosure(p: { id: string; label: string; preview?: ReactNode; pills?: ReactNode; children?: ReactNode }) {
+  const [open, setOpen] = useStored(`mochi.brief.open.${p.id}`);
   return (
-    <div className="mb-brief-inner" data-mood={p.mood}>
+    <section className="mb-disc" data-open={open || undefined}>
+      <div className="mb-disc-head">
+        <button className="mb-disc-btn" aria-expanded={open} onClick={() => setOpen(!open)}>
+          <ChevronDown className="mb-icon mb-disc-chev" size={16} strokeWidth={1.5} aria-hidden="true" />
+          <span className="mb-disc-label">{p.label}</span>
+          {p.preview !== undefined && <span className="mb-disc-preview">{p.preview}</span>}
+        </button>
+        {p.pills}
+      </div>
+      {open && <div className="mb-disc-body">{p.children}</div>}
+    </section>
+  );
+}
+
+export function MochiBrief(p: { mood?: Mood; title?: string; status?: string; still?: boolean; aside?: ReactNode; loading?: boolean; wide?: boolean; children?: ReactNode }) {
+  return (
+    <div className="mb-brief-inner" data-mood={p.mood} data-wide={p.wide || undefined}>
       <div className="mb-brief-head">
         <Mochi size="sm" mood={p.mood ?? 'idle'} still={p.still} />
         <div><div className="mb-brief-title">{p.title ?? 'Mochi’s brief'}</div>{p.status && <div className="mb-brief-status">{p.status}</div>}</div>
