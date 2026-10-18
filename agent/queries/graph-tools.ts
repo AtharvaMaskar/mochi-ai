@@ -18,6 +18,7 @@ const strip = (c: string) => c.replace(/'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"/g, "
 
 /** Friendly refusals before the database's own NOPERM. Returns the fix-it message, or null. */
 export function precheck(cypher: string): string | null {
+  if (/\bLOAD\b|\bCSV\b/i.test(cypher.replace(/\/\*[\s\S]*?\*\//g, ' '))) return 'query_graph cannot load external data (LOAD CSV). Query the graph with MATCH … RETURN.';
   const src = strip(cypher);
   const w = src.match(/\b(CREATE|MERGE|SET|DELETE|DETACH|REMOVE|DROP|FOREACH|LOAD\s+CSV)\b/i) ?? src.match(/CALL\s+db\.idx\.[\w.]*(create|drop)/i);
   if (w) return `query_graph is read-only: "${w[0]}" is a write. Rewrite it as MATCH … RETURN.`;

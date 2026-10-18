@@ -23,7 +23,7 @@ export function visitorId(req: IncomingMessage, res: ServerResponse): string {
 // ponytail: in-memory fixed window per IP; one process serves the app. Move to a shared store if it ever scales out.
 const WINDOW_MS = 10 * 60_000;
 const hits = new Map<string, { start: number; n: number }>();
-export const ipOf = (req: IncomingMessage) => String(req.headers['x-forwarded-for'] ?? '').split(',')[0].trim() || req.socket.remoteAddress || '?';
+export const ipOf = (req: IncomingMessage) => String(req.headers['x-real-ip'] ?? '').trim() || String(req.headers['x-forwarded-for'] ?? '').split(',').pop()!.trim() || req.socket.remoteAddress || '?'; // leftmost XFF is client-controlled
 /** Count one chat run; returns the seconds to wait when the IP is over its limit. */
 export function overLimit(ip: string, limit = Number(process.env.MOCHI_CHAT_LIMIT ?? 20), now = Date.now()): number {
   let h = hits.get(ip);

