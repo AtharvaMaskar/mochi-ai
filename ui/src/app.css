@@ -441,3 +441,9 @@ h1, h2, h3, b, strong { font-weight: var(--fw-body-strong); }
 .mb-story-dash .mb-grid { gap: var(--space-4); }
 .mb-story-dash > .mb-block, .mb-story-dash .mb-grid > .mb-block { height: 100%; }
 @media (prefers-reduced-motion: reduce) { .mb-panel, .mb-changed, .mb-badge, .mb-live-since i { animation: none !important; } .mb-story-chip:active { transform: none; } }
+
+/* Brief-pane spacing hotfix: a tinted suggestion inside a card keeps its own padding; IDs never break; the guess row wraps. */
+.mb-card .mb-block.mb-sugg { padding: var(--space-4); border-radius: var(--radius-md); gap: var(--space-3); }
+.mb-table td:first-child { white-space: nowrap; }
+.mb-brief .mb-row-status { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-3); }
+.mb-brief .mb-row-status > .t-caption { flex-basis: 100%; }
