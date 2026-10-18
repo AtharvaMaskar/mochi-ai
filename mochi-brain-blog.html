@@ -28,6 +28,7 @@
     --border: #2A303A;
     --border-strong: #3A414D;
     --border-dashed: #4A5260;
+    --critical: #F97066;
     --focus: #8CB8EE;
     --radius-xs: 2px;
     --radius-sm: 6px;
@@ -143,6 +144,30 @@
   th { font-size: var(--fs-data-xs); font-weight: var(--fw-eyebrow); color: var(--ink-muted); text-transform: uppercase; letter-spacing: .06em; }
   td.r, th.r { text-align: right; }
   .muted { color: var(--ink-muted); }
+  .sc { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: var(--space-4); margin: 0 0 var(--space-6); }
+  .sc > section { border: 1px solid var(--border); border-radius: var(--radius-md); padding: var(--space-4); background: color-mix(in srgb, var(--bg-surface) 70%, transparent); }
+  .sc h3 { margin: 0 0 2px; font-family: var(--font-sans); font-size: var(--fs-label); font-weight: var(--fw-label); color: var(--ink); }
+  .sc .say { margin: 0 0 var(--space-3); font-family: var(--font-sans); font-size: var(--fs-caption); color: var(--ink-muted); }
+  .sc-row { display: grid; grid-template-columns: 84px minmax(0, 1fr) auto; gap: var(--space-2); align-items: center; font-family: var(--font-mono); font-size: var(--fs-data-xs); color: var(--ink-secondary); margin: 6px 0; }
+  .sc-row .v { color: var(--ink); text-align: right; white-space: nowrap; }
+  .sc-track i { display: block; height: 8px; border-radius: 4px; width: max(3px, calc(var(--w) * 100%)); background: var(--ink-faint); transform-origin: left; }
+  .sc-track i.g { background: var(--arm-d); }
+  .dots { display: flex; flex-wrap: wrap; gap: 4px; }
+  .dots b { width: 10px; height: 10px; border-radius: 50%; border: 1px solid var(--border-strong); }
+  .dots b.on { background: var(--arm-d); border-color: var(--arm-d); }
+  .dots b.found { background: var(--ink-secondary); border-color: var(--ink-secondary); }
+  .dots b.bad { background: var(--critical); border-color: var(--critical); }
+  .sc-key { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-2); font-family: var(--font-mono); font-size: var(--fs-data-xs); color: var(--ink-muted); }
+  .sc-key > span { display: inline-flex; align-items: center; gap: 4px; }
+  .sc-key .dots { display: inline-flex; }
+  .sc.rv i { transform: scaleX(0); transition: transform .9s cubic-bezier(.2,.7,.2,1); }
+  .sc.rv .dots b { opacity: 0; transform: scale(.4); transition: opacity .3s, transform .3s; }
+  .sc.rv.on i, .sc.rv.on .dots b { transform: none; opacity: 1; }
+  .pair + .pair { margin-top: var(--space-3); }
+  .pair .say { margin: 0 0 2px; color: var(--ink-secondary); }
+  details.full { margin: 0 0 var(--space-6); font-family: var(--font-mono); font-size: var(--fs-data-xs); color: var(--ink-muted); }
+  details.full summary { cursor: pointer; color: var(--ink-secondary); }
+  details.full p { margin: var(--space-2) 0 0; line-height: var(--lh-body); }
   footer { margin-top: 88px; border-top: 1px solid var(--border); padding-top: var(--space-4);
            font-family: var(--font-mono); font-size: var(--fs-data-xs); line-height: 1.7; color: var(--ink-muted); }
 
@@ -250,31 +275,35 @@
   <div><dt>Subject:</dt><dd>Mochi</dd></div>
 </dl>
 
-<p>Today I'm shipping <span class="mochi">mochi</span>, a support desk where no ticket starts from zero. Its whole memory is one FalkorDB graph. Every answer shows the path it walked through that graph, and every number opens the Cypher that produced it. It is my entry for Graph Hacks, in all three tracks, and it is <a href="https://github.com/AtharvaMaskar/mochi-ai">open source</a>.</p>
+<p><span class="mochi">mochi</span> is a support desk where no ticket starts from zero. Its memory is one FalkorDB graph. Each answer shows the path it took through that graph, and each number links to the Cypher query that produced it. I built it for Graph Hacks, entered all three tracks, and the code is <a href="https://github.com/AtharvaMaskar/mochi-ai">open source</a>.</p>
 
-<p>All data on this page is synthetic. E Corp Securities is a fictional broker.</p>
+<p>All data here is synthetic. E Corp Securities is a fictional broker.</p>
 
-<h2 id="why">Why Mochi?</h2>
+<h2 id="why">Where this came from</h2>
 
-<p>I'm an AI engineer at a stock-broking platform. A customer can be onboarded in a day or two. Behind that, support depends on many teams: onboarding, KYC, the KRA and more. Every hand-off between them is manual. Every new ticket starts from zero.</p>
+<p>I'm an AI engineer at a stock-broking platform. Opening an account takes a day or two. A ticket about that account can take a week, because it moves between onboarding, KYC, the KRA and back again. I've watched teams lose days to this. One team waits on another. The person who fixed the same problem last month never gets asked, because nobody knows they fixed it. The customer explains everything again at every hand-off.</p>
 
-<p>I also wanted to explore agent memory, one of the least explored parts of agentic systems. Most agents keep memory in markdown files. That never sat right with me, because it burns tokens. In this project I could finally measure it.</p>
+<p>I also wanted to work on agent memory, and this weekend I could measure it.</p>
 
-<p>I thought FalkorDB was just another graph database. Then I found graph algorithms as tools. The graph does the joining, ranking and clustering, and the model picks the tool and writes the sentence. That was the missing link for me. Mochi is what I built around it, in one weekend.</p>
+<p>I expected FalkorDB to be a place to store nodes. Then I found its graph algorithms and started calling them as tools. Cypher joins, ranks and clusters the tickets. The model picks which query to run and writes the reply. <span class="mochi">mochi</span> is built around that.</p>
 
 <h2 id="headline">Does it work?</h2>
 
-<p>I want a small model to be enough, because the memory carries the weight. In Mochi, Haiku answers from the graph. Haiku on the graph got <span class="num" data-fig="haiku_d_acc"></span> correct, at <span class="num" data-fig="haiku_d_cost"></span> per answer. Sonnet on markdown notes got <span class="num" data-fig="sonnet_c_acc"></span>, at <span class="num" data-fig="sonnet_c_cost"></span>. Same <span class="num" data-fig="n_q"></span> questions, same judge.</p>
+<p>Teams I've worked with are obsessed with keeping agent memory in markdown files. I get why: a file is easy to write, read and diff. It was never enough for what we needed, and I knew there had to be a better way to handle memory.</p>
 
-<p>The gap is in multi-hop questions, like "which release caused the issues behind this week's refund tickets?" On Haiku, the graph got <span class="num" data-fig="mh_D"></span> of those right. Markdown notes got <span class="num" data-fig="mh_C"></span>. SQLite tables with the same queries got <span class="num" data-fig="mh_E"></span>. Tables are the honest rival. Edges still won.</p>
+<p>I want a small model to be enough, because the memory carries the weight. In Mochi, Haiku answers from the graph. On the graph, Haiku got <span class="num" data-fig="haiku_d_acc"></span> correct at <span class="num" data-fig="haiku_d_cost"></span> per answer. Sonnet on markdown notes got <span class="num" data-fig="sonnet_c_acc"></span> at <span class="num" data-fig="sonnet_c_cost"></span>. Same <span class="num" data-fig="n_q"></span> questions, same judge.</p>
 
-<p>Notes also cost tokens to keep. Turning the tickets into markdown memory took <span class="num" data-fig="ingest_c"></span> tokens; the graph's extraction took <span class="num" data-fig="ingest_d"></span>. When a fact changes, a model rewrites the notes, at <span class="num" data-fig="upkeep_c"></span> tokens per change on average. The graph closes the old fact with a date in one Cypher write, for <span class="num" data-fig="upkeep_d"></span> tokens. After the changes, the graph gave the current answer on <span class="num" data-fig="stale_d"></span> questions and the notes on <span class="num" data-fig="stale_c"></span>. A note doesn't know it stopped being true. It keeps getting read anyway.</p>
+<p>Most of the gap is multi-hop questions, like "which release caused the issues behind this week's refund tickets?" On Haiku, the graph got <span class="num" data-fig="mh_D"></span> of those right, SQLite tables with the same queries <span class="num" data-fig="mh_E"></span>, and markdown notes <span class="num" data-fig="mh_C"></span>.</p>
 
-<p>It doesn't win everything. On Haiku, notes, tables and vector top-k are all cheaper per answer than the graph, and all three are wrong more often. The full list is under <a href="#lost">Where I lost</a>.</p>
+<p>Notes also cost tokens to keep. Turning the tickets into markdown memory took <span class="num" data-fig="ingest_c"></span> tokens; the graph's extraction took <span class="num" data-fig="ingest_d"></span>. When a fact changes, a model rewrites the notes, at <span class="num" data-fig="upkeep_c"></span> tokens per change on average. The graph closes the old fact with a date in one Cypher write, for <span class="num" data-fig="upkeep_d"></span> tokens. After the changes, the graph gave the current answer on <span class="num" data-fig="stale_d"></span> questions, and the notes on <span class="num" data-fig="stale_c"></span>.</p>
+
+<p>On Haiku, notes, tables and vector top-k all cost less per answer than the graph. They also answer fewer questions right.</p>
 
 <h2 id="brief">What is a brief?</h2>
 
 <p>Watch a support agent take a ticket: "Money deducted, order not placed." Before they can write anything useful, they open the CRM to see who this is, then billing, then the ticket history, then team chat, then a knowledge base that may predate the last release. The context exists. It sits in pieces that don't know about each other, so a person rebuilds it for every ticket.</p>
+
+<p>The pieces also drift. Someone writes a KB article once and moves on. A step changes and nobody updates the doc. A detail gets lost in a hand-off. We're human, and humans forget. Our systems still expect every answer to be right. So the memory has to expect the gaps, and notice when a document no longer matches what the team actually does.</p>
 
 <p>We want every ticket to start with what the company already knows. In Mochi, the agent gets a brief before it types a word: who the customer is, what fixed similar tickets, the likely cause and the team that owns it. The core of it is one walk through the graph, from the new ticket to its issue, to the tickets that shared it, to how they were resolved and the KB article behind the fix:</p>
 
@@ -500,23 +529,11 @@ WHERE k.id IN $kbs AND ${EDGE_AS_OF('c')} RETURN count(c) AS n`, { params: { kbs
 
 <p>Averages hide where each design wins, so the questions come in three types. Single-fact: "what plan is this customer on?" Honestly, files or tables should win those. Multi-hop: "which release caused the issues behind this week's refund tickets?" The graph should win those, if it is worth anything. Structural: "which KB article does practice contradict?" Whoever can compute it wins, not whoever can recall it.</p>
 
-<p>Staleness, event by event. C rewrites its markdown with a model. D runs the invalidation write with no model. After each event I ask a question whose answer changed. D gave the current answer on <span class="num" data-fig="stale_d"></span> events with <span class="num" data-fig="maint_d"></span> upkeep tokens. C did on <span class="num" data-fig="stale_c"></span> with <span class="num" data-fig="maint_c"></span>.</p>
-<div class="table-wrap" id="table-stale"></div>
-
-<p>Every graph feature has to pay rent, and a feature I didn't measure says so in public:</p>
-<div class="table-wrap" id="table-ledger"></div>
+<p>Each graph feature against its closest rival:</p>
+<div class="sc" id="scorecard"></div>
+<details class="full"><summary>The full ledger, as text</summary><div id="table-ledger"></div></details>
 
 <p>Answer-model spend across every benchmarked task: <span class="num" data-fig="bill"></span>. My own build-time assistant usage is not in that number.</p>
-
-<h2 id="lost">Where I lost</h2>
-
-<p>A benchmark that only shows wins is an ad. Sonnet on the graph scored <span class="num" data-fig="sonnet_d_acc"></span>, above Haiku's <span class="num" data-fig="haiku_d_acc"></span>, at <span class="num" data-fig="sonnet_d_cost"></span> per answer. I still default to Haiku, because the point is that the memory does the work.</p>
-
-<p>Decision traces scored below plain graph memory: <span class="num" data-fig="ap_correct:graph_traces_warm_replay"></span> correct against <span class="num" data-fig="ap_correct:D"></span>, and <span class="num" data-fig="ap_fresh:graph_traces_warm_replay"></span> current against <span class="num" data-fig="ap_fresh:D"></span>. Vector lessons were the cheapest way to learn, at <span class="num" data-fig="ap_cost:vector_lessons"></span> per 1,000 answers. On clusters, the graph missed <span class="num" data-fig="cl_missed"></span> planted spikes, and so did the model.</p>
-
-<p>The graph's write path costs more per episode than appending a line to a file, and its ingestion needs a model for entity extraction: <span class="num" data-fig="ingest_d"></span> tokens. Concurrency is one container on one laptop with synthetic load, not a production cluster. The rest is computed from the results, so no loss can be left out:</p>
-
-<ul id="losses"></ul>
 
 <h2 id="try">Try it</h2>
 
@@ -536,35 +553,9 @@ WHERE k.id IN $kbs AND ${EDGE_AS_OF('c')} RETURN count(c) AS n`, { params: { kbs
 
 <h2 id="next">What's next</h2>
 
-<p>The nightly report should cluster over <code>SIMILAR_TO</code>, like the chat tool already does, so one number can describe both. Decision traces should earn their way to default by closing the gap with plain graph memory. And I want to run the same benchmark against real ticket shapes, at real volume. If you are building agent memory, I'd like to hear where this breaks for you. The repo is open, and every number on this page can be re-run with <code>npm run bench</code>.</p>
+<p>The nightly report should cluster over <code>SIMILAR_TO</code>, like the chat tool already does, so one number can describe both. Decision traces should earn their way to default by closing the gap with plain graph memory. And I want to run the same benchmark against real ticket shapes, at real volume. If you are building agent memory, I'd like to hear where this breaks for you: I'm <a href="https://x.com/AtharvaMaskarML">@AtharvaMaskarML</a> on X. The repo is open, and every number on this page can be re-run with <code>npm run bench</code>.</p>
 
 <p>What I liked most: graph algorithms as tools. The graph memory layers I looked at give an agent storage and search; here Mochi can run PageRank or label propagation as a tool call and get a ranked or grouped answer back. Clustering a day of tickets that way found the same spikes as asking the model, with no invented groups (<span class="num" data-fig="cl_spur:graph"></span> against <span class="num" data-fig="cl_spur:llm"></span>) and about a ninth of the tokens (<span class="num" data-fig="cl_tok:graph"></span> against <span class="num" data-fig="cl_tok:llm"></span>).</p>
-
-<h2 id="falkordb-next">What I'd want FalkorDB to build next</h2>
-
-<p>The first is memory that knows what it learned. When Mochi answers a ticket, I keep a decision trace: the query that answered it, what came back, and which facts it relied on. On the next similar ticket, Mochi replays that path instead of exploring from scratch. That roughly halved the cost per answer, from <span class="num" data-fig="ap_cost:D"></span> to <span class="num" data-fig="ap_cost:graph_traces_warm_replay"></span> per 1,000 answers. When one of those facts changes, the trace expires with it, so a fix that stopped working never comes back. Every notes-based approach I tested kept serving old fixes. I built all of this on top of FalkorDB. It belongs inside it: a database that tracks which facts an answer depended on, and forgets the answer when they change. That turns agent learning from a pile of notes into something you can trust.</p>
-
-<p>The second is safety and budgets for queries a model writes. That's now normal: in Mochi, the chat writes its own read-only Cypher. So I had to add guards myself: a row cap, a timeout, a check that blocks writes, and a block on <code>LOAD CSV</code> so a model-written query can't fetch data from outside. The database should do this natively. Give me a cost and row estimate before a query runs. Let me set a token budget, and return a summary of a large subgraph instead of ten thousand rows. Give me read-only roles that also block external fetches. Agents will write more queries than people do. The database should expect that.</p>
-
-<h2 id="faq">FAQ</h2>
-
-<h3>Why not just a vector database?</h3>
-<p>I tried. It is design B. See fig 6.</p>
-
-<h3>Why not just Postgres?</h3>
-<p>I tried SQLite. It is design E, and it gets the same five queries as SQL. It came second. Tables are a fair rival, and the graph's lead is on multi-hop questions.</p>
-
-<h3>Is this a shot at Devin?</h3>
-<p>No. Design C follows the open Agent Memory Repo spec, and the Devin-style Knowledge comparison is modelled on Devin's documented feature, not Devin itself. Both are good at what they are for: preferences and project gotchas. Support context has a different shape.</p>
-
-<h3>Why is there a SQLite file in a graph project?</h3>
-<p>FalkorDB holds what the agent knows. By default, SQLite holds what the agent is doing: Pi Durable's transcripts and checkpoints. Set <code>MOCHI_STORAGE=falkordb</code> and that moves into FalkorDB too.</p>
-
-<h3>Is any of the data real?</h3>
-<p>No. E Corp Securities is fictional. The generator is seeded and in the repo. The helpdesk's shape comes from public Freshdesk docs, and no real ticket was read, copied or used as an example.</p>
-
-<h3>What if the dream is wrong?</h3>
-<p>It retires, it never deletes. Yesterday's brain is a <code>GRAPH.COPY</code>, and any report can be re-run with <code>?asOf=</code>. Suggestions are hypotheses with ticket IDs attached. Nothing applies them automatically.</p>
 
 <h2 id="ai">Use of AI</h2>
 
@@ -573,7 +564,7 @@ WHERE k.id IN $kbs AND ${EDGE_AS_OF('c')} RETURN count(c) AS n`, { params: { kbs
 <p>Disclosure: built with Claude Code on Claude Opus 5.5. I used it to write specs and proposals, to write and test code in parallel git worktrees, one OpenSpec change per worktree, and to review diffs. I approved every design decision and spec amendment. An agent drafted this page from the git log, the archived changes and <code>bench/results.json</code>, and I edited it. I can explain every graph model, query and decision on it. The figures come in through <code>blog/fill-bench.ts</code>, which refuses to fill the page while any marker is left.</p>
 
 <footer>
-  <a href="https://github.com/AtharvaMaskar/mochi-ai">github.com/AtharvaMaskar/mochi-ai</a> · Tracks entered: 01 Agents That Act on Connected Data, 02 Agent Memory and Coordination, 03 Company Brain · Built with AI coding assistants, disclosed above · Graph Hacks, WeMakeDevs × FalkorDB, Oct 2026 · Synthetic data only.
+  <a href="https://github.com/AtharvaMaskar/mochi-ai">github.com/AtharvaMaskar/mochi-ai</a> · <a href="https://x.com/AtharvaMaskarML">x.com/AtharvaMaskarML</a> · Tracks entered: 01 Agents That Act on Connected Data, 02 Agent Memory and Coordination, 03 Company Brain · Built with AI coding assistants, disclosed above · Graph Hacks, WeMakeDevs × FalkorDB, Oct 2026 · Synthetic data only.
 </footer>
 
 </main>
@@ -16759,22 +16750,62 @@ WHERE k.id IN $kbs AND ${EDGE_AS_OF('c')} RETURN count(c) AS n`, { params: { kbs
     onView(box, () => box.classList.add("on"));
   }
 
-  (function staleTable() {
+  (function scorecard() {
+    const box = document.getElementById("scorecard"), out = [];
+    const pct = (x) => Math.round(x * 100) + "%", k = (n) => n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1) + "k" : String(n);
+    const lg = (v, max) => Math.max(0, Math.log10(Math.max(v, 1)) / Math.log10(max));
+    const bar = (label, w, v, g) => `<div class="sc-row"><span>${esc(label)}</span><span class="sc-track"><i class="${g ? "g" : ""}" style="--w:${w.toFixed(3)}"></i></span><span class="v">${esc(v)}</span></div>`;
+    const dots = (spec) => `<span class="dots">${spec.map(([n, c]) => `<b class="${c}"></b>`.repeat(n)).join("")}</span>`;
+    const row = (label, inner, v) => `<div class="sc-row"><span>${esc(label)}</span>${inner}<span class="v">${esc(v ?? "")}</span></div>`;
+    const card = (title, say, body, key) => out.push(`<section><h3>${esc(title)}</h3><p class="say">${esc(say)}</p>${body}${key ? `<div class="sc-key">${key}</div>` : ""}</section>`);
+    const NAME = { A: "full prompt", B: "vector", C: "markdown", D: "graph", E: "SQLite" };
+
+    const pt = (BENCH.per_task || []).filter((r) => /haiku/.test(r.model_id)).sort((a, b) => b.accuracy - a.accuracy);
+    if (pt.length) card("Answering tickets", `Share of ${pt[0].n} questions right, on Haiku.`, pt.map((r) => bar(NAME[r.arch] || r.arch, r.accuracy, pct(r.accuracy), r.arch === "D")).join(""));
+
     const st = BENCH.staleness;
-    if (!st) return table("table-stale", [], null);
-    const arms = [...new Set(st.map((s) => s.arch))].sort();
-    const events = [...new Set(st.map((s) => s.event_id))];
-    const head = [{ t: "event" }].concat(arms.map((a) => ({ t: a + " · answer, tokens", r: true })));
-    const rows = events.map((e) => [`<code>${esc(e)}</code>`].concat(arms.map((a) => {
-      const s = st.find((x) => x.event_id === e && x.arch === a);
-      return s ? (s.answer_fresh ? "fresh" : "<strong>stale</strong>") + " · " + s.maintenance_tokens.toLocaleString("en-US") : "not measured";
-    })));
-    table("table-stale", head, rows, "no events replayed", true);
+    if (st) {
+      const arms = ["D", "E", "C"].filter((a) => st.some((x) => x.arch === a));
+      card("Staying current", "After 10 facts changed: did it give the current answer?", arms.map((a) => {
+        const rs = st.filter((x) => x.arch === a), f = rs.filter((x) => x.answer_fresh).length, t = rs.reduce((n, x) => n + x.maintenance_tokens, 0);
+        return row(NAME[a], dots(rs.map((x) => [1, x.answer_fresh ? "on" : ""])), `${f}/${rs.length} · ${k(t)} tok`);
+      }).join(""), `<span><span class="dots"><b class="on"></b></span>current</span><span><span class="dots"><b></b></span>stale</span><span>tok = upkeep tokens</span>`);
+    }
+
+    const ab = (title, say, o, unit, okKey, badKey, badWord) => {
+      if (!o) return card(title, "not measured", "");
+      const max = Math.max(o.graph.tokens, o.llm.tokens);
+      card(title, say,
+        row("graph", dots([[o.graph[okKey], "found"], [o.graph[badKey], "bad"]]), `${o.graph[badKey]} ${badWord}`) +
+        row("model alone", dots([[o.llm[okKey], "found"], [o.llm[badKey], "bad"]]), `${o.llm[badKey]} ${badWord}`) +
+        bar("graph tok", lg(o.graph.tokens, max), k(o.graph.tokens), true) + bar("model tok", lg(o.llm.tokens, max), k(o.llm.tokens)),
+        `<span><span class="dots"><b class="found"></b></span>${unit}</span><span><span class="dots"><b class="bad"></b></span>${badWord}</span><span>tokens on a log scale</span>`);
+    };
+    ab("Docs against practice", "Help articles whose promise the tickets no longer meet.", BENCH.mismatch_ablation, "planted mismatch found", "found", "hallucinated", "invented");
+    ab("Ticket clusters", "Spikes after a bad release, found in a week of tickets.", BENCH.clusters_ablation, "planted spike found", "matched_spikes", "spurious", "spurious");
+
+    const ap = BENCH.decision_traces && BENCH.decision_traces.approaches;
+    if (ap) {
+      const AP = { D: "graph", graph_traces_warm_replay: "traces", C: "markdown", C_lessons: "lessons.md", devin_knowledge: "Devin-style", vector_lessons: "vector", sql_lessons: "SQL" };
+      const ks = Object.keys(ap).filter((a) => ap[a].staleness), max = Math.max(...ks.map((a) => ap[a].cost_usd_mean));
+      card("Learning from past tickets", "Cost per 1,000 answers, share right, and current answers after 10 changes.", ks.map((a) =>
+        bar(AP[a] || a, ap[a].cost_usd_mean / max, `$${(ap[a].cost_usd_mean * 1000).toFixed(2)} · ${pct(ap[a].accuracy)} · ${ap[a].staleness.fresh}/${ap[a].staleness.of}`, a === "D" || a === "graph_traces_warm_replay")).join(""));
+    }
+
+    const cc = BENCH.concurrency;
+    if (cc) { const mx = Math.max(...cc.runs.map((r) => r.p95_ms));
+      card("Parallel agents", `p95 latency per briefing while the dream writes. Torn reads: ${cc.runs.reduce((n, r) => n + r.torn_reads, 0)}.`,
+        cc.runs.map((r) => bar(`${r.n} at once`, r.p95_ms / mx, ms(r.p95_ms), true)).join("")); }
+
+    box.innerHTML = out.join("");
+    if (still) return;
+    box.classList.add("rv"); onView(box, () => requestAnimationFrame(() => box.classList.add("on")));
   })();
 
-  table("table-ledger", [{ t: "feature" }, { t: "graph mechanism" }, { t: "measured against" }, { t: "result" }],
-    BENCH.ledger && BENCH.ledger.map((l) => [esc(l.feature), esc(l.mechanism), esc(l.measured_against),
-      esc(l.result) + (l.status === "demonstrated" ? " <span class=\"muted\">(demonstrated)</span>" : "")]), "no ledger rows", true);
+  (function ledgerText() {
+    const box = document.getElementById("table-ledger");
+    box.innerHTML = (BENCH.ledger || []).map((l) => `<p><strong>${esc(l.feature)}</strong> (${esc(l.status.replace("_", " "))}). ${esc(l.mechanism)}. Against: ${esc(l.measured_against)}. Result: ${esc(l.result)}.</p>`).join("") || "<p>not measured</p>";
+  })();
 
   table("table-conc", [{ t: "parallel conversations", r: true }, { t: "p50", r: true }, { t: "p95", r: true }, { t: "throughput / s", r: true }, { t: "torn reads", r: true }],
     BENCH.concurrency && BENCH.concurrency.runs.map((r) => [r.n, ms(r.p50_ms), ms(r.p95_ms), r.throughput_per_s.toFixed(1), r.torn_reads]).map((r) => r.map((c) => `<span class="num">${esc(c)}</span>`)),
@@ -16782,28 +16813,33 @@ WHERE k.id IN $kbs AND ${EDGE_AS_OF('c')} RETURN count(c) AS n`, { params: { kbs
 
   // ---- where we lost: computed, so no loss can be omitted --------------------
   (function losses() {
-    const ul = document.getElementById("losses");
-    const S = BENCH.summary;
-    if (!S || !per) return;
-    const out = [];
-    for (const b of Object.keys(BUCKETS)) {
-      const d = S.D && S.D[b];
-      if (!d) continue;
-      for (const a of Object.keys(ARMS)) {
-        if (a === "D" || !S[a] || !S[a][b]) continue;
-        if (S[a][b].accuracy > d.accuracy) out.push(`${BUCKETS[b]}: arm ${a} answered ${pct(S[a][b].accuracy)} correctly, D answered ${pct(d.accuracy)}.`);
-      }
-    }
+    const box = document.getElementById("losses"), S = BENCH.summary;
+    if (!box || !S || !per) return;
+    const NAME = { A: "full prompt", B: "vector", C: "markdown", D: "graph", E: "SQLite" }, fam1 = (m) => fam(m);
+    const pc = (x) => Math.round(x * 100) + "%";
+    const bar = (label, w, v, g) => `<div class="sc-row"><span>${esc(label)}</span><span class="sc-track"><i class="${g ? "g" : ""}" style="--w:${w.toFixed(3)}"></i></span><span class="v">${esc(v)}</span></div>`;
+    const groups = { cost: [], p95: [], acc: [] };
     for (const m of models) {
       const d = per.find((r) => r.arch === "D" && r.model_id === m);
       if (!d) continue;
       for (const r of per.filter((x) => x.model_id === m && x.arch !== "D")) {
-        if (r.cost_usd_mean < d.cost_usd_mean) out.push(`${short(m)}: arm ${r.arch} cost ${usd(r.cost_usd_mean)} per task, D cost ${usd(d.cost_usd_mean)}.`);
-        if (r.p95_ms < d.p95_ms) out.push(`${short(m)}: arm ${r.arch} had p95 ${ms(r.p95_ms)}, D had ${ms(d.p95_ms)}.`);
+        const pair = (k, f) => { const mx = Math.max(r[k], d[k]); return `<div class="pair"><p class="say">${esc(NAME[r.arch])} on ${esc(fam1(m))}</p>` +
+          bar(`${NAME[r.arch]} ${pc(r.accuracy)}`, r[k] / mx, f(r[k])) + bar(`graph ${pc(d.accuracy)}`, d[k] / mx, f(d[k]), true) + `</div>`; };
+        if (r.cost_usd_mean < d.cost_usd_mean) groups.cost.push(pair("cost_usd_mean", usd));
+        if (r.p95_ms < d.p95_ms) groups.p95.push(pair("p95_ms", ms));
       }
     }
-    (BENCH.ledger || []).filter((l) => l.status === "not_measured").forEach((l) => out.push(`${l.feature}: not measured.`));
-    ul.innerHTML = out.length ? out.map((t) => `<li>${esc(t)}</li>`).join("") : "<li>No bucket, model or ledger row where D lost.</li>";
+    for (const b of Object.keys(BUCKETS)) for (const a of Object.keys(ARMS)) {
+      const d = S.D && S.D[b];
+      if (d && a !== "D" && S[a] && S[a][b] && S[a][b].accuracy > d.accuracy) groups.acc.push(`<p class="say">${esc(BUCKETS[b])}: ${esc(NAME[a] || a)} ${pc(S[a][b].accuracy)}, graph ${pc(d.accuracy)}</p>`);
+    }
+    const card = (t, say, items) => items.length ? `<section><h3>${esc(t)}</h3><p class="say">${esc(say)}</p>${items.join("")}</section>` : "";
+    box.innerHTML = card("Cheaper per answer", "Cost per answer. The % is how often each was right.", groups.cost) +
+      card("Faster at p95", "Slowest 5% of answers. The % is how often each was right.", groups.p95) +
+      card("More accurate", "Question types where another design beat the graph.", groups.acc) ||
+      `<section><p class="say">No model or question type where the graph lost.</p></section>`;
+    if (still) return;
+    box.classList.add("rv"); onView(box, () => requestAnimationFrame(() => box.classList.add("on")));
   })();
 })();
 
