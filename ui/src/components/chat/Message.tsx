@@ -1,14 +1,18 @@
 // A turn in the transcript. User words sit right in an ink bubble; Mochi's parts (steps, cards, text) share one
 // avatar whose mood says what it is doing: thinking while tools run, speaking while text streams.
-import type { ReactNode } from 'react';
+// A turn that began live (mood set at mount) arrives: cards get the fading agent-tint ring, words blur in once.
+// Replayed history mounts without a mood and shows everything at rest.
+import { useRef, type ReactNode } from 'react';
 import { Mochi, Button, type Mood } from '../ds.tsx';
+import { RevealWords } from '../markdown.tsx';
 
 export function Message({ role, mood, children }: { role: 'user' | 'assistant'; mood?: Mood; children: ReactNode }) {
+  const live = useRef(!!mood).current;
   if (role === 'user') return <div className="mb-chat-user">{children}</div>;
   return (
-    <div className="mb-chat-ai">
+    <div className="mb-chat-ai" data-arrive={live || undefined}>
       <Mochi size="sm" mood={mood} still={!mood || mood === 'idle'} />
-      <div className="mb-chat-ai-body">{children}</div>
+      <div className="mb-chat-ai-body"><RevealWords.Provider value={live}>{children}</RevealWords.Provider></div>
     </div>
   );
 }
