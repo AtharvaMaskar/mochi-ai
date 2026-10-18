@@ -94,7 +94,9 @@ export function Line(v: Extract<Visual, { type: 'line' }>) {
 }
 
 export function Table(v: Extract<Visual, { type: 'table' }>) {
-  const rows = useRows(v.query_id).slice(0, 10);
+  const all = useRows(v.query_id);
+  const [open, setOpen] = useState(false);
+  const rows = open ? all : all.slice(0, 10);
   const numCol = (c: string) => rows.length > 0 && rows.every((r) => isNum(r[c]));
   return (
     <div className="mb-block" {...useFlash(v.query_id)}>
@@ -105,6 +107,11 @@ export function Table(v: Extract<Visual, { type: 'table' }>) {
           <tbody>{rows.map((r, i) => <tr key={i}>{v.columns.map((c) => <td key={c} data-num={numCol(c) || undefined}>{isNum(r[c]) ? <RollingNumber value={fmt(r[c])} /> : fmt(r[c])}</td>)}</tr>)}</tbody>
         </table>
       </div>
+      {all.length > 10 && (
+        <button className="mb-table-more t-caption" onClick={() => setOpen(!open)}>
+          {open ? 'Show fewer' : `Showing 10 of ${all.length} · show all`}
+        </button>
+      )}
     </div>
   );
 }
