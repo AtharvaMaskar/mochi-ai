@@ -86,7 +86,7 @@ export function NumPill(p: { query_id: string; column: string; value?: string; r
   const shown = p.value ?? (stored === undefined || stored === null ? '—' : String(stored));
   const drift = !q || (p.value !== undefined && !q.rows.some((r) => String(r[p.column]) === p.value));
   return (
-    <button className={`mb-num${p.size === 'lg' ? ' mb-num-lg' : ''}`} data-drift={drift || undefined} data-bad={p.bad || undefined}
+    <button className={`mb-num${p.size === 'lg' ? ' mb-num-lg' : ''}`} data-q={p.query_id} data-drift={drift || undefined} data-bad={p.bad || undefined}
       title={drift ? `This figure is not in ${p.query_id}'s rows` : `From ${p.query_id}.${p.column}`}
       onClick={(e) => open(p.query_id, e.currentTarget, p.column)}>
       {/^-?[\d.,]+$/.test(shown) ? <RollingNumber value={shown} /> : shown}{p.unit && <span className="mb-kpi-unit">{p.unit}</span>}

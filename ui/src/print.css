@@ -1,0 +1,38 @@
+/* Story/dashboard PDF export (#/story/:id?print=1): the browser's print-to-PDF over the live renderer. Tokens only. */
+.mb-story-title-row { display: flex; align-items: center; gap: var(--space-2); }
+.mb-print-head { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); color: var(--ink-muted); border-bottom: 1px solid var(--border); padding-bottom: var(--space-2); }
+.mb-print-receipts { display: flex; flex-direction: column; gap: var(--space-3); margin-top: var(--space-6); }
+.mb-print-receipt { display: flex; flex-direction: column; gap: var(--space-1); }
+.mb-print-receipt pre { margin: 0; padding: var(--space-2); border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-subtle); color: var(--ink-body); font-size: var(--fs-data-xs); line-height: var(--lh-data-xs); white-space: pre-wrap; overflow-wrap: anywhere; }
+
+@page { size: A4; margin: 18mm; @bottom-right { content: "Page " counter(page) " of " counter(pages); font-family: var(--font-mono); font-size: var(--fs-data-xs); color: var(--ink-muted); } }
+
+@media print {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  html, body { background: var(--bg-surface); color: var(--ink); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  /* the app shell scrolls inside .mb-main on screen; on paper the document flows */
+  .mb-app, .mb-main { display: block; height: auto; overflow: visible; }
+  .mb-page { padding: 0; max-width: none; gap: var(--space-4); }
+  .mb-bar, .mb-navrow, .mb-island, .mb-page-live, .mb-asof, .mb-print-back, .mb-icon-btn, .mb-menu, .mb-pop, .mb-table-more,
+  .mb-sugg-acts, aside, nav { display: none !important; }
+
+  .mb-block, .mb-print-receipt, .mb-story-head, tr, .mb-line svg { break-inside: avoid; }
+  .mb-block:has(table) { break-inside: auto; }
+  .mb-table-wrap { overflow: visible; }
+  thead { display: table-header-group; }
+  .mb-table { font-size: var(--fs-data-xs); }
+  h1, h2, h3, .mb-block-head { break-after: avoid; }
+  .mb-print-receipts { break-before: page; margin-top: 0; }
+  .mb-print-receipt pre { background: none; }
+
+  /* receipt pills become superscript references: [q_1] */
+  .mb-qid { display: inline; height: auto; padding: 0; border: 0; background: none; color: var(--ink-muted); font-size: var(--fs-data-xs); vertical-align: super; line-height: 1; }
+  .mb-qid::before { content: "["; }
+  .mb-qid::after { content: "]"; }
+  .mb-num { padding: 0; margin: 0; border: 0; background: none; }
+  .mb-num::after { content: "[" attr(data-q) "]"; font-family: var(--font-mono); font-size: var(--fs-data-xs); color: var(--ink-muted); vertical-align: super; line-height: 1; }
+
+  /* dashboards: one block per row on paper */
+  .mb-story-dash .mb-grid { grid-template-columns: minmax(0, 1fr) !important; }
+  .mb-story-dash > .mb-block, .mb-story-dash .mb-grid > .mb-block { height: auto; }
+}

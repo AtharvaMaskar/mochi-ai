@@ -29,6 +29,10 @@ export type StoryRead = { story: Story; as_of: number; meta: StoryMeta };
 /** The kind-specific public link (hash route under /app). */
 export const storyHref = (id: string, kind: Kind = 'story', version?: number, asOf?: number) =>
   `#/${kind}/${id}${version ? `@${version}` : ''}${asOf !== undefined ? `?asOf=${asOf}` : ''}`;
+/** The same page in print mode: everything expanded, the as-of fixed, then the browser's print dialog (save as PDF). */
+export const printHref = (id: string, kind: Kind = 'story', version?: number, asOf?: number) =>
+  `${storyHref(id, kind, version, asOf)}${asOf !== undefined ? '&' : '?'}print=1`;
+export const isPrint = () => new URLSearchParams(location.hash.split('?')[1]).get('print') === '1';
 export const shareUrl = (id: string, kind: Kind) => `${location.origin}/${kind}/${id}`;
 export type Overview = {
   desk: { ready: number; done: number } | { error: string };

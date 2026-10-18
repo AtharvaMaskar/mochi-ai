@@ -1,4 +1,5 @@
 // The story renderer over parseStory segments. A story that fails its checks shows its errors, never a partial render.
+import type { ReactNode } from 'react';
 import { parseStory, type Segment } from '@mochi/contracts';
 import { ReceiptProvider, fmtTime } from './receipts.tsx';
 import { BlockView } from './blocks.tsx';
@@ -30,8 +31,8 @@ function changedFrom(segs: Segment[], prev: unknown): Set<number> | undefined {
   return new Set(segs.flatMap((s, i) => (before.has(JSON.stringify(s)) ? [] : [i])));
 }
 
-export function StoryView({ input, asOf, header = true, versionLabel, prev, dashboard }: {
-  input: unknown; asOf?: number; header?: boolean; versionLabel?: string;
+export function StoryView({ input, asOf, header = true, versionLabel, prev, dashboard, actions }: {
+  input: unknown; asOf?: number; header?: boolean; versionLabel?: string; /** controls beside the title */ actions?: ReactNode;
   /** the previous version: segments that differ from it are highlighted */ prev?: unknown;
   /** kind=dashboard: full-width tile layout */ dashboard?: boolean;
 }) {
@@ -46,7 +47,7 @@ export function StoryView({ input, asOf, header = true, versionLabel, prev, dash
       <article className={dashboard ? 'mb-story mb-story-dash' : 'mb-story'}>
         {header && (
           <header className="mb-story-head">
-            <h1 className="mb-story-title">{story.title}</h1>
+            <div className="mb-story-title-row"><h1 className="mb-story-title">{story.title}</h1>{actions}</div>
             <div className="mb-story-meta">
               <span className="mb-version">{versionLabel ?? `@${story.version}`}</span>
               <span>Written by {story.generated_by === 'dream' ? 'the dream' : story.generated_by.replace('user:', '')}</span>
