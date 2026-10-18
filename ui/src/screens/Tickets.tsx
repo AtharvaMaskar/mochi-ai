@@ -163,7 +163,7 @@ export function Tickets() {
       <main ref={ticketPane} className="mb-pane mb-ticket" data-show={pane === 'ticket' || undefined} data-stale={stale || undefined} aria-label="Ticket" aria-busy={stale || undefined}>
         {width < 768 && <Button className="mb-back" variant="link" size="sm" onClick={() => setPane('list')}><Icon name="back" />Tickets</Button>}
         {t ? <>
-          <div className="mb-ticket-head" key={t.id}>
+          <div className="mb-ticket-head" key={`head-${t.id}`}>
             <div>
               <h1 className="t-title">{t.subject}</h1>
               <p className="t-caption muted">{t.requester.name}{forName && <>, writing for {forName}</>}
@@ -176,7 +176,7 @@ export function Tickets() {
             </div>
           </div>
           {claimError && <NeedsYou mood="sorry" title="I couldn’t claim this ticket" reason={claimError} />}
-          <ConversationThread key={t.id} messages={t.thread} source={t.source}
+          <ConversationThread key={`thread-${t.id}`} messages={t.thread} source={t.source}
             next={t.state === 'todo' ? { ticketId: t.id, to: t.requester.name, claimed: isClaimed, onClaim: () => claim(t.id), onSend: (text) => answer(t.id, text) } : undefined} />
           {answerError && <NeedsYou mood="sorry" title="I couldn’t send the reply" reason={answerError} />}
         </> : detail.error ? <NeedsYou mood="sorry" title="I can’t open this ticket" reason={detail.error} action="Try again" onAction={detail.reload} />
