@@ -59,8 +59,9 @@ RETURN t.id AS ticket, t.subject AS subject, i.id AS issue_id, i.name AS issue,
        r.version AS release, r.shipped_at AS shipped_at, x.valid_from AS introduced_at
 ORDER BY r.shipped_at DESC, r.version LIMIT 3`,
   whoKnows: `/* mochi:who_knows@v1 */
-MATCH (a:AgentUser)-[s:SOLVED]->(t:Ticket)-[:ABOUT]->(i:Issue {id: $issueId})
-WHERE ${N('a')} AND ${N('t')} AND ${N('i')}
+MATCH (i:Issue) WHERE (i.id = $issueId OR toLower(i.name) = toLower($issueId)) AND ${N('i')}
+MATCH (a:AgentUser)-[s:SOLVED]->(t:Ticket)-[:ABOUT]->(i)
+WHERE ${N('a')} AND ${N('t')}
 WITH a, i, count(s) AS solved, min(t.id) AS example_ticket
 OPTIONAL MATCH (a)-[:MEMBER_OF]->(tm:Team)
 RETURN a.id AS agent_id, a.name AS agent, tm.name AS team, solved, example_ticket, i.name AS issue
