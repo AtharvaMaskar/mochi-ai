@@ -1,4 +1,4 @@
-/* Chat layout (conversations · chat · outputs rail / story panel), the Outputs rail, the empty-state cards, the
+/* Chat layout (conversations · chat · story panel), the Outputs chip and card, @-mentions, the empty-state cards, the
    story panel's header and motion, and the Reports nav count. Tokens only. */
 
 /* ---------- One surface, three columns ---------- */
@@ -6,21 +6,19 @@
    block, and the side columns are translucent over it with one hairline each. */
 .mb-split { position: relative; overflow: hidden; isolation: isolate; }
 .mb-split-chat:has(.mb-chat-backdrop) { position: static; isolation: auto; }
-.mb-threads, .mb-split-rail { min-width: 0; min-height: 0; display: flex; flex-direction: column; background: color-mix(in srgb, var(--bg-surface) 72%, transparent); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
-@media (prefers-reduced-transparency: reduce) { .mb-threads, .mb-split-rail { background: var(--bg-surface); -webkit-backdrop-filter: none; backdrop-filter: none; } }
+.mb-threads, .mb-out-card { min-width: 0; min-height: 0; display: flex; flex-direction: column; background: color-mix(in srgb, var(--bg-surface) 72%, transparent); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
+@media (prefers-reduced-transparency: reduce) { .mb-threads, .mb-out-card { background: var(--bg-surface); -webkit-backdrop-filter: none; backdrop-filter: none; } }
 .mb-threads { flex: 0 0 clamp(260px, 16vw, 320px); border-right: 1px solid var(--border); }
-.mb-split-rail { flex: 0 0 clamp(280px, 18vw, 340px); border-left: 1px solid var(--border); overflow-y: auto; }
-.mb-threads[data-collapsed], .mb-split-rail:has(.mb-rail[data-collapsed]) { flex-basis: 48px; }
-.mb-split:has(> .mb-panel[data-settled]) > .mb-split-rail { display: none; } /* the open panel takes the rail's column once settled */
+.mb-threads[data-collapsed] { flex-basis: 48px; }
 .mb-split-chat { display: flex; flex-direction: column; }
 
 /* the shared 48px header row: same height, padding, type and hairline in all three columns */
 .mb-col-head { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); height: 48px; padding: 0 var(--space-2) 0 var(--space-4); border-bottom: 1px solid var(--border); }
 .mb-col-title { display: inline-flex; align-items: baseline; gap: var(--space-2); font-size: var(--fs-label); font-weight: var(--fw-label); color: var(--ink); white-space: nowrap; }
-.mb-strip .mb-col-head, .mb-rail[data-collapsed] .mb-col-head { justify-content: center; padding: 0; }
+.mb-strip .mb-col-head { justify-content: center; padding: 0; }
 .mb-strip-body { display: flex; flex-direction: column; align-items: center; gap: var(--space-1); padding-top: var(--space-2); }
 .mb-strip-count { font-size: var(--fs-data-xs); }
-.mb-chat-head { justify-content: center; padding: 0 var(--space-4); }
+.mb-chat-head { position: relative; z-index: 6; justify-content: center; padding: 0 72px; } /* symmetric room for the Outputs chip keeps the title centred */
 .mb-chat-title { flex: 1; min-width: 0; max-width: 760px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-label); color: var(--ink-muted); }
 
 /* the reading column: one width shared exactly by the messages and the composer */
@@ -31,7 +29,7 @@
 .mb-chat-shell > .mb-composer:focus-within { border-color: var(--focus); }
 
 .mb-scrim { display: none; padding: 0; border: 0; background: color-mix(in srgb, var(--ink) 18%, transparent); }
-.mb-side-toggle, .mb-outputs-toggle { display: none !important; }
+.mb-side-toggle { display: none !important; }
 @media (max-width: 1179px) {
   /* the open list overlays; a 48px placeholder keeps the chat where the strip was */
   .mb-threads:not([data-collapsed]) { position: absolute; z-index: 25; top: 0; bottom: 0; left: 0; width: 280px; background: var(--bg-surface); box-shadow: var(--shadow-pop); animation: mb-side-in .24s cubic-bezier(0.05, 0.7, 0.1, 1) both; }
@@ -41,11 +39,7 @@
 @media (max-width: 767px) {
   .mb-threads[data-collapsed] { display: none; }
   .mb-split[data-side="open"] .mb-split-chat { margin-left: 0; }
-  .mb-split-rail { display: none; position: fixed; z-index: 30; left: 0; right: 0; bottom: 0; max-height: 70dvh; border-left: 0; border-top: 1px solid var(--border-strong); border-radius: var(--radius-xl) var(--radius-xl) 0 0; background: var(--bg-surface); box-shadow: var(--shadow-pop); animation: mb-sheet-in .32s cubic-bezier(0.05, 0.7, 0.1, 1) both; }
-  .mb-split[data-outputs] .mb-split-rail { display: flex; }
-  .mb-split[data-outputs] .mb-scrim { display: block; position: fixed; inset: 0; z-index: 29; }
-  .mb-side-toggle, .mb-outputs-toggle { display: inline-grid !important; }
-  .mb-rail-collapse { display: none; } /* the sheet closes on its scrim */
+  .mb-side-toggle { display: inline-grid !important; }
   .mb-chat-head { padding: 0 var(--space-2); }
   .mb-chat-title { text-align: center; }
   .mb-split-chat .mb-page:has(> .mb-chat-shell) { padding: 0 var(--space-4) var(--space-4); }
@@ -77,7 +71,61 @@
 .mb-rail-sub { grid-column: 2; font-size: var(--fs-caption); color: var(--ink-muted); }
 .mb-rail-row[data-fresh] { animation: mb-rail-fresh 1.4s ease-out; }
 @keyframes mb-rail-fresh { from { background: color-mix(in srgb, var(--agent-sky) 30%, transparent); } to { background: transparent; } }
-.mb-rail-used { padding: 0 var(--space-2); font-size: var(--fs-data-xs); color: var(--ink-secondary); overflow-wrap: anywhere; }
+.mb-rail-used { padding: 0 var(--space-2); font-size: var(--fs-caption); color: var(--ink-secondary); overflow-wrap: anywhere; }
+
+/* ---------- Outputs: a quiet chip in the chat header, a floating card below it ---------- */
+.mb-chat-head-end { position: absolute; top: 0; right: var(--space-2); height: 100%; display: flex; align-items: center; }
+.mb-out-chip { display: inline-flex; align-items: center; gap: var(--space-1\.5); height: 28px; padding: 0 var(--space-2); border: 0; border-radius: var(--radius-sm); background: none; font: inherit; font-size: var(--fs-caption); color: var(--ink-secondary); cursor: pointer; transition: background .16s, color .16s; }
+.mb-out-chip:hover, .mb-out-chip[aria-expanded="true"] { background: var(--bg-subtle); color: var(--ink); }
+.mb-out-chip:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.mb-out-chip[data-pulse="a"] { animation: mb-out-pulse-a .9s ease-out; }
+.mb-out-chip[data-pulse="b"] { animation: mb-out-pulse-b .9s ease-out; }
+@keyframes mb-out-pulse-a { 0% { box-shadow: 0 0 0 0 transparent; } 30% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--agent-sky) 55%, transparent); background: color-mix(in srgb, var(--agent-sky) 18%, transparent); } 100% { box-shadow: 0 0 0 0 transparent; } }
+@keyframes mb-out-pulse-b { 0% { box-shadow: 0 0 0 0 transparent; } 30% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--agent-sky) 55%, transparent); background: color-mix(in srgb, var(--agent-sky) 18%, transparent); } 100% { box-shadow: 0 0 0 0 transparent; } }
+.mb-out-scrim { display: none; }
+/* ends well above the composer (header 48 + composer and its gutter) */
+.mb-out-card { position: absolute; z-index: 20; background: color-mix(in srgb, var(--bg-surface) 90%, transparent); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); top: calc(100% + var(--space-2)); right: 0; width: 340px; max-height: calc(100dvh - var(--layout-topbar) - 48px - 160px); overflow-y: auto; scrollbar-width: none; border: 1px solid var(--border); border-radius: var(--radius-md); box-shadow: var(--shadow-pop); transform-origin: top right; animation: mb-grow-pop .18s cubic-bezier(.2,.8,.2,1) both; }
+.mb-out-card::-webkit-scrollbar { display: none; }
+.mb-out-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); height: 44px; flex-shrink: 0; padding: 0 var(--space-2) 0 var(--space-4); border-bottom: 1px solid var(--border); }
+.mb-out-card .mb-rail-body { padding-bottom: var(--space-3); }
+@media (max-width: 767px) {
+  .mb-chat-head-end { position: static; height: auto; }
+  /* the Outputs card becomes a bottom sheet over a scrim */
+  .mb-out-scrim { display: block; position: fixed; inset: 0; z-index: 29; padding: 0; border: 0; background: color-mix(in srgb, var(--ink) 18%, transparent); }
+  .mb-out-card { position: fixed; z-index: 30; top: auto; left: 0; right: 0; bottom: 0; width: auto; max-height: 70dvh; border: 0; border-top: 1px solid var(--border-strong); border-radius: var(--radius-xl) var(--radius-xl) 0 0; background: var(--bg-surface); animation: mb-sheet-in .32s cubic-bezier(0.05, 0.7, 0.1, 1) both; }
+}
+
+/* Graph touched: counts, then the latest path drawn in */
+.mb-gt { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-1) var(--space-2) 0; }
+.mb-gt-count { font-size: var(--fs-caption); color: var(--ink-secondary); }
+.mb-gt-count .mono { font-family: var(--ff-data); font-size: var(--fs-caption); color: var(--ink); }
+.mb-gt-svg { display: block; width: 100%; max-width: 300px; height: auto; overflow: visible; }
+.mb-gt-svg line { stroke: var(--border-strong); stroke-width: 1.5; stroke-dasharray: 1; animation: mb-gt-draw .3s ease-out both; }
+.mb-gt-svg circle { fill: var(--bg-surface); stroke: var(--ink-secondary); stroke-width: 1.5; }
+.mb-gt-svg text { font-family: var(--ff-data); font-size: var(--fs-caption); fill: var(--ink-secondary); }
+.mb-gt-node { transform-box: fill-box; transform-origin: center; animation: mb-pop-in .24s cubic-bezier(.3,1.4,.5,1) both; }
+.mb-gt-node:hover circle { stroke: var(--ink); }
+.mb-gt-node:hover text { fill: var(--ink); }
+@keyframes mb-gt-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+
+/* ---------- @-mentions: chips in the composer and the sent bubble ---------- */
+.mb-composer:has(.mb-composer-chips) { flex-wrap: wrap; }
+.mb-composer-chips { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: var(--space-1); padding-top: var(--space-1); }
+.mb-mention { display: inline-flex; align-items: center; gap: var(--space-1); max-width: 100%; padding: 0 var(--space-1\.5); border-radius: var(--radius-sm); font-size: var(--fs-caption); line-height: 22px; vertical-align: 1px; }
+.mb-mention > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mb-mention .mono { font-family: var(--ff-data); font-size: var(--fs-caption); }
+.mb-composer-chips .mb-mention { border: 1px solid var(--border); background: var(--bg-subtle); color: var(--ink-body); padding-right: 2px; }
+.mb-composer-chips .mb-mention svg { color: var(--ink-muted); flex-shrink: 0; }
+.mb-mention-x { display: inline-grid; place-items: center; width: 18px; height: 18px; padding: 0; border: 0; border-radius: var(--radius-sm); background: none; color: var(--ink-muted); cursor: pointer; }
+.mb-mention-x:hover { background: var(--bg-surface); color: var(--ink); }
+.mb-mention-x:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.mb-chat-user .mb-mention { background: color-mix(in srgb, currentColor 14%, transparent); }
+.mb-chat-user .mb-ent { font-size: var(--fs-caption); text-decoration-color: color-mix(in srgb, currentColor 55%, transparent); }
+.mb-chat-user .mb-ent:hover, .mb-chat-user .mb-ent[aria-expanded="true"] { color: inherit; text-decoration-color: currentColor; }
+.mb-composer-menu[data-mentions] li { align-items: center; gap: var(--space-2); }
+.mb-composer-menu[data-mentions] li svg { flex-shrink: 0; color: var(--ink-muted); }
+.mb-composer-menu[data-mentions] .mono { flex-shrink: 0; font-family: var(--ff-data); font-size: var(--fs-caption); color: var(--ink); }
+.mb-mention-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-caption); }
 
 /* ---------- Empty chat: starters and "pick up" ---------- */
 .mb-starters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); width: 100%; max-width: 640px; margin-top: var(--space-4); }
@@ -128,7 +176,7 @@ select.mb-ver-chip { cursor: pointer; }
 /* ---------- Focus, reduced motion ---------- */
 .mb-icon-btn:focus-visible, .mb-rail-row:focus-visible, .mb-thread-row:focus-visible, .mb-starter:focus-visible, .mb-pickup-card:focus-visible, .mb-menu-item:focus-visible, .mb-ver-chip:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 @media (prefers-reduced-motion: reduce) {
-  .mb-panel, .mb-panel[data-closing], .mb-threads, .mb-split-rail, .mb-menu, .mb-rail-row[data-fresh] { animation: none !important; }
+  .mb-panel, .mb-panel[data-closing], .mb-threads, .mb-out-card, .mb-out-chip, .mb-gt-svg line, .mb-gt-node, .mb-menu, .mb-rail-row[data-fresh] { animation: none !important; }
   .mb-rail-row:active, .mb-thread-row:active { transform: none; }
 }
 /* rails scroll without a visible bar (like the transcript) */

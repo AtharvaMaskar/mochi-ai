@@ -6,15 +6,19 @@ import { useRef, useState, type ReactNode } from 'react';
 import { Check, Copy, FileText, LayoutDashboard, RotateCcw } from 'lucide-react';
 import { Mochi, type Mood } from '../ds.tsx';
 import { RevealWords } from '../markdown.tsx';
+import { splitContext, withMentions } from './mentions.tsx';
 
 export function Message({ role, mood, children }: { role: 'user' | 'assistant'; mood?: Mood; children: ReactNode }) {
   const live = useRef(!!mood).current;
   if (role === 'user') {
     // A slash command reads as what it asks for: "/story X" shows a Story label, then X. The command still ran as typed.
-    const cmd = typeof children === 'string' ? children.match(/^\/(story|dashboard)\s+([\s\S]*)$/) : null;
-    if (!cmd) return <div className="mb-chat-user">{children}</div>;
+    // @-mentions render as chips; the Context line the composer appended is never shown as text.
+    if (typeof children !== 'string') return <div className="mb-chat-user">{children}</div>;
+    const { body, named } = splitContext(children);
+    const cmd = body.match(/^\/(story|dashboard)\s+([\s\S]*)$/);
+    if (!cmd) return <div className="mb-chat-user">{withMentions(body, named)}</div>;
     const Icon = cmd[1] === 'story' ? FileText : LayoutDashboard;
-    return <div className="mb-chat-user"><span className="mb-chat-user-kind"><Icon size={14} strokeWidth={1.5} aria-hidden="true" />{cmd[1] === 'story' ? 'Story' : 'Dashboard'}</span>{cmd[2]}</div>;
+    return <div className="mb-chat-user"><span className="mb-chat-user-kind"><Icon size={14} strokeWidth={1.5} aria-hidden="true" />{cmd[1] === 'story' ? 'Story' : 'Dashboard'}</span>{withMentions(cmd[2], named)}</div>;
   }
   return (
     <div className="mb-chat-ai" data-arrive={live || undefined}>
