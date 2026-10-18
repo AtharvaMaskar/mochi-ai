@@ -5,9 +5,9 @@
 // it settles into the layout (the chat column reflows once) and its content mounts, so nothing lays out mid-motion.
 // Close slides out (240 ms) in place, then unmounts.
 import { useEffect, useRef, useState } from 'react';
-import { Ellipsis, ExternalLink, FileText, LayoutDashboard, X } from 'lucide-react';
+import { Ellipsis, ExternalLink, FileText, Globe, LayoutDashboard, Lock, X } from 'lucide-react';
 import { StoryView, AsOfBanner } from './story.tsx';
-import { Button, NeedsYou } from './ds.tsx';
+import { Button, NeedsYou, Segmented } from './ds.tsx';
 import { api, printHref, shareUrl, storyHref, useData, useStory, type StoryMeta } from '../data/api.ts';
 
 /** "Live · updated 12s ago", ticking; "Frozen" under as-of. */
@@ -32,6 +32,51 @@ export function StoryPanel({ id, onClose }: { id: string | null; onClose: () => 
   }, [s.closing, s.shown, s.ready]);
   if (!s.shown) return null;
   return <Panel id={s.shown} ready={s.ready} closing={s.closing} onClose={onClose} />;
+}
+
+/** Share, one entry point (Notion/Claude style): a button that says who can see this, and a popover with the access
+ *  choice (Segmented: Only you / Anyone with the link), the link with Copy and Open, and "publish the latest" when the
+ *  public link lags. Not the owner: just the word. */
+export function Share({ m, url, onPublish, onCopy }: { m: StoryMeta; url: string; onPublish: (on: boolean) => void; onCopy: () => void }) {
+  const [open, setOpen] = useState(false);
+  const host = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const down = (e: PointerEvent) => { if (!host.current?.contains(e.target as Node)) setOpen(false); };
+    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    addEventListener('pointerdown', down); addEventListener('keydown', key);
+    return () => { removeEventListener('pointerdown', down); removeEventListener('keydown', key); };
+  }, [open]);
+  const pub = m.status === 'published';
+  const latest = m.versions.at(-1), live = m.published?.at(-1) ?? latest; // no publish history sent: the link shows the latest
+  const behind = pub && live !== undefined && latest !== undefined && live < latest;
+  const kind = m.kind === 'dashboard' ? 'dashboard' : 'story';
+  if (!m.owner) return <span className="mb-share-word">{pub ? <><Globe size={14} strokeWidth={1.5} aria-hidden="true" />Public</> : <><Lock size={14} strokeWidth={1.5} aria-hidden="true" />Draft</>}</span>;
+  return (
+    <div className="mb-menu-host" ref={host}>
+      <Button variant={pub && !behind ? 'secondary' : 'primary'} size="sm" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(!open)}>
+        {pub ? <Globe size={16} strokeWidth={1.5} aria-hidden="true" /> : <Lock size={16} strokeWidth={1.5} aria-hidden="true" />}Share
+      </Button>
+      {open && (
+        <div className="mb-menu mb-share" role="dialog" aria-label={`Share this ${kind}`}>
+          <p className="mb-share-title">Share this {kind}</p>
+          <Segmented label="Who can see it" value={pub ? 'link' : 'me'} onChange={(v) => { if ((v === 'link') !== pub) onPublish(v === 'link'); }}
+            options={[{ id: 'me', label: 'Only you' }, { id: 'link', label: 'Anyone with the link' }]} />
+          <p className="mb-share-who">{pub
+            ? <>People with the link see <span className="mono">v{live}</span>, live, with every receipt.{behind && <> Your latest is <span className="mono">v{latest}</span>.</>}</>
+            : <>It's a draft. Publishing makes a read-only link anyone can open.</>}</p>
+          {pub && (
+            <div className="mb-share-link">
+              <span className="mono" title={url}>{url.replace(/^https?:\/\//, '')}</span>
+              <Button size="sm" success="Copied" onClick={onCopy}>Copy</Button>
+              <a className="mb-icon-btn" href={url} target="_blank" rel="noreferrer" aria-label="Open the public link" title="Open the public link"><ExternalLink size={16} strokeWidth={1.5} aria-hidden="true" /></a>
+            </div>
+          )}
+          {behind && <Button variant="primary" size="sm" hold={700} success="Published" onClick={() => onPublish(true)}>{`Publish v${latest} to the link`}</Button>}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export type Item = { label: string; on: () => void };
@@ -95,7 +140,6 @@ function Panel({ id, ready, closing, onClose }: { id: string; ready: boolean; cl
     { label: 'Copy link', on: () => void copy(shareUrl(id, m.kind)).then(() => setToast('Link copied.')) },
     { label: 'Export as PDF', on: () => void window.open(printHref(id, m.kind, pick, asOf), '_blank', 'noopener') },
     asOf === undefined ? { label: 'As of the day before', on: () => setAsOf(story.generated_at - 86_400_000) } : { label: 'See it live', on: () => setAsOf(undefined) },
-    ...(m.owner && m.status === 'published' ? [{ label: 'Unpublish', on: () => void publish(false) }] : []),
   ] : [];
   return (
     <aside className="mb-panel" data-closing={closing || undefined} data-settled={ready || undefined} aria-label="Open story">
@@ -110,20 +154,17 @@ function Panel({ id, ready, closing, onClose }: { id: string; ready: boolean; cl
                   {versions.map((v) => <option key={v} value={v}>v{v}</option>)}
                 </select>
                 : <span className="mb-ver-chip">v{shown}</span>}
-              <span className="mb-badge" data-state={m.status}>{m.status === 'published' ? 'Published' : 'Draft'}</span>
             </div>
           ) : <div className="mb-panel-name mb-skel" aria-label="Loading the story"><i style={{ width: '60%' }} /></div>}
           <div className="mb-panel-tools">
-            {show && m.owner && (m.status !== 'published' || behind) && (
-              <Button key={`p${latest}`} variant="primary" size="sm" hold={700} success="Published" onClick={() => void publish(true)}>{behind ? `Publish v${latest}` : 'Publish'}</Button>
-            )}
+            {show && <Share key={`s${latest}`} m={m} url={shareUrl(id, m.kind)} onPublish={(on) => void publish(on)} onCopy={() => void copy(shareUrl(id, m.kind))} />}
             {show && <a className="mb-icon-btn" href={storyHref(id, m.kind)} target="_blank" rel="noreferrer" aria-label="Open as page"><ExternalLink size={16} strokeWidth={1.5} aria-hidden="true" /></a>}
             {show && <Overflow items={items} />}
             <button type="button" className="mb-icon-btn" aria-label="Close" onClick={onClose}><X size={16} strokeWidth={1.5} aria-hidden="true" /></button>
           </div>
         </div>
         <p className="mb-panel-caption t-caption muted">
-          {show ? <>{m.kind === 'dashboard' ? 'Dashboard' : 'Story'}{behind ? ` · public link shows v${live}` : ''}<LiveSince at={r.updatedAt} frozen={asOf !== undefined} /></> : ' '}
+          {show ? <>{m.kind === 'dashboard' ? 'Dashboard' : 'Story'} · {m.status === 'published' ? 'Public' : 'Only you can see this draft'}<LiveSince at={r.updatedAt} frozen={asOf !== undefined} /></> : ' '}
         </p>
       </header>
       <div className="mb-panel-body">

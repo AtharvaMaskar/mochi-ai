@@ -6,7 +6,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { ExternalLink, FileText, LayoutDashboard, List, PanelLeftClose, Search, Sunrise } from 'lucide-react';
 import { StoryView, AsOfBanner } from '../components/story.tsx';
 import { Button, NeedsYou } from '../components/ds.tsx';
-import { LiveSince, Overflow, type Item } from '../components/story-panel.tsx';
+import { LiveSince, Overflow, Share, type Item } from '../components/story-panel.tsx';
 import { useStories } from '../components/chat/outputs-rail.tsx';
 import { fmtTime } from '../components/receipts.tsx';
 import { api, fmtDay, printHref, shareUrl, storyHref, useData, useStory, type StoryMeta, type StoryRow } from '../data/api.ts';
@@ -100,7 +100,6 @@ function Open({ id, version, asOf, toggle }: { id: string; version?: number; asO
     { label: 'Export as PDF', on: () => void window.open(printHref(id, m.kind, version, asOf), '_blank', 'noopener') },
     asOf === undefined ? { label: 'As of the day before', on: () => { location.hash = libHref(id, version, story.generated_at - 86_400_000); } }
       : { label: 'See it live', on: () => { location.hash = libHref(id, version); } },
-    ...(m.owner && m.status === 'published' ? [{ label: 'Unpublish', on: () => void publish(false) }] : []),
   ] : [];
   const Icon = m?.kind === 'dashboard' ? LayoutDashboard : story?.generated_by === 'dream' ? Sunrise : FileText;
   return (
@@ -116,14 +115,11 @@ function Open({ id, version, asOf, toggle }: { id: string; version?: number; asO
                 {versions.map((v) => <option key={v} value={v}>v{v}</option>)}
               </select>
               : <span className="mb-ver-chip">v{shown}</span>}
-            <span className="mb-badge" data-state={m.status}>{m.status === 'published' ? 'Published' : 'Draft'}</span>
           </div>
         ) : !r.error && <div className="mb-panel-name mb-skel" aria-label="Loading the report"><i style={{ width: '40%' }} /></div>}
         {story && m && (
           <div className="mb-panel-tools">
-            {m.owner && (m.status !== 'published' || behind) && (
-              <Button key={`p${latest}`} variant="primary" size="sm" hold={700} success="Published" onClick={() => void publish(true)}>{behind ? `Publish v${latest}` : 'Publish'}</Button>
-            )}
+            <Share key={`s${latest}`} m={m} url={shareUrl(id, m.kind)} onPublish={(on) => void publish(on)} onCopy={() => void copy(shareUrl(id, m.kind))} />
             <a className="mb-icon-btn" href={storyHref(id, m.kind, version, asOf)} target="_blank" rel="noreferrer" aria-label="Open as page"><ExternalLink {...icon} /></a>
             <Overflow items={items} />
           </div>

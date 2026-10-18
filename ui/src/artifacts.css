@@ -134,3 +134,12 @@ select.mb-ver-chip { cursor: pointer; }
 /* rails scroll without a visible bar (like the transcript) */
 .mb-threads ul, .mb-split-rail { scrollbar-width: none; }
 .mb-threads ul::-webkit-scrollbar, .mb-split-rail::-webkit-scrollbar { display: none; }
+
+/* Share: one control for who can see this (story-panel Share) */
+.mb-share { min-width: 320px; gap: var(--space-2); padding: var(--space-3); cursor: default; }
+.mb-share-who { margin: 0; font-size: var(--fs-label); color: var(--ink-body); }
+.mb-share-link { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-1) var(--space-1) var(--space-2); border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-subtle); min-width: 0; }
+.mb-share-link .mono { flex: 1; min-width: 0; font-size: var(--fs-data-xs); color: var(--ink-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mb-share-title { margin: 0; font-size: var(--fs-label); font-weight: var(--fw-label); color: var(--ink); }
+.mb-share .mb-seg { align-self: stretch; }
+.mb-share-word { display: inline-flex; align-items: center; gap: var(--space-1); font-size: var(--fs-caption); color: var(--ink-muted); }
