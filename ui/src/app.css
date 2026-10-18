@@ -463,3 +463,21 @@ h1, h2, h3, b, strong { font-weight: var(--fw-body-strong); }
 .mb-story-dash .mb-grid { gap: var(--space-4); }
 .mb-story-dash > .mb-block, .mb-story-dash .mb-grid > .mb-block { height: 100%; }
 @media (prefers-reduced-motion: reduce) { .mb-panel, .mb-changed, .mb-badge, .mb-live-since i { animation: none !important; } .mb-story-chip:active { transform: none; } }
+
+/* Chat tool cards: arrive by fading in, never popping; exploration cards fold to one line (ChatCard). */
+@keyframes mb-chat-card-in { from { opacity: 0; } to { opacity: 1; } }
+.mb-chat-card { animation: mb-chat-card-in .45s ease-out both; min-width: 0; }
+.mb-chat-fold { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-surface); }
+.mb-chat-fold-head { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); min-width: 0; }
+.mb-chat-fold-btn { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--space-2); padding: 0; border: none; background: none; font: inherit; color: var(--ink); text-align: left; cursor: pointer; }
+.mb-chat-fold-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--radius-sm); }
+.mb-chat-fold-chev { flex-shrink: 0; color: var(--ink-muted); transition: transform .2s ease; }
+.mb-chat-fold[data-open] .mb-chat-fold-chev { transform: rotate(90deg); }
+.mb-chat-fold-kind { flex-shrink: 0; font-size: var(--fs-caption); color: var(--ink-muted); }
+.mb-chat-fold-title { min-width: 0; font-size: var(--fs-label); font-weight: var(--fw-label); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mb-chat-fold-n { flex-shrink: 0; font-size: var(--fs-data-xs); color: var(--ink-muted); }
+.mb-chat-fold-body { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .28s cubic-bezier(.2,.8,.2,1); }
+.mb-chat-fold-body > div { min-height: 0; overflow: hidden; }
+.mb-chat-fold[data-open] .mb-chat-fold-body { grid-template-rows: 1fr; }
+.mb-chat-fold .mb-card { border: none; border-top: 1px solid var(--border); border-radius: 0 0 var(--radius-md) var(--radius-md); }
+@media (prefers-reduced-motion: reduce) { .mb-chat-card { animation: none; } .mb-chat-fold-body, .mb-chat-fold-chev { transition: none; } }

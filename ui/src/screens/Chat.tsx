@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { CopilotKitProvider, useAgent, useCopilotKit } from '@copilotkit/react-core/v2';
 import { ACTIVITY, parseStory, type SandboxHtml, type Story, type StoredQuery, type ToolCard as Card } from '@mochi/contracts';
 import type { ChatItem } from '../../fixtures/index.ts';
-import { ToolCard } from '../components/blocks.tsx';
+import { ChatCard } from '../components/chat/ChatCard.tsx';
 import { StoryView } from '../components/story.tsx';
 import { StoryMarkdown } from '../components/markdown.tsx';
 import { SandboxFrame } from '../components/sandbox.tsx';
@@ -32,7 +32,7 @@ export function Answer({ m }: { m: Extract<ChatItem, { role: 'assistant' }> }) {
     <div className="mb-chat-ai">
       <Mochi size="sm" still />
       <div className="mb-chat-ai-body">
-        {m.cards?.map((c, i) => <ToolCard key={i} card={c} />)}
+        {m.cards?.map((c, i) => <ChatCard key={i} card={c} />)}
         {m.text && <StoryMarkdown text={m.text} />}
         {m.story && <StoryView input={m.story} header={false} />}
         {m.html && <SandboxFrame value={m.html.value} queries={m.html.queries} height={220} />}
@@ -148,7 +148,7 @@ function Conversation({ threadId, openId, onOpen }: { threadId: string; openId: 
 
 /** Rich UI paths: a tool card, guarded sandbox HTML, or a story chip that opens the panel. */
 function Activity({ m, openId, onOpen }: { m: Msg; openId: string | null; onOpen: (id: string) => void }) {
-  if (m.activityType === ACTIVITY.card) return <ToolCard card={m.content as Card} />;
+  if (m.activityType === ACTIVITY.card) return <ChatCard card={m.content as Card} />;
   if (m.activityType === STORY_ACTIVITY) { const s = m.content as StoryRef; return <StoryChip s={s} open={openId === s.id} onOpen={() => onOpen(s.id)} />; }
   if (m.activityType !== ACTIVITY.html) return null;
   const h = m.content as SandboxHtml & { queries: Record<string, StoredQuery> };

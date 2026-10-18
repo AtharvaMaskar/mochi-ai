@@ -1,6 +1,6 @@
 // Story markdown: <num> tags become NumPills. No raw HTML reaches the renderer: each <num> is swapped for
 // an inline-code token first, and the code renderer maps the token back to its pill.
-import { createContext, useContext, useRef } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { NumPill } from './receipts.tsx';
@@ -33,22 +33,30 @@ function revealPlugin(delays: number[]) {
 }
 
 export function StoryMarkdown({ text }: { text: string }) {
-  const reveal = useContext(RevealWords), delays = useRef<number[]>([]);
+  const live = useContext(RevealWords), delays = useRef<number[]>([]);
+  // The reveal ends once the text has been still for 1.2 s; after that a re-render (a panel opening, a parent update)
+  // renders plain text, so nothing replays.
+  const [settled, setSettled] = useState(false);
+  useEffect(() => { if (!live) return; setSettled(false); const t = setTimeout(() => setSettled(true), 1200); return () => clearTimeout(t); }, [live, text]);
+  const reveal = live && !settled;
   const nums: { query_id: string; column: string; value: string }[] = [];
+  const numsRef = useRef(nums); numsRef.current = nums;
+  // Stable renderers: a new function per render would be a new component type, remounting tables and pills each time.
+  const components = useMemo(() => ({
+    code: ({ children }: { children?: ReactNode }) => {
+      const m = String(children).match(TOKEN);
+      return m ? <NumPill {...numsRef.current[Number(m[1])]} /> : <code>{children}</code>;
+    },
+    table: ({ children }: { children?: ReactNode }) => <div className="mb-table-wrap"><table className="mb-table">{children}</table></div>,
+    a: ({ children, href }: { children?: ReactNode; href?: string }) => <a href={href} rel="noreferrer">{children}</a>,
+  }), []);
   const md = text.replace(NUM, (_m, query_id: string, column: string, value: string) => {
     nums.push({ query_id, column, value: value.trim() });
     return `\`§num${nums.length - 1}\``;
   });
   return (
     <div className="mb-md">
-      <Markdown remarkPlugins={[remarkGfm]} rehypePlugins={reveal ? [revealPlugin(delays.current)] : []} skipHtml components={{
-        code: ({ children }) => {
-          const m = String(children).match(TOKEN);
-          return m ? <NumPill {...nums[Number(m[1])]} /> : <code>{children}</code>;
-        },
-        table: ({ children }) => <div className="mb-table-wrap"><table className="mb-table">{children}</table></div>,
-        a: ({ children, href }) => <a href={href} rel="noreferrer">{children}</a>,
-      }}>{md}</Markdown>
+      <Markdown remarkPlugins={[remarkGfm]} rehypePlugins={reveal ? [revealPlugin(delays.current)] : []} skipHtml components={components}>{md}</Markdown>
     </div>
   );
 }
