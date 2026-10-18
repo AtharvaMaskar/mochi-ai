@@ -47,7 +47,7 @@ export async function startServer(pi: Pi, opts: { port?: number; dream?: DreamMo
     const url = new URL(req.url ?? '/', 'http://localhost');
     if (url.pathname.startsWith('/api/copilotkit')) {
       // Every chat run spends the model key: cap runs per IP. Threads are scoped to this browser's visitor id.
-      if (req.method === 'POST' && /\/run$/.test(url.pathname)) {
+      if (req.method === 'POST' && /\/(run|suggest)$/.test(url.pathname)) {
         const wait = overLimit(ipOf(req));
         if (wait) return json(res, 429, { error: `You’ve asked a lot in a short time. Try again in ${Math.ceil(wait / 60)} min.` }, { 'retry-after': String(wait) });
       }

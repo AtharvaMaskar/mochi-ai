@@ -119,3 +119,8 @@ test('anti-gimmick on real data', { skip: !(await (async () => { const d = await
     assert.ok(nz.size >= 2);
   });
 });
+
+test('precheck refuses LOAD CSV even when hidden by comments', async () => {
+  const { precheck } = await import('./graph-tools.ts');
+  assert.match(precheck("LOAD/**/CSV FROM 'https://x' AS r RETURN r, $as_of") ?? '', /cannot load external data/);
+});
