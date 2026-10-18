@@ -1,15 +1,16 @@
 // Tickets: queue → thread → Mochi's brief. ≥1180 three panes; 768–1179 brief as a sheet; <768 one pane with back.
 // The queue and threads come from the helpdesk (through the agent); the brief, guess and history from the graph.
 import { useEffect, useRef, useState } from 'react';
-import { Segmented, Button, NeedsYou, Icon, Confidence } from '../components/ds.tsx';
+import { Segmented, Button, NeedsYou, Icon } from '../components/ds.tsx';
 import { Check, PanelRightOpen, PanelRightClose } from 'lucide-react';
 import type { StoredQuery, Visual } from '@mochi/contracts';
-import { TicketRow, MochiBrief, Noticed, Disclosure, useStored } from '../components/desk.tsx';
-import { BlockView, Table, Suggestion, FixGroups, HistoryList, groupFixes, historyRows } from '../components/blocks.tsx';
-import { QueryTag, NumPill, PathReceipt, ReceiptProvider, useReceipts } from '../components/receipts.tsx';
+import { TicketRow, MochiBrief, Disclosure, useStored } from '../components/desk.tsx';
+import { BlockView, Table, FixGroups, HistoryList, groupFixes, historyRows } from '../components/blocks.tsx';
+import { QueryTag, PathReceipt, ReceiptProvider, useReceipts } from '../components/receipts.tsx';
 import { useWidth } from '../components/shell.tsx';
+import { BriefSummary } from '../components/brief-summary.tsx';
 import { ConversationThread } from '../components/thread.tsx';
-import { api, fmtClock, fmtDay, useData, type Guess, type TicketDetail } from '../data/api.ts';
+import { api, fmtClock, fmtDay, useData, type TicketDetail } from '../data/api.ts';
 
 const VIEWS = [{ id: 'ready', label: 'Ready' }, { id: 'done', label: 'Done today' }, { id: 'all', label: 'All received' }] as const;
 const LINES: Record<string, string> = {
@@ -25,24 +26,6 @@ function writingFor(t: TicketDetail): string | null {
   return name && String(name).toLowerCase() !== t.requester.name.toLowerCase() ? String(name) : null;
 }
 
-/** The confidence word opens the query that computed it; the likely fix carries its count from the same query. */
-function GuessWord({ g }: { g: Guess }) {
-  const { open, queries } = useReceipts();
-  const support = queries[g.query_id!]?.rows.find((r) => r.issue === g.issue)?.support_count;
-  return (
-    <div className="mb-sum-guess">
-      <p className="mb-sum-lead"><span>{g.issue}</span>
-        <Button variant="link" size="sm" aria-label="Open the receipt for this confidence" onClick={(e) => open(g.query_id!, e.currentTarget, g.basis === 'graph' ? 'confidence' : 'score')}>
-          <Confidence p={g.p!} hidePct />
-        </Button>
-      </p>
-      {g.resolution && <p className="mb-sum-line">Likely fix: {g.resolution}
-        {typeof support === 'number' && <> · worked on <NumPill query_id={g.query_id!} column="support_count" row={queries[g.query_id!].rows.findIndex((r) => r.issue === g.issue)} /> similar tickets</>}</p>}
-      <p className="t-caption muted">{g.basis === 'graph' ? 'Share of resolved tickets on this issue fixed this way' : 'Closest resolved ticket by meaning (no issue link yet)'}</p>
-    </div>
-  );
-}
-
 /** The view tabs; each count opens q_0, the helpdesk request that produced it. */
 function ViewTabs({ view, counts, onChange }: { view: string; counts?: Record<string, number>; onChange: (v: string) => void }) {
   const { open } = useReceipts();
@@ -56,11 +39,6 @@ const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? o
 export function Brief({ t, onClose }: { t: TicketDetail; onClose?: () => void }) {
   const brief = useData(() => api.brief(t.id), [t.id]);
   const [wide, setWide] = useStored('mochi.brief.wide');
-  const c = t.customer?.queries.q_1?.rows[0];
-  const others = (t.customer?.queries.q_3?.rows ?? []).filter((r) => r.ticket !== t.id).length;
-  const g = t.guess;
-  const noticed = t.merged_into ? <>This ticket was <b>merged into {t.merged_into}</b>. Answer there.</>
-    : others ? <>This customer has <b>{others === 1 ? 'one other open ticket' : `${others} other open tickets`}</b>.</> : null;
 
   // The brief's blocks, picked by the stored query's name. The customer table is the customer line above, so it is not repeated.
   const card = brief.data, qs = card?.queries ?? {};
@@ -71,7 +49,6 @@ export function Brief({ t, onClose }: { t: TicketDetail; onClose?: () => void })
   const hist = ['briefing.recent', 'memory.customer_before'].map(named).filter((b) => b !== undefined);
   const used = new Set([named('briefing.profile'), similar, prefs, ...hist, ...sugg]);
   const rest = blocks.filter((b) => !used.has(b));
-  const team = sugg.map((s) => qs[s.query_id]?.rows[0]?.team).find(Boolean);
   const histN = historyRows(qs, hist.map((b) => b.query_id), t.id).length;
   const fixes = similar ? groupFixes(qs[similar.query_id]?.rows ?? []) : [];
   const memN = prefs ? qs[prefs.query_id]?.rows.length ?? 0 : 0;
@@ -86,27 +63,7 @@ export function Brief({ t, onClose }: { t: TicketDetail; onClose?: () => void })
         </button>
         {onClose && <button className="mb-x" aria-label="Close the brief" onClick={onClose}><Icon name="close" /></button>}
       </span>}>
-      <section className="mb-sum" aria-label="Summary">
-        <div className="mb-sum-part"><h3 className="mb-sum-eyebrow">What I noticed</h3><Noticed>{noticed}</Noticed></div>
-        <div className="mb-sum-part"><h3 className="mb-sum-eyebrow">My guess</h3>
-          {g?.issue && g.p !== null && g.query_id
-            ? <ReceiptProvider queries={t.guess_queries}><GuessWord g={g} /></ReceiptProvider>
-            : <><p className="mb-sum-lead">Can’t tell</p>
-              <NeedsYou reason={t.in_memory ? 'I can’t link this ticket to a known issue or a similar resolved ticket yet.' : 'This ticket hasn’t reached my memory yet.'} /></>}
-        </div>
-        <ReceiptProvider queries={qs}>
-          {team ? <p className="mb-sum-line">Owning team: <b>{String(team)}</b> <QueryTag qid={sugg[0].query_id} /></p> : null}
-        </ReceiptProvider>
-        <div className="mb-sum-part"><h3 className="mb-sum-eyebrow">Customer</h3>
-          {c ? <ReceiptProvider queries={t.customer!.queries}>
-            <p className="mb-sum-line mb-sum-cust"><span className="mb-sum-cust-text" title={[c.name, c.customer_id, c.segment, c.plan, c.city].filter(Boolean).join(' · ')}>
-              <b>{String(c.name)}</b> · <span className="mono">{String(c.customer_id)}</span>{[c.segment, c.plan, c.city].filter(Boolean).map((x) => ` · ${x}`).join('')}</span>
-              <QueryTag qid="q_1" /></p>
-            {t.requester.name !== c.name && <p className="t-caption muted">{t.requester.name}, writing for {String(c.name)}</p>}
-          </ReceiptProvider> : <p className="mb-sum-line">{t.requester.name} · not found in the back office</p>}
-        </div>
-        <ReceiptProvider queries={qs}>{sugg.map((s, i) => <Suggestion key={i} {...s} compact />)}</ReceiptProvider>
-      </section>
+      <BriefSummary t={t} qs={qs} sugg={sugg} working={brief.loading} mood={brief.loading || !t.ingested ? 'thinking' : 'idle'} />
 
       {brief.error && !card && <NeedsYou reason={brief.error} action="Try again" onAction={brief.reload} />}
       {card && <ReceiptProvider queries={qs}>

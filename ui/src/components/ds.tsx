@@ -10,7 +10,7 @@ export function DrawnCheck() {
 }
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: 'primary' | 'secondary' | 'link'; size?: 'md' | 'sm';
+  /** ai / ai-secondary: an action Mochi proposes (primary or surface fill, agent-tint border) */ variant?: 'primary' | 'secondary' | 'link' | 'ai' | 'ai-secondary'; size?: 'md' | 'sm';
   /** Morph into a drawn check and this word for about a second, keeping the width. */ success?: string;
   /** Hold to confirm, in ms (about 700). Letting go early cancels. */ hold?: number;
   loading?: boolean; /** Keeps the button tappable: a tap shakes it and shows this reason. */ disabledReason?: string; haptic?: boolean;
@@ -25,7 +25,7 @@ export function Button({ variant = 'secondary', size = 'md', disabledReason, suc
   const ref = useRef<HTMLButtonElement>(null), holdT = useRef<ReturnType<typeof setTimeout>>(undefined);
   const [why, setWhy] = useState(0), [done, setDone] = useState(false), [holding, setHolding] = useState(false);
   const land = (e: MouseEvent<HTMLButtonElement>) => {
-    if (haptic && (variant === 'primary' || success || hold)) tick();
+    if (haptic && (variant === 'primary' || variant === 'ai' || success || hold)) tick();
     if (success) { setDone(true); setTimeout(() => setDone(false), 1100); }
     onClick?.(e);
   };
@@ -34,7 +34,7 @@ export function Button({ variant = 'secondary', size = 'md', disabledReason, suc
     <button {...rest} ref={ref} disabled={rest.disabled || loading} aria-busy={loading || undefined}
       aria-disabled={disabledReason ? 'true' : undefined}
       style={hold ? { ...style, ['--hold' as string]: `${hold}ms` } : style}
-      className={['mb-btn', `mb-btn-${variant}`, `mb-btn-${size}`, done && 'mb-btn-done', holding && 'mb-btn-holding', loading && 'mb-btn-loading', className].filter(Boolean).join(' ')}
+      className={['mb-btn', variant === 'ai' ? 'mb-btn-primary mb-btn-ai' : variant === 'ai-secondary' ? 'mb-btn-secondary mb-btn-ai' : `mb-btn-${variant}`, `mb-btn-${size}`, done && 'mb-btn-done', holding && 'mb-btn-holding', loading && 'mb-btn-loading', className].filter(Boolean).join(' ')}
       onPointerDown={(e) => {
         const r = e.currentTarget.getBoundingClientRect();
         e.currentTarget.style.setProperty('--mx', `${e.clientX - r.left}px`);
@@ -52,6 +52,7 @@ export function Button({ variant = 'secondary', size = 'md', disabledReason, suc
         if ((hold && e.detail > 0) || done) { e.preventDefault(); return; }
         land(e);
       }}>
+      {variant.startsWith('ai') && <span className="mb-btn-ring" aria-hidden="true" />}
       {hold && <span className="mb-btn-fill" aria-hidden="true" />}
       {success ? (
         <span className="mb-btn-label mb-btn-stack">

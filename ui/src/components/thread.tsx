@@ -137,9 +137,8 @@ function Composer(p: Next) {
           )}
           {draft && (
             <div className="mb-tt-tone">
-              {/* TODO(merge ui-brief-ai-first): Rewrite and the tone chips become Button variant="ai" */}
-              <Button variant="link" size="sm" data-ai="" disabled={busy} onClick={() => run('rewrite')}>Rewrite</Button>
-              {TONES.map((t) => <button key={t.hint} className="mb-tt-chip" data-ai="" disabled={busy} onClick={() => run(t.hint)}>{t.label}</button>)}
+              <Button variant="ai-secondary" size="sm" disabled={busy} onClick={() => run('rewrite')}>Rewrite</Button>
+              {TONES.map((t) => <Button key={t.hint} variant="ai-secondary" size="sm" disabled={busy} onClick={() => run(t.hint)}>{t.label}</Button>)}
             </div>
           )}
         </>}
