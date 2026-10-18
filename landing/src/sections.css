@@ -228,37 +228,72 @@ section .t-lead { color: var(--fg-2); }
 .tile[open] .plus::after { transform: rotate(0deg); }
 @media (max-width: 899px) { .faq { grid-template-columns: 1fr; gap: var(--space-6); } .faq-h { position: static; } .tile summary { padding: var(--space-4) var(--space-5); } .tile p { padding: 0 var(--space-5) var(--space-5); } }
 
-/* §11 cta: a sentence with a blank */
-.cta-form { display: flex; flex-wrap: wrap; align-items: center; gap: .2em .3em; color: var(--ink); }
-.cta-mochi { display: inline-flex; margin-right: .2em; }
-.cta-in { width: 7em; height: 1.25em; padding: 0 .3em; border: 0; border-radius: var(--radius-md); background: var(--bg-surface); color: var(--ink); font: inherit; outline: none; transition: box-shadow .15s; }
-.cta-in::placeholder { color: var(--ink-faint); }
-.cta-in:focus-visible { box-shadow: 0 0 0 2px var(--focus); }
-.cta-go { height: 1.25em; padding: 0 .35em; border: 0; border-radius: var(--radius-md); background: var(--ink); color: var(--on-ink); font: inherit; cursor: pointer; transition: transform .26s var(--ease-spring), background-color .15s; }
-.cta-go:hover { background: var(--ink-body); }
-.cta-go:active { transform: translateY(1px) scale(.975, .95); transition-duration: .06s; }
-.cta-note { margin-top: var(--space-5); }
-@media (max-width: 767px) { .cta-mochi { display: none; } .cta-in { flex: 1; min-width: 0; } }
-
-/* §12 footer: a board of tiles */
-.foot-board { display: grid; grid-template-columns: repeat(12, 1fr); gap: 8px; padding: 160px 12px 12px; }
-.foot-board .tile { border-radius: var(--radius-md); padding: var(--space-6); background: color-mix(in srgb, var(--bg-surface) 88%, transparent); }
-.t-word { grid-column: 1 / 9; min-height: 320px; background: var(--ink) !important; color: var(--on-ink); display: flex; align-items: center; justify-content: space-between; overflow: hidden; }
-.wordmark-xl { font-family: var(--font-serif); font-weight: var(--fw-mochi-wordmark); letter-spacing: -0.02em; line-height: 1.1; padding-bottom: .1em; }
-.tile-mochi { margin-right: -40px; }
-.t-dream { grid-column: 9 / 13; display: grid; align-content: space-between; gap: var(--space-3); background: var(--agent-yuzu) !important; color: var(--ink); }
-.t-dream .t-lead, .t-dream .t-caption { color: var(--ink); }
-.countdown { color: var(--ink); }
-.t-links { grid-column: 1 / 7; display: grid; gap: var(--space-2); align-content: start; }
-.t-credits { grid-column: 7 / 13; display: grid; gap: var(--space-2); align-content: start; color: var(--ink-secondary); }
-@media (max-width: 899px) {
-  .foot-board { grid-template-columns: 1fr 1fr; padding-top: 96px; }
-  .t-word, .t-dream { grid-column: 1 / -1; }
-  .t-word { min-height: 200px; }
-  .tile-mochi { transform: scale(.6); margin-right: -80px; }
-  .t-links, .t-credits { grid-column: span 1; }
+/* §11 cta: one sentence-shaped control. "Ask Mochi about" + a blank that flips through demo subjects (Flip Words
+   letters, Container Text Flip width) until you click or type; one primary Ask. */
+.cta-bar { display: flex; align-items: center; gap: var(--space-4); padding: var(--space-4) var(--space-4) var(--space-4) var(--space-5); border: 1px solid var(--border); border-radius: var(--radius-xl);
+  background: color-mix(in srgb, var(--bg-surface) 90%, transparent); box-shadow: var(--shadow-layer); color: var(--ink); transition: border-color .15s, box-shadow .15s; }
+.cta-bar:focus-within { border-color: var(--border-strong); }
+.cta-mochi { display: inline-flex; flex: none; }
+.cta-bar .cta-line { color: var(--ink); }
+.cta-line { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 0 .28em; white-space: nowrap; cursor: text; line-height: 1.2; }
+.cta-lead { flex: none; }
+.cta-field { position: relative; display: block; flex: 0 1 auto; min-width: 1.5em; max-width: 100%; padding-bottom: .06em; box-shadow: inset 0 -2px 0 var(--border-strong); transition: width .35s var(--ease-spring), box-shadow .15s; }
+.cta-field[data-typing] { transition: box-shadow .15s; }
+.cta-field:focus-within { box-shadow: inset 0 -2px 0 var(--focus); }
+.cta-measure { position: absolute; inset: 0; overflow: hidden; visibility: hidden; } /* measures without widening the page */
+.cta-sizer { position: absolute; left: 0; top: 0; visibility: hidden; white-space: pre; width: max-content; padding-right: .3em; }
+.cta-in { display: block; width: 100%; height: 1.2em; margin: 0; padding: 0; border: 0; background: transparent; color: var(--ink); font: inherit; letter-spacing: inherit; line-height: 1.2; outline: none; caret-color: var(--focus); text-overflow: ellipsis; }
+.cta-in::placeholder { color: var(--ink-muted); opacity: 1; }
+.cta-flip { position: absolute; inset: 0; pointer-events: none; }
+.cta-word { position: absolute; left: 0; top: 0; white-space: nowrap; }
+.cta-word > span { display: inline-block; animation: cta-letter .22s var(--ease-out) both; }
+.cta-out { animation: cta-out .32s ease-out forwards; }
+@keyframes cta-letter { from { opacity: 0; transform: translateY(10px); filter: blur(8px); } }
+@keyframes cta-out { 35% { opacity: .2; } to { opacity: 0; transform: translateY(-.35em) scale(1.08); filter: blur(8px); } }
+.cta-go { flex: none; height: 48px; padding: 0 var(--space-5); align-self: center; }
+.cta-note { margin-top: var(--space-5); color: var(--fg-2); }
+@media (max-width: 767px) {
+  .cta-bar { flex-wrap: wrap; align-items: flex-start; padding: var(--space-4); }
+  .cta-bar { gap: var(--space-3); }
+  .cta-mochi { width: 40px; height: 40px; justify-content: center; align-items: center; align-self: center; }
+  .cta-mochi > * { transform: scale(.62) translateY(-10px); }
+  /* The sentence's parts join the bar's flow: blob + "Ask Mochi about", then the blank across the full width. */
+  .cta-line { display: contents; font-size: var(--fs-title); font-weight: var(--fw-title); }
+  .cta-lead { flex: 1 0 calc(100% - 52px); align-self: center; }
+  .cta-field { flex: none; margin-top: var(--space-1); }
+  .cta-go { width: 100%; }
 }
-@media (max-width: 479px) { .t-links, .t-credits { grid-column: 1 / -1; } }
+@media (prefers-reduced-motion: reduce) { .cta-field { transition: box-shadow .15s; } .cta-word > span, .cta-out { animation: none; } .cta-out { display: none; } }
+
+/* §12 footer, after Aceternity's "Footer With Big Text": columns over a hairline, a thin honesty row, then the
+   outlined "mochi" across the bottom (Text Hover Effect). It sits on the 19:00 sky; ink is the sky-aware --fg. */
+/* At 19:00 the sky's top is dark and its horizon is a light peach; the ground darkens under the footer (sky-aware
+   ink, landing exception) so light --fg text and the outline keep their contrast down to the page's end. */
+.site-foot { position: relative; padding-top: 160px; overflow: hidden; color: var(--fg); isolation: isolate; }
+.site-foot::before { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  --dusk-ground: color-mix(in srgb, var(--ink) 82%, var(--agent-ube));
+  background: linear-gradient(to bottom, transparent, color-mix(in srgb, var(--dusk-ground) calc(var(--darkp) * .3), transparent) 45%, color-mix(in srgb, var(--dusk-ground) calc(var(--darkp) * .55), transparent)); }
+.foot-top { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: var(--space-8); padding-bottom: var(--space-8); border-bottom: 1px solid var(--line); }
+.foot-lede { display: grid; gap: var(--space-2); align-content: start; }
+.foot-dream { display: flex; align-items: center; gap: var(--space-2); color: var(--fg); }
+.foot-dream .t-data, .foot-tag { color: var(--fg-2); }
+.foot-col { display: grid; gap: var(--space-2); align-content: start; justify-items: start; }
+.foot-col h3 { color: var(--fg-2); margin-bottom: var(--space-1); }
+.foot-col .tlink { color: var(--fg); }
+.foot-legal { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-6); padding: var(--space-5) 0 var(--space-8); color: var(--fg-2); }
+.foot-wordmark { display: block; width: 100%; height: auto; margin-bottom: var(--space-8); overflow: visible; user-select: none; }
+.foot-wordmark text { font-family: var(--ff-mochi-wordmark); font-weight: var(--fw-mochi-wordmark); letter-spacing: -0.02em; fill: none; }
+.wm-base { stroke: var(--fg); stroke-opacity: .42; stroke-width: 1.25; }
+.wm-lit { stroke: url(#wm-ink); stroke-width: 2.75; opacity: 0; transition: opacity .3s var(--ease-out); }
+.foot-wordmark[data-lit] .wm-lit { opacity: 1; }
+.wm-s1 { stop-color: var(--agent-sky); } .wm-s2 { stop-color: var(--agent-ube); } .wm-s3 { stop-color: var(--agent-sakura); }
+.wm-m1 { stop-color: var(--on-ink); } .wm-m0 { stop-color: var(--on-ink); stop-opacity: 0; }
+@media (max-width: 767px) {
+  .site-foot { padding-top: 96px; }
+  .foot-top { grid-template-columns: 1fr 1fr; gap: var(--space-6); }
+  .foot-lede { grid-column: 1 / -1; }
+  .foot-legal { flex-direction: column; }
+}
 
 /* awake at every hour: one ribbon in the sky's shades (the landing exception covers these sky gradients) */
 .awake .t-lead { margin-top: var(--space-4); max-width: 640px; }

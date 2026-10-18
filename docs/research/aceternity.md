@@ -610,3 +610,36 @@ while the section is in view; reduced motion sets `--p` to 1 (final, flat state)
 4. **3d-card-effect** — ±6° tilt and translateZ layers for the floating product frame; zero deps.
 5. **timeline / sticky-scroll-reveal** — scroll-coupled time of day for the dream section and the hop-by-hop brief walkthrough.
 Honourable: aurora (dusk band, pure CSS), chromatic-image (one 600ms "memory rewritten" moment), cubes idea as CSS isometric tier slabs.
+
+---
+
+## 9. Text components, navbar and footer blocks (read 2026-10-18)
+
+Numbered 9, not 4: code comments already cite §4–§8 above. Values are from the registry source
+(`ui.aceternity.com/registry/<slug>.json`); every component except Container Text Flip and Canvas Text imports `motion`.
+
+| component | measured values | verdict |
+|---|---|---|
+| Canvas Text | canvas 2D; curved lines clipped to glyphs: `animationDuration 5`s, `lineWidth 1.5`, `lineGap 10`, `curveIntensity 60`, 5+ hex rainbow colours | skip: rainbow lines inside type, decorative motion |
+| Encrypted Text | scramble resolves left to right: `revealDelayMs 50`/char, `flipDelayMs 50` re-randomise | skip: reads as "hacker" trope, hurts legibility |
+| Layout Text Flip | word every `3000`ms; enter `y −40, blur 10px` → 0, exit `y 50, blur 10px, opacity 0`, `0.5`s; `popLayout` | skip: Container Text Flip covers it |
+| Colourful Text | per-letter cycle every `5000`ms over 10 rgb colours; `y [0,−3,0]`, `scale [1,1.01,1]`, `blur 0→5→0`, `0.5`s, `delay i·0.05` | skip: agent colours as text colour breaks the colour rule |
+| Squiggly Text | SVG turbulence: `steps 5`, `stepDuration 80`ms, `scale [6,8]`, `baseFrequency .02`, `numOctaves 3` | skip: wobble is cuteness |
+| Text Generate Effect | words `opacity 0→1`, `blur 10px→0`, `duration 0.5`s (falls back to 1), `stagger(0.2)` | fits Mochi: morning-report headline at dawn (already §3.13) |
+| Typewriter Effect | chars `stagger(0.1)`, `0.3`s; cursor blink `0.8`s; smooth variant width `0→fit` over `2`s, `delay 1`s | skip: Cypher typing in receipts already does this, on-system |
+| Flip Words | every `3000`ms; word enter `opacity 0, y 10` spring `stiffness 100, damping 10`; letters `opacity 0, y 10, blur 8px` → 0, `0.2`s, `delay word·0.3 + letter·0.05`; exit `y −40, x 40, scale 2, blur 8px, absolute` | fits Mochi: the CTA subject ("Ask Mochi about …"); exit toned to `y −.35em, scale 1.08`, letters `30`ms apart |
+| Text Hover Effect | SVG `viewBox 0 0 300 100`, `text-7xl` bold, `strokeWidth 0.3`; outline draws in `strokeDashoffset 1000→0` over `4`s; hover stroke = linear gradient (yellow/red/blue/cyan/violet) masked by a radial gradient `r 20%` at the cursor, mask move `duration 0` (spring `300/50` suggested) | fits Mochi: footer "mochi" wordmark, Instrument Serif, gradient sky → ube → sakura, rAF ease 0.22, still outline on touch / reduced motion, no draw-in |
+| Container Text Flip | `interval 3000`, `animationDuration 700`; width = word `scrollWidth + 30`px animated over `animationDuration/2000` = `0.35`s; letters `blur 10px → 0`, `delay i·0.02`; grey gradient + inset shadow box | fits Mochi (width only): the CTA blank's width follows its word in `0.35`s; the gradient box is dropped |
+| Hero Highlight | 16px dot grid (`r 2.5`), `200px` radial reveal at cursor; highlighter `backgroundSize 0→100%` in `2`s, `delay 0.5` | skip: dot-grid hero is a template trope |
+| Text Reveal Card | `clipPath inset(0 X% 0 0)` follows cursor, rotate `(w−50)·0.1`°, release `0.4`s; star field `20–30`s | skip: hides text behind a gesture |
+| Text Flipping Board | split-flap 6×22: `BASE_STEP_MS 55`, `BASE_FLIP_S 0.35`, `col delay 30`ms, `row delay 20`ms, `rotateX −100°` | skip for now: the "next dream" line stays quiet |
+
+**Resizable Navbar** (`/components/resizable-navbar`): `scrollY > 100` → `width 100% → 40%` (`minWidth 800px`), `y 0 → 20`,
+`backdropFilter blur(10px)`, six-layer soft shadow, `bg-white/80`, spring `stiffness 200, damping 50`, `rounded-full`; mobile
+`width 90%`, sheet at `top-16`, fade. Ours: past `80`px, `max-width 860`px, `y 6`px, blur `12`px, surface `--fg-inv` 90%
+(flips dark with the sky), `--line` hairline, `--shadow-layer`, width on the page's spring ease; reduced motion keeps size and blur.
+
+**Footers** (`/blocks/footers`): Simple four grids, Centered with logo, Huge footer with grid, Footer With Big Text. We followed
+**Footer With Big Text** (`px-8 py-10`; columns `gap-10 pt-10 pb-10 border-b`; wordmark `text-[20rem] leading-none`, `-mb-[11%]`)
+because it is the only one with columns above a hairline, a thin legal row and the brand word big at the bottom; we keep the
+whole "mochi" (no negative margin) so the serif's feet stay on the page.
