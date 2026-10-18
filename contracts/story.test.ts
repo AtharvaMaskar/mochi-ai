@@ -65,3 +65,9 @@ test('story ids are random and unguessable', () => {
   assert.notEqual(newStoryId(), newStoryId());
   assert.match(errs(parseStory({ ...story('x'), id: 'abc' })).join(), /unguessable/);
 });
+
+test('dashboards may hold 12 visual tags, stories 6', () => {
+  const body = Array.from({ length: 10 }, () => '<kpi query_id="q_1" label="x" column="median_h"/>').join('\n');
+  assert.match(errs(parseStory(story(body))).join(), /max is 6 for a story/);
+  assert.equal(errs(parseStory({ ...story(body), kind: 'dashboard' })).length, 0);
+});

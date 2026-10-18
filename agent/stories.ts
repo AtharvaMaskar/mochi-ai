@@ -21,7 +21,8 @@ export async function appendStory(tx: Pick<Tx, 'doc'>, draft: Draft, meta?: Meta
   const id = draft.id ?? newStoryId();
   const doc = await tx.doc(StoryDoc);
   const versions = doc.stories[id] ?? [];
-  const parsed = parseStory({ ...draft, id, version: versions.length + 1 } as Story);
+  const kind = meta?.kind ?? ((doc.meta?.[id] as { kind?: Kind } | undefined)?.kind) ?? 'story'; // dashboards get the larger tile cap
+  const parsed = parseStory({ ...draft, id, version: versions.length + 1, kind } as Story);
   if (!parsed.ok) return parsed;
   doc.stories[id] = [...versions, structuredClone(parsed.story) as JsonObject];
   if (meta && !versions.length) { if (!doc.meta) doc.meta = {}; doc.meta[id] = meta as unknown as JsonObject; }

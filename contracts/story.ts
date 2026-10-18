@@ -19,10 +19,11 @@ export const Story = z.object({
   generated_at: z.number().int(),
   generated_by: z.string().regex(/^(dream|user:.+)$/),
   topic: z.string(),
+  kind: z.enum(['story', 'dashboard']).default('story'), // dashboards: tile grid, live refresh
   queries: z.record(z.string().regex(/^q_\d+$/), StoredQuery),
   body: z.string(),
 });
-export type Story = z.infer<typeof Story>;
+export type Story = z.input<typeof Story>;
 
 export const newStoryId = () => crypto.randomUUID().replaceAll('-', '');
 
@@ -42,7 +43,8 @@ export type Segment =
 
 export type ParseResult = { ok: true; story: Story; segments: Segment[] } | { ok: false; errors: string[] };
 
-export const MAX_VISUALS = 6;
+export const MAX_VISUALS_BY_KIND = { story: 6, dashboard: 12 } as const;
+export const MAX_VISUALS = MAX_VISUALS_BY_KIND.story;
 const REQUIRED: Record<string, string[]> = {
   num: ['query_id', 'column'], kpi: ['query_id', 'label', 'column'], bars: ['query_id', 'label', 'x', 'y'],
   line: ['query_id', 'label', 'x', 'series'], table: ['query_id', 'label', 'columns'], memdiff: ['query_id'],
@@ -163,6 +165,7 @@ export function parseStory(input: unknown): ParseResult {
   top().text += story.body.slice(last);
   if (stack.length > 1) errors.push(`unclosed <${top().tag}>`);
   flush(root);
-  if (visuals > MAX_VISUALS) errors.push(`${visuals} visual tags; max is ${MAX_VISUALS}`);
+  const max = MAX_VISUALS_BY_KIND[story.kind];
+  if (visuals > max) errors.push(`${visuals} visual tags; max is ${max} for a ${story.kind}`);
   return errors.length ? { ok: false, errors: [...new Set(errors)] } : { ok: true, story, segments: root.segs };
 }
