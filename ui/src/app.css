@@ -366,7 +366,11 @@ h1, h2, h3, b, strong { font-weight: var(--fw-body-strong); }
 .mb-chat-steps li { display: flex; align-items: center; gap: var(--space-2); animation: mb-in .4s ease-out both; }
 .mb-chat-step-dot { width: 16px; height: 16px; display: inline-grid; place-items: center; }
 .mb-chat-step-dot::before { content: ''; width: 6px; height: 6px; border-radius: var(--radius-pill); background: var(--agent-ube); animation: mb-live 1.2s ease-in-out infinite; }
-.mb-chat-actions { display: flex; gap: var(--space-3); margin-top: calc(-1 * var(--space-1)); opacity: .7; transition: opacity .18s; }
+.mb-chat-actions { display: flex; gap: var(--space-1); margin: calc(-1 * var(--space-1)) 0 0 -6px; opacity: .7; transition: opacity .18s; } /* -6px: the icon's glyph lines up with the text edge */
+.mb-icon-btn { width: 28px; height: 28px; display: inline-grid; place-items: center; padding: 0; border: none; border-radius: var(--radius-sm); background: none; color: var(--ink-muted); cursor: pointer; transition: background .15s, color .15s; }
+.mb-icon-btn:hover { background: var(--bg-subtle); color: var(--ink); }
+.mb-icon-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.mb-icon-btn:active { transform: scale(.94); transition-duration: .06s; }
 .mb-chat-ai:hover .mb-chat-actions, .mb-chat-actions:focus-within { opacity: 1; }
 .mb-chat-empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: var(--space-2); padding: var(--space-8) var(--space-4); animation: mb-in .45s ease-out both; }
 .mb-chat-empty-title { font-size: var(--fs-headline); color: var(--ink); margin-top: var(--space-2); }

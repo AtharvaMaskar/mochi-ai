@@ -2,8 +2,9 @@
 // avatar whose mood says what it is doing: thinking while tools run, speaking while text streams.
 // A turn that began live (mood set at mount) arrives: cards get the fading agent-tint ring, words blur in once.
 // Replayed history mounts without a mood and shows everything at rest.
-import { useRef, type ReactNode } from 'react';
-import { Mochi, Button, type Mood } from '../ds.tsx';
+import { useRef, useState, type ReactNode } from 'react';
+import { Check, Copy, RotateCcw } from 'lucide-react';
+import { Mochi, type Mood } from '../ds.tsx';
 import { RevealWords } from '../markdown.tsx';
 
 export function Message({ role, mood, children }: { role: 'user' | 'assistant'; mood?: Mood; children: ReactNode }) {
@@ -22,8 +23,18 @@ export function MessageActions({ text, onRetry }: { text?: string; onRetry?: () 
   if (!text && !onRetry) return null;
   return (
     <div className="mb-chat-actions">
-      {text && <Button variant="link" size="sm" success="Copied" onClick={() => { void navigator.clipboard?.writeText(text).catch(() => undefined); }}>Copy</Button>}
-      {onRetry && <Button variant="link" size="sm" onClick={onRetry}>Retry</Button>}
+      {text && <CopyButton text={text} />}
+      {onRetry && <button className="mb-icon-btn" aria-label="Retry" title="Retry" onClick={onRetry}><RotateCcw size={16} strokeWidth={1.5} aria-hidden="true" /></button>}
     </div>
+  );
+}
+
+function CopyButton({ text }: { text: string }) {
+  const [done, setDone] = useState(false);
+  const copy = () => { void navigator.clipboard?.writeText(text).then(() => { setDone(true); setTimeout(() => setDone(false), 1400); }, () => undefined); };
+  return (
+    <button className="mb-icon-btn" aria-label={done ? 'Copied' : 'Copy'} title={done ? 'Copied' : 'Copy'} onClick={copy}>
+      {done ? <Check size={16} strokeWidth={1.5} aria-hidden="true" /> : <Copy size={16} strokeWidth={1.5} aria-hidden="true" />}
+    </button>
   );
 }
