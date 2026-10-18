@@ -50,3 +50,9 @@ test('MERGED_INTO is a contract edge', () => {
 test('REMEMBERS Episode is a contract edge', () => {
   assert.deepEqual(checkCypherNames('MATCH (:Customer)-[:REMEMBERS]->(e:Episode), (:AgentUser)-[:REMEMBERS]->(:Episode) RETURN e'), []);
 });
+
+test('SIMILAR_TO is a temporal contract edge', async () => {
+  const { TEMPORAL_EDGES } = await import('./graph.ts');
+  assert.deepEqual(checkCypherNames('MATCH (a:Ticket)-[s:SIMILAR_TO]->(b:Ticket) RETURN s.score'), []);
+  assert.ok((TEMPORAL_EDGES as readonly string[]).includes('SIMILAR_TO'));
+});

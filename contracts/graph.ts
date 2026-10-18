@@ -40,7 +40,8 @@ export const E = {
   BASED_ON: e('Resolution', 'KBArticle'),
   INTRODUCED: e('Release', 'Issue'),
   FOLLOWS: e('Ticket', 'Ticket'),
-  MERGED_INTO: e('Ticket', 'Ticket'), // same request closed into its primary; not a follow-up
+  MERGED_INTO: e('Ticket', 'Ticket'),
+  SIMILAR_TO: e('Ticket', 'Ticket'), // dream-built kNN over embeddings; gives algorithms real structure // same request closed into its primary; not a follow-up
   CONTRADICTS: e('ObservedPattern', ['KBArticle', 'Policy']),
   UNDOCUMENTED: e('ObservedPattern', 'ProductArea'),
   SEEN_IN: e('ObservedPattern', 'Ticket'),
@@ -53,7 +54,7 @@ export const E = {
 export type EdgeType = keyof typeof E;
 
 // Mutable facts. Each carries valid_from / valid_until (epoch ms); retire = SET valid_until + CREATE new.
-export const TEMPORAL_EDGES = ['ON_PLAN', 'INTRODUCED', 'CONTRADICTS', 'UNDOCUMENTED', 'IN_CLUSTER'] as const satisfies readonly EdgeType[];
+export const TEMPORAL_EDGES = ['ON_PLAN', 'INTRODUCED', 'CONTRADICTS', 'UNDOCUMENTED', 'IN_CLUSTER', 'SIMILAR_TO'] as const satisfies readonly EdgeType[];
 
 // FalkorDB cannot store null, so a live fact ends at 9999-12-31 (docs/falkordb.md gotcha 1).
 export const VALID_FOREVER = 253402300799000;
@@ -75,7 +76,7 @@ export const P = {
   validFrom: 'valid_from', validUntil: 'valid_until', embedding: 'embedding',
   promisedTat: 'promised_tat_hours', steps: 'steps', measuredTat: 'measured_tat_hours',
   supportCount: 'support_count', lastSeen: 'last_seen', summary: 'summary', delta: 'delta',
-  ingestedAt: 'ingested_at', text: 'text',
+  ingestedAt: 'ingested_at', score: 'score', text: 'text',
   requesterEmail: 'requester_email', ccEmails: 'cc_emails', onBehalfOf: 'on_behalf_of', mergedInto: 'merged_into',
   frDueBy: 'fr_due_by', dueBy: 'due_by', firstRespondedAt: 'first_responded_at', closedAt: 'closed_at',
   frEscalated: 'fr_escalated', isEscalated: 'is_escalated', evidenceTicketIds: 'evidence_ticket_ids', confidence: 'confidence', expiresAt: 'expires_at', status: 'status',
