@@ -52,6 +52,27 @@ const JSON_ATTRS = new Set(['series', 'columns', 'actions']);
 const TAG = /<(\/?)([a-z][a-z0-9_-]*)((?:\s+[a-z_]+\s*=\s*(?:"[^"]*"|'[^']*'))*)\s*(\/?)>/g;
 const ATTR = /([a-z_]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g;
 
+type Queries = Record<string, StoredQuery>;
+const missingCols = (where: string, queries: Queries, qid: string, cols: (string | undefined)[]): string[] => {
+  const q = queries[qid];
+  if (!q) return [`${where}: unknown query_id ${qid}`];
+  return cols.filter((c): c is string => c !== undefined && !q.columns.includes(c)).map((c) => `${where}: ${qid} has no column ${c}`);
+};
+
+// Query and column checks for one visual block. Shared by stories and chat tool cards.
+export function checkVisual(v: Visual, queries: Queries): string[] {
+  const where = `<${v.type} ${v.query_id}>`;
+  switch (v.type) {
+    case 'kpi': return missingCols(where, queries, v.query_id, [v.column]);
+    case 'bars': return missingCols(where, queries, v.query_id, [v.x, v.y, v.trend, v.hot]);
+    case 'line': return missingCols(where, queries, v.query_id, [v.x, ...v.series]);
+    case 'table': return missingCols(where, queries, v.query_id, v.columns);
+    case 'memdiff': return missingCols(where, queries, v.query_id, ['change', 'fact']);
+    case 'suggestion': return [...missingCols(where, queries, v.query_id, []), ...v.nums.flatMap((n) => checkNum(n, queries))];
+  }
+}
+export const checkNum = (n: NumRef, queries: Queries) => missingCols(`<num ${n.query_id}>`, queries, n.query_id, [n.column]);
+
 export function parseStory(input: unknown): ParseResult {
   const parsed = Story.safeParse(input);
   if (!parsed.success) return { ok: false, errors: parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`) };
@@ -59,12 +80,6 @@ export function parseStory(input: unknown): ParseResult {
   const errors: string[] = [];
   for (const [qid, q] of Object.entries(story.queries))
     if (!q.cypher.includes('$as_of')) errors.push(`${qid}: stored query must take $as_of`);
-
-  const columnsOf = (qid: string, where: string, cols: (string | undefined)[]) => {
-    const q = story.queries[qid];
-    if (!q) { errors.push(`${where}: unknown query_id ${qid}`); return; }
-    for (const c of cols) if (c !== undefined && !q.columns.includes(c)) errors.push(`${where}: ${qid} has no column ${c}`);
-  };
 
   // Tokenize into a tree: markdown text, known tags (with bodies for num/suggestion/grid), notes.
   type Frame = { tag: string; attrs: Record<string, string>; segs: Segment[]; text: string; nums: NumRef[] };
@@ -75,7 +90,7 @@ export function parseStory(input: unknown): ParseResult {
   let visuals = 0, last = 0;
 
   const attrsOf = (raw: string) => Object.fromEntries([...raw.matchAll(ATTR)].map((m) => [m[1], m[2] ?? m[3]]));
-  const visual = (tag: string, a: Record<string, string>, body: Frame | null): Segment | null => {
+  const visual = (tag: string, a: Record<string, string>, body: Frame | null): Visual | null => {
     const where = `<${tag}${a.query_id ? ` ${a.query_id}` : ''}>`;
     const missing = REQUIRED[tag].filter((k) => a[k] === undefined);
     if (missing.length) { errors.push(`${where}: missing ${missing.join(', ')}`); return null; }
@@ -88,18 +103,18 @@ export function parseStory(input: unknown): ParseResult {
     visuals++;
     const q = a.query_id;
     switch (tag) {
-      case 'kpi': columnsOf(q, where, [a.column]);
+      case 'kpi':
         return { type: 'kpi', query_id: q, label: a.label, column: a.column, unit: a.unit,
           promised: a.promised === undefined ? undefined : Number(a.promised), bad: a.bad === undefined ? undefined : a.bad === 'true' };
-      case 'bars': columnsOf(q, where, [a.x, a.y, a.trend, a.hot]);
+      case 'bars':
         return { type: 'bars', query_id: q, label: a.label, x: a.x, y: a.y, trend: a.trend, hot: a.hot };
-      case 'line': columnsOf(q, where, [a.x, ...json.series]);
+      case 'line':
         return { type: 'line', query_id: q, label: a.label, x: a.x, series: json.series };
-      case 'table': columnsOf(q, where, json.columns);
+      case 'table':
         return { type: 'table', query_id: q, label: a.label, columns: json.columns };
-      case 'memdiff': columnsOf(q, where, ['change', 'fact']);
+      case 'memdiff':
         return { type: 'memdiff', query_id: q };
-      case 'suggestion': columnsOf(q, where, []);
+      case 'suggestion':
         return { type: 'suggestion', query_id: q, tag: a.tag, edge: a.edge, actions: json.actions ?? [],
           text: body?.text.trim() ?? '', nums: body?.nums ?? [] };
     }
@@ -120,7 +135,7 @@ export function parseStory(input: unknown): ParseResult {
         const ref = { query_id: f.attrs.query_id, column: f.attrs.column, value: f.text.trim() };
         const missing = REQUIRED.num.filter((k) => f.attrs[k] === undefined);
         if (missing.length) errors.push(`<num>: missing ${missing.join(', ')}`);
-        else columnsOf(ref.query_id, `<num ${ref.query_id}>`, [ref.column]);
+        else errors.push(...checkNum(ref, story.queries));
         parent.nums.push(ref);
         parent.text += `<num query_id="${ref.query_id}" column="${ref.column}">${ref.value}</num>`;
       } else if (tag === 'grid') {
@@ -129,7 +144,7 @@ export function parseStory(input: unknown): ParseResult {
         parent.segs.push({ type: 'grid', widths, children: f.segs });
       } else {
         const seg = visual(tag, f.attrs, f);
-        if (seg) parent.segs.push(seg);
+        if (seg) { errors.push(...checkVisual(seg, story.queries)); parent.segs.push(seg); }
       }
       continue;
     }
@@ -138,7 +153,7 @@ export function parseStory(input: unknown): ParseResult {
       flush(top());
       const seg = tag === 'num' || tag === 'grid' ? null : visual(tag, a, null);
       if (tag === 'num' || tag === 'grid') errors.push(`<${tag}> needs a body`);
-      if (seg) top().segs.push(seg);
+      if (seg) { errors.push(...checkVisual(seg, story.queries)); top().segs.push(seg); }
       continue;
     }
     if (tag !== 'num') flush(top());
@@ -149,5 +164,5 @@ export function parseStory(input: unknown): ParseResult {
   if (stack.length > 1) errors.push(`unclosed <${top().tag}>`);
   flush(root);
   if (visuals > MAX_VISUALS) errors.push(`${visuals} visual tags; max is ${MAX_VISUALS}`);
-  return errors.length ? { ok: false, errors } : { ok: true, story, segments: root.segs };
+  return errors.length ? { ok: false, errors: [...new Set(errors)] } : { ok: true, story, segments: root.segs };
 }

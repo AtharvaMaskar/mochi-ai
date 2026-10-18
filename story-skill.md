@@ -84,3 +84,11 @@ unknown tags render as a plain note, never crash.
 - If the graph can't support the ask, say so in prose ("not enough resolved tickets in this
   window to compare") — never fabricate a figure.
 - Every `query_id` must be the query that actually produced the number. No decorative queries.
+
+## In chat
+
+Chat answers use the same tags and the same parser as reports, and story tags are the default
+way to show rich content. Plain markdown tables are fine for prose content: the renderer styles
+them. Use the sandboxed-HTML exception (SPEC §4) only when no tag fits. Its HTML uses only
+`mochi.css` variables, makes no network calls, and holds no literal numbers: every figure is
+`<span data-q="q_1" data-col="median_h"></span>`, which the host fills from the stored query.
