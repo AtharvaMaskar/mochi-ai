@@ -49,7 +49,7 @@ Make four throwaway passwords (`openssl rand -hex 16`, four times):
    | `MOCHI_READER_PASSWORD` | `${{FalkorDB.MOCHI_READER_PASSWORD}}` |
    | `MOCHI_DREAM_PASSWORD` | `${{FalkorDB.MOCHI_DREAM_PASSWORD}}` |
    | `MOCHI_DEMO_USER_PASSWORD` | `${{FalkorDB.MOCHI_DEMO_USER_PASSWORD}}` |
-   | `ANTHROPIC_API_KEY` | your key |
+   | `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` (embeddings, text-embedding-3-small) and `MOCHI_ADMIN_TOKEN` | your key |
    | `MOCHI_MODEL` | `claude-haiku-5-5` |
    | `MOCHI_JUDGE_MODEL` | `claude-opus-5-5` |
    | `MOCHI_SQLITE` | `/data/mochi.sqlite` |

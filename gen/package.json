@@ -6,10 +6,10 @@
     ".": "./index.ts"
   },
   "scripts": {
-    "gen": "node derive.ts",
-    "listen": "node listen.ts",
-    "load": "node load.ts",
-    "test": "node --test --test-timeout=120000",
+    "gen": "node --env-file-if-exists=../.env derive.ts",
+    "listen": "node --env-file-if-exists=../.env listen.ts",
+    "load": "node --env-file-if-exists=../.env load.ts",
+    "test": "EMBED_PROVIDER=local node --test --test-timeout=120000",
     "check": "tsc -p . && npm test"
   },
   "dependencies": {
