@@ -229,3 +229,4 @@ node_modules/
 
 # Design-system component reference: local only (third-party product copy)
 docs/design-system/components/
+.taste-skill/

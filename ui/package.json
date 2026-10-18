@@ -2,6 +2,27 @@
   "name": "@mochi/ui",
   "private": true,
   "type": "module",
-  "scripts": { "check": "node -e 0" },
-  "dependencies": { "@mochi/contracts": "*" }
+  "exports": {
+    "./mochi": "./src/components/Mochi.tsx"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "test": "node --test \"fixtures/*.test.ts\"",
+    "check": "node check-tokens.ts && tsc -p . && vite build && node --test \"fixtures/*.test.ts\""
+  },
+  "dependencies": {
+    "@mochi/contracts": "*",
+    "lucide-react": "^1.59.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
+    "@vitejs/plugin-react": "^6.1.2",
+    "vite": "^8.3.4"
+  }
 }
