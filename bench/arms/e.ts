@@ -1,11 +1,17 @@
 // Arm E: the same dataset as SQLite tables (node:sqlite), queried by hand-written SQL that mirrors arm D's read tools
 // one for one: same tool names, descriptions and arguments (generated from READ_TOOL_SPECS), same columns, same
 // temporal filter. Only the store and its query language change. Like A/B/C, E reads the JSON directly, so it has
-// every ticket's issue link without the dream's extraction.
+// every ticket's issue link without the dream's extraction. D's query_graph is mirrored by query_sql (model-written
+// read-only SQL, same row cap and timeout). D's graph_algorithm has no mirror: SQLite has no PageRank/CDLP, and paths
+// exist only as recursive CTEs written through query_sql (bench/artifacts/arm-e.md).
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import type { Tool } from '@earendil-works/pi-ai';
+import { execFile } from 'node:child_process';
+import { Type, type Tool } from '@earendil-works/pi-ai';
 import { untilOrForever, type ContradictionEvent, type Dataset } from '@mochi/contracts';
-import { embed, READ_TOOL_SPECS } from '../deps.ts';
+import { embed, READ_TOOL_SPECS, ROW_CAP, TIMEOUT_MS } from '../deps.ts';
 import { ZERO } from '../llm.ts';
 import { toolLoop } from './d.ts';
 import { ANSWER_SYSTEM, timed, type Arm, type Ctx } from './index.ts';
@@ -151,8 +157,8 @@ export const SQL_TOOLS: Record<string, (db: Sql, a: any, as_of: number) => Promi
   },
 };
 
-export function load(d: Dataset, vectors: Map<string, number[]>): Sql {
-  const db = new DatabaseSync(':memory:');
+export function load(d: Dataset, vectors: Map<string, number[]>, file = ':memory:'): Sql {
+  const db = new DatabaseSync(file);
   db.exec(SCHEMA);
   const ins = (table: string, n: number) => db.prepare(`INSERT INTO ${table} VALUES (${Array(n).fill('?').join(', ')})`);
   db.exec('BEGIN');
@@ -185,30 +191,82 @@ export function applySql(db: Sql, e: ContradictionEvent, at = e.at) {
   } else s(SQL.retireIntroduced).run({ id: e.issue_id, as_of: at });
 }
 
-const TOOL_SYSTEM = `${ANSWER_SYSTEM} Look the answer up in the company database with the tools first; ids in the question name what to look up.`;
+// query_sql runs in a child process on a read-only connection: SIGKILL is the only way to stop a statement stuck in
+// SQLite's native loop (a worker's terminate() cannot interrupt it), so a runaway statement dies at TIMEOUT_MS.
+const CHILD = `const w = JSON.parse(process.argv[1]);
+const db = new (require('node:sqlite').DatabaseSync)(w.file, { readOnly: true });
+const st = db.prepare(w.sql); st.setAllowUnknownNamedParameters(true);
+const rows = [];
+for (const r of st.iterate({ as_of: w.as_of })) { rows.push(r); if (rows.length > w.cap) break; }
+process.stdout.write(JSON.stringify(rows));`;
+
+export function querySql(file: string, sql: string, as_of: number): Promise<{ rows: Row[]; truncated: boolean }> {
+  return new Promise((resolve, reject) => {
+    execFile(process.execPath, ['--no-warnings', '-e', CHILD, JSON.stringify({ file, sql, as_of, cap: ROW_CAP })],
+      { timeout: TIMEOUT_MS, killSignal: 'SIGKILL', maxBuffer: 32 << 20 }, (err, stdout, stderr) => {
+        if (err) return reject(new Error(err.killed ? `statement timeout after ${TIMEOUT_MS} ms` : (stderr.match(/Error: .*/)?.[0] ?? err.message)));
+        const rows = JSON.parse(stdout) as Row[];
+        resolve({ rows: rows.slice(0, ROW_CAP), truncated: rows.length > ROW_CAP });
+      });
+  });
+}
+
+export const QUERY_SQL: Tool = {
+  name: 'query_sql',
+  description: `Your own read-only SQLite SELECT over the database schema, for anything the fixed tools do not cover. May use $as_of (epoch ms, always bound): filter rows with created_at <= $as_of, temporal rows with valid_from <= $as_of AND valid_until > $as_of. Up to ${ROW_CAP} rows, ${TIMEOUT_MS / 1000} s timeout.`,
+  parameters: Type.Object({ sql: Type.String(), purpose: Type.String() }),
+};
+
+// The compact schema section, mirroring D's SCHEMA_PROMPT (same examples, in SQL).
+const SQL_SCHEMA = `Database schema (SQLite; times are epoch ms; a live temporal row has valid_until = ${untilOrForever(null)}):
+${SCHEMA.split('\n').filter((l) => l.startsWith('CREATE TABLE') || l.startsWith('  ')).join('\n')}
+Temporal tables: on_plan (customer plans), introduced (release introduced issue); a row is live at $as_of when valid_from <= $as_of AND valid_until > $as_of.
+Prefer the fixed tools when one fits; use query_sql for anything else. Paths are joins or WITH RECURSIVE.
+query_sql examples:
+- tickets per area this week: SELECT i.area, count(DISTINCT t.id) AS tickets FROM tickets t JOIN issues i ON i.id = t.issue_id WHERE t.created_at <= $as_of AND t.created_at > $as_of - 604800000 GROUP BY i.area ORDER BY tickets DESC
+- open tickets for a release: SELECT t.id AS ticket, t.subject, i.name AS issue FROM introduced x JOIN issues i ON i.id = x.issue_id JOIN tickets t ON t.issue_id = i.id WHERE x.version = '3.2.0' AND x.valid_from <= $as_of AND x.valid_until > $as_of AND t.status IN ('open', 'pending') ORDER BY t.created_at DESC
+- who solved most in an area: SELECT a.name AS agent, count(*) AS solved FROM tickets t JOIN agents a ON a.id = t.solved_by JOIN issues i ON i.id = t.issue_id WHERE i.area = 'kyc' AND t.created_at <= $as_of GROUP BY a.id ORDER BY solved DESC, agent LIMIT 5`;
+
+const TOOL_SYSTEM = `${ANSWER_SYSTEM} Look the answer up in the company database with the tools first; ids in the question name what to look up.\n\n${SQL_SCHEMA}`;
 
 export const renderRows = (name: string, qs: Record<string, Row[]>) =>
   `## ${name}\n${Object.entries(qs).map(([id, rows]) => `${id} rows: ${JSON.stringify(rows)}`).join('\n')}`;
 
+/** Read tools with no SQL equivalent; a real capability gap between the stores, so E does not get a fake one. */
+export const NO_SQL_EQUIVALENT = new Set(['graph_algorithm']);
+
+/** D's tools as E sees them: the same specs, query_graph mirrored as query_sql, graph_algorithm dropped. */
+export function eTools(): Tool[] {
+  const fixed = READ_TOOL_SPECS.filter((s) => !NO_SQL_EQUIVALENT.has(s.name) && s.name !== 'query_graph')
+    .map(({ name, description, parameters }) => ({ name, description, parameters }));
+  return [...fixed, QUERY_SQL];
+}
+
 export function armE(ctx: Ctx): Arm {
-  const missing = READ_TOOL_SPECS.filter((s) => !SQL_TOOLS[s.name]).map((s) => s.name);
+  const tools = eTools();
+  const missing = tools.filter((t) => t.name !== 'query_sql' && !SQL_TOOLS[t.name]).map((t) => t.name);
   if (missing.length) throw new Error(`arm E has no SQL for read tool(s) ${missing.join(', ')}: add them to SQL_TOOLS`);
-  const tools: Tool[] = READ_TOOL_SPECS.map(({ name, description, parameters }) => ({ name, description, parameters }));
   const asOf = () => Math.max(Date.now(), ctx.dataset.generated_at);
-  let db: Sql | undefined;
+  let db: Sql | undefined, file = '';
 
   return {
     arch: 'E',
     async prepare() {
       db?.close();
       const ts = ctx.dataset.tickets;
-      const vs = await embed(ts.map((t) => `${t.subject}\n${t.body}`)); // the loader's ticket embedding text; local, no tokens
-      db = load(ctx.dataset, new Map(ts.map((t, j) => [t.id, vs[j]])));
+      const vs = await embed(ts.map((t) => `${t.subject}\n${t.body}`)); // the loader's ticket embedding text and provider
+      file = join(mkdtempSync(join(tmpdir(), 'bench-e-')), 'e.sqlite'); // a file, so query_sql can open it read-only
+      db = load(ctx.dataset, new Map(ts.map((t, j) => [t.id, vs[j]])), file);
       return ZERO;
     },
     async answer(q) {
-      const r = await toolLoop(ctx, 'arm_e', TOOL_SYSTEM, tools, q, async (name, args) =>
-        SQL_TOOLS[name] ? renderRows(name, await SQL_TOOLS[name](db!, args, asOf())) : `unknown tool ${name}`);
+      const r = await toolLoop(ctx, 'arm_e', TOOL_SYSTEM, tools, q, async (name, args) => {
+        if (name === 'query_sql') {
+          const { rows, truncated } = await querySql(file, String(args.sql), asOf());
+          return renderRows(`query_sql: ${String(args.purpose ?? '').slice(0, 80)}${truncated ? ` (truncated at ${ROW_CAP})` : ''}`, { q_1: rows });
+        }
+        return SQL_TOOLS[name] ? renderRows(name, await SQL_TOOLS[name](db!, args, asOf())) : `unknown tool ${name}`;
+      });
       return { answer: r.answer, usage: r.usage, retrieval_ms: r.retrieval_ms };
     },
     async apply(e) {

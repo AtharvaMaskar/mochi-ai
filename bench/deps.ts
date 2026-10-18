@@ -10,6 +10,7 @@ import { CostCapError, type Llm } from './llm.ts';
 
 export { loadDataset, applyEvent, embed, EMBED_DIM } from '@mochi/gen';
 export { READ_TOOL_SPECS } from '../agent/queries/tools.ts';
+export { SCHEMA_PROMPT, ROW_CAP, TIMEOUT_MS } from '../agent/queries/graph-tools.ts';
 export type { DreamReport } from '../agent/dream/index.ts';
 
 export type Db = Pick<FalkorDB, 'selectGraph'>;

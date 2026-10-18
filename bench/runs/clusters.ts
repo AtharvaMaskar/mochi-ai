@@ -1,11 +1,11 @@
-// Clusters ablation: graph community detection (CDLP over Ticket-ABOUT-Issue edges, on a scratch projection) vs LLM
-// clustering of the same week's raw ticket text, scored against the bad-release spikes. The graph side never sees the
-// seeded issue labels: every ABOUT edge is stripped and re-derived by the dream's LLM extraction, whose tokens are the
-// graph side's cost. (Clustering the seeded labels and scoring them against themselves would be circular.)
+// Clusters ablation: graph community detection (CDLP over the dream's SIMILAR_TO kNN edges, on a scratch projection) vs
+// LLM clustering of the same week's raw ticket text, scored against the bad-release spikes. The graph side never reads
+// ABOUT, so the seeded issue labels are only the scoring key (clustering them would be circular). Its tokens are the
+// dream pass that builds SIMILAR_TO (extraction included); embedding tokens are not counted: gen/embed reports no usage.
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { MISMATCH, type Dataset, type Results } from '@mochi/contracts';
-import { CDLP, PROJECT_ABOUT, STRIP_ABOUT, WINDOW_ABOUT } from '../cypher.ts';
+import { CDLP, PROJECT_SIMILAR, WINDOW_SIMILAR } from '../cypher.ts';
 import { loadDataset, runDreamNow } from '../deps.ts';
 import { ZERO } from '../llm.ts';
 import type { Ctx } from '../arms/index.ts';
@@ -35,7 +35,6 @@ export async function runClusters(ctx: Ctx): Promise<Pick<Results, 'clusters_abl
   const d = ctx.dataset, n = ctx.names;
   const graphs = { company: n.ingest, prev: n.ingestPrev, scratch: n.ingestScratch };
   await loadDataset(d, ctx.db, { graph: n.ingest, fresh: true });
-  await ctx.db.selectGraph(n.ingest).query(STRIP_ABOUT);
   const before = ctx.llm.byCaller.clusters_dream ?? ZERO;
   await runDreamNow({ db: ctx.db, llm: ctx.llm, caller: 'clusters_dream', graphs });
   const after = ctx.llm.byCaller.clusters_dream ?? ZERO;
@@ -47,9 +46,9 @@ export async function runClusters(ctx: Ctx): Promise<Pick<Results, 'clusters_abl
   for (const rel of d.releases) {
     const from = rel.shipped_at, to = from + WEEK;
     const spikes = rel.introduces.map((x) => ({ version: rel.version, issue_id: x.issue_id }));
-    const pairs = (await world.roQuery<{ t: string; i: string }>(WINDOW_ABOUT, { params: { from, to } })).data ?? [];
+    const pairs = (await world.roQuery<{ a: string; b: string }>(WINDOW_SIMILAR, { params: { from, to, as_of: Math.max(Date.now(), d.generated_at) } })).data ?? [];
     await scratch.delete().catch(() => {});
-    if (pairs.length) await scratch.query(PROJECT_ABOUT, { params: { rows: pairs } });
+    if (pairs.length) await scratch.query(PROJECT_SIMILAR, { params: { rows: pairs } });
     const rows = pairs.length ? (await scratch.roQuery<{ id: string; communityId: number }>(CDLP)).data ?? [] : [];
     const graphClusters = [...Map.groupBy(rows, (r) => r.communityId).values()].map((rs) => rs.map((r) => r.id));
 

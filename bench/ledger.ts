@@ -38,13 +38,13 @@ export function buildLedger(r: Omit<Results, 'ledger'>): Row[] {
     : null;
 
   return [
-    row('briefing retrieval', 'multi-hop Cypher', 'arms A/B/C/E (main benchmark; E = the same tools as SQLite SQL)', briefing),
+    row('briefing retrieval', 'multi-hop Cypher', 'arms A/B/C/E (main benchmark; E = the same tools as SQLite SQL plus query_sql; E has no algorithm tools: SQLite has no PageRank/CDLP; paths only via recursive CTE through query_sql)', briefing),
     // Arm F was time-boxed and not integrated: bench/artifacts/arm-f.md gives the reason.
     { feature: 'TencentDB Agent Memory comparison (arm F)', mechanism: 'multi-hop Cypher',
       measured_against: 'TencentDB Agent Memory, not integrated: its extraction runs in a separate HTTP gateway whose LLM calls bypass the bench meter and cost cap (bench/artifacts/arm-f.md)',
       result: NOT, status: 'not_measured' },
     row('mismatch detection', 'deterministic CONTRADICTS/UNDOCUMENTED rules', 'LLM given all docs+tickets as text; 5 planted mismatches', mismatch),
-    row('emerging clusters', 'community detection (CDLP) over issue links the dream extracted (seeded links stripped; extraction tokens counted)', 'LLM clustering of the same week\'s raw ticket text vs planted bad-release spikes', clusters),
+    row('emerging clusters', 'community detection (CDLP) over the dream\'s SIMILAR_TO kNN edges (no seeded issue links read; dream tokens counted, embedding tokens not)', 'LLM clustering of the same week\'s raw ticket text vs planted bad-release spikes', clusters),
     { feature: 'crash resume', mechanism: 'Pi Durable checkpoints', measured_against: 'demonstrated, not benchmarked', result: 'demonstrated (crash-demo clip), not benchmarked', status: 'demonstrated' },
     row('tier isolation', 'Redis ACL users per tier', 'refusal cases as mochi_reader', tier),
     row('multi-agent concurrency', 'N parallel briefings while the dream writes; multigraph isolation', 'latency p50/p95 vs N, torn-read assertion, one graph vs per-user graphs', conc),

@@ -1,7 +1,7 @@
 // Arm D: the graph. The answer model calls agent-core's read tools; the prompt holds only query rows and the path.
 import type { AssistantMessage, Message, Tool, ToolCall } from '@earendil-works/pi-ai';
 import { GRAPH, type EvalQuestion } from '@mochi/contracts';
-import { applyEvent, loadDataset, READ_TOOL_SPECS, runDreamNow, type Db, type QueryResult } from '../deps.ts';
+import { applyEvent, loadDataset, READ_TOOL_SPECS, runDreamNow, SCHEMA_PROMPT, type Db, type QueryResult } from '../deps.ts';
 import { UNINGEST } from '../cypher.ts';
 import { add, ZERO, type Usage } from '../llm.ts';
 import { ANSWER_SYSTEM, timed, type Arm, type Ctx } from './index.ts';
@@ -31,7 +31,7 @@ export async function ensureWorld(ctx: Ctx, graph = ctx.names.world, fresh = fal
   for (const g of [graphs.prev, graphs.scratch]) await ctx.db.selectGraph(g).delete().catch(() => {});
 }
 
-const TOOL_SYSTEM = `${ANSWER_SYSTEM} Look the answer up in the company graph with the tools first; ids in the question name what to look up.`;
+const TOOL_SYSTEM = `${ANSWER_SYSTEM} Look the answer up in the company graph with the tools first; ids in the question name what to look up.\n\n${SCHEMA_PROMPT}`;
 const ROUNDS = 3;
 
 const textOf = (m: AssistantMessage) => m.content.flatMap((c) => (c.type === 'text' ? [c.text] : [])).join('').trim();

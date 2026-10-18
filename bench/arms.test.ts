@@ -6,7 +6,10 @@ import { armA } from './arms/a.ts';
 import { armB, K } from './arms/b.ts';
 import { armC, parseFiles } from './arms/c.ts';
 import { armD } from './arms/d.ts';
-import { armE, applySql, load, SQL_TOOLS } from './arms/e.ts';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { armE, applySql, eTools, load, NO_SQL_EQUIVALENT, querySql, SQL_TOOLS } from './arms/e.ts';
 import { READ_TOOL_SPECS } from './deps.ts';
 import { tinyDataset } from '@mochi/contracts';
 import { chunks } from './arms/index.ts';
@@ -92,8 +95,21 @@ test('E answers through the same tool loop, from SQL rows; tokens and cost are c
   } finally { await ctx.cleanup(); }
 });
 
-test('E has SQL for every read tool D exposes', () => {
-  assert.deepEqual(READ_TOOL_SPECS.map((s) => s.name).filter((n) => !SQL_TOOLS[n]), []);
+test('E has SQL for every read tool D exposes, query_graph as query_sql, and no graph_algorithm', () => {
+  const names = eTools().map((t) => t.name);
+  assert.deepEqual(READ_TOOL_SPECS.map((s) => s.name as string).filter((n) => !SQL_TOOLS[n] && n !== 'query_graph' && !NO_SQL_EQUIVALENT.has(n)), []);
+  assert.ok(names.includes('query_sql') && !names.includes('graph_algorithm') && !names.includes('query_graph'));
+});
+
+test('query_sql is read-only, capped at 200 rows and timed out', async () => {
+  const file = join(mkdtempSync(join(tmpdir(), 'e-test-')), 'e.sqlite');
+  load(tinyDataset() as any, new Map(), file).close();
+  const r = await querySql(file, 'SELECT id FROM tickets WHERE created_at <= $as_of ORDER BY id', Date.now());
+  assert.ok(r.rows.length >= 2 && !r.truncated);
+  await assert.rejects(querySql(file, "UPDATE tickets SET subject = 'x'", 0), /readonly|read-only/i);
+  const big = await querySql(file, 'WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n LIMIT 1000) SELECT i FROM n', 0);
+  assert.deepEqual([big.rows.length, big.truncated], [200, true]);
+  await assert.rejects(querySql(file, 'WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n) SELECT count(*) FROM n', 0), /timeout/);
 });
 
 test('E serves customer_profile with the same four queries as the graph', async () => {

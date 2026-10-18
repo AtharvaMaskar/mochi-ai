@@ -13,12 +13,12 @@ export const VECTOR_QUERY = `CALL db.idx.vector.queryNodes($label, 'embedding', 
 // Strip ingestion marks so the dream re-ingests every ticket (D ingestion cost, concurrency writer).
 export const UNINGEST = `MATCH (t:Ticket) REMOVE t.ingested_at, t.batch_id, t.batch_size`;
 
-// Clusters ablation: drop the seeded issue links so the graph side clusters only what the dream's extraction derives.
-export const STRIP_ABOUT = `MATCH (t:Ticket) OPTIONAL MATCH (t)-[a:ABOUT]->() DELETE a REMOVE t.ingested_at, t.batch_id, t.batch_size`;
-// Clusters ablation: copy one window of live Ticket-ABOUT-Issue pairs into a scratch graph, then CDLP.
-export const WINDOW_ABOUT = `MATCH (t:Ticket)-[a:ABOUT]->(i:Issue) WHERE t.created_at >= $from AND t.created_at < $to RETURN t.id AS t, i.id AS i`;
-export const PROJECT_ABOUT = `UNWIND $rows AS r MERGE (t:Ticket {id: r.t}) MERGE (i:Issue {id: r.i}) MERGE (t)-[:ABOUT]->(i)`;
-export const CDLP = `CALL algo.labelPropagation({nodeLabels:['Ticket','Issue'], relationshipTypes:['ABOUT'], maxIterations:10}) YIELD node, communityId WHERE 'Ticket' IN labels(node) RETURN node.id AS id, communityId`;
+// Clusters ablation: copy one window's live Ticket-SIMILAR_TO-Ticket pairs (the dream's kNN over embeddings) into a
+// scratch graph, then CDLP. No ABOUT edge is read: the seeded issue labels are only the scoring key.
+export const WINDOW_SIMILAR = `MATCH (a:Ticket)-[s:SIMILAR_TO]->(b:Ticket) WHERE ${EDGE_AS_OF('s')}
+  AND a.created_at >= $from AND a.created_at < $to AND b.created_at >= $from AND b.created_at < $to RETURN a.id AS a, b.id AS b`;
+export const PROJECT_SIMILAR = `UNWIND $rows AS r MERGE (a:Ticket {id: r.a}) MERGE (b:Ticket {id: r.b}) MERGE (a)-[:SIMILAR_TO]->(b)`;
+export const CDLP = `CALL algo.labelPropagation({nodeLabels:['Ticket'], relationshipTypes:['SIMILAR_TO'], maxIterations:10}) YIELD node, communityId RETURN node.id AS id, communityId`;
 
 // Concurrency torn-read invariants (design decision 5).
 export const TORN_BATCHES = `MATCH (t:Ticket) WHERE t.batch_id IS NOT NULL WITH t.batch_id AS b, t.batch_size AS s, count(t) AS c WHERE c <> s RETURN count(b) AS torn`;
@@ -29,6 +29,6 @@ export const PER_USER_WRITE = `CREATE (:DoctrineCandidate {id: $id, text: 'bench
 export const META_STATS = `CALL db.meta.stats()`;
 
 export const ALL_CYPHER: string[] = [
-  ...VECTOR_LABELS.flatMap((l) => [vectorIndex(l, 384), vectorInsert(l)]), VECTOR_QUERY, UNINGEST, STRIP_ABOUT, WINDOW_ABOUT, PROJECT_ABOUT, CDLP,
+  ...VECTOR_LABELS.flatMap((l) => [vectorIndex(l, 1), vectorInsert(l)]), VECTOR_QUERY, UNINGEST, WINDOW_SIMILAR, PROJECT_SIMILAR, CDLP,
   TORN_BATCHES, LIVE_PLANS, PER_USER_WRITE, META_STATS,
 ];

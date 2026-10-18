@@ -1,9 +1,22 @@
-// npm run bench [-- --only <run>] [--dry] [--max-usd <n>] [--limit <n>] [--models a,b] [--data <dataset.json>]
+// npm run bench [-- --dry] [--max-usd <n>] [--limit <n>] [--models a,b] [--data <dataset.json>]
 // Runs every section from the seed, validates, and writes bench/results.json (dry: artifacts/results.dry.json).
 // --models sweeps the main run (every arm, every question) over each model; the other sections and `summary` use the
 // first. A cost-cap abort leaves results.json unchanged and writes the partial run to artifacts/results.aborted.json.
+//
+// Parallel shards: --only <A|B|C|D|E|staleness|mismatch|clusters|isolation|server|concurrency> --run-id <id> --out <path>
+// runs one arm or section and writes a PARTIAL file (not validated). Every graph it creates is bench_<id>_*, deleted at
+// the end, so shards never collide; --max-usd applies per shard. Then `node bench/merge.ts <partials...>` writes
+// bench/results.json and must validate. Concurrency runs alone, after the others. From the repo root, for example:
+//   for x in A B C D E; do for m in haiku sonnet; do
+//     node bench/run.ts --only $x --models claude-$m-5-5 --run-id $x$m --max-usd 1.7 --out bench/artifacts/parts/$x-$m.json &
+//   done; done
+//   for s in staleness mismatch clusters isolation server; do
+//     node bench/run.ts --only $s --run-id $s --max-usd 1.7 --out bench/artifacts/parts/$s.json &
+//   done; wait
+//   node bench/run.ts --only concurrency --run-id conc --max-usd 1.7 --out bench/artifacts/parts/concurrency.json
+//   node bench/merge.ts bench/artifacts/parts/*.json
 import { mkdirSync, readFileSync, renameSync, writeFileSync, existsSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { validateResults, type Results } from '@mochi/contracts';
 import { readData } from './deps.ts';
@@ -28,6 +41,12 @@ import { PRICES } from './prices.ts';
 
 export const SECTIONS = ['main', 'staleness', 'ablation', 'clusters', 'concurrency', 'isolation', 'server'] as const;
 type Section = (typeof SECTIONS)[number];
+const ARMS = { A: armA, B: armB, C: armC, D: (c: Ctx) => armD(c), E: armE } as const;
+type ArmId = keyof typeof ARMS;
+/** --only values: one arm (a main-run shard) or one section; 'mismatch' is the ablation section. */
+export const ONLY = ['A', 'B', 'C', 'D', 'E', 'staleness', 'mismatch', 'clusters', 'concurrency', 'isolation', 'server'] as const;
+export const sectionOf = (only: string): Section => (only in ARMS ? 'main' : only === 'mismatch' ? 'ablation' : only as Section);
+export const FIELDS_OF = (only: string) => FIELDS[sectionOf(only)];
 type Body = Omit<Results, 'run_at' | 'seed' | 'model' | 'judge' | 'ledger'>;
 
 const EMPTY: Body = {
@@ -55,24 +74,21 @@ export function limited(d: Awaited<ReturnType<typeof readData>>, n: number): Awa
 }
 
 export type BenchOpts = {
-  only?: Section; dry: boolean; maxUsd: number; limit?: number; prefix?: string; out?: string; artifacts?: string; reply?: Reply;
+  only?: (typeof ONLY)[number]; runId?: string; dry: boolean; maxUsd: number; limit?: number; prefix?: string; out?: string; artifacts?: string; reply?: Reply;
   models?: string[]; data?: string;
 };
 
 export async function bench(o: BenchOpts): Promise<Results> {
   // A --limit run is a cheap end-to-end check: its figures are never published.
-  const out = o.out ?? (o.limit ? join(HERE, 'artifacts/results.limited.json') : o.dry ? join(HERE, 'artifacts/results.dry.json') : join(HERE, 'results.json'));
+  const out = o.out ?? (o.only ? join(HERE, 'artifacts/parts', `${o.only}-${o.runId ?? 'x'}.json`) : o.limit ? join(HERE, 'artifacts/results.limited.json') : o.dry ? join(HERE, 'artifacts/results.dry.json') : join(HERE, 'results.json'));
   if ((o.dry || o.limit) && out === join(HERE, 'results.json')) throw new Error('--dry / --limit never overwrites bench/results.json');
   const artifacts = o.artifacts ?? join(HERE, o.limit ? 'artifacts/limited' : o.dry ? 'artifacts/dry' : 'artifacts');
   mkdirSync(artifacts, { recursive: true });
-  const prefix = o.prefix ?? 'bench';
-
+  mkdirSync(dirname(out), { recursive: true });
+  if (o.only && !o.runId && !o.prefix) throw new Error('--only needs --run-id, so its graphs cannot collide with another shard');
+  const prefix = o.prefix ?? (o.runId ? `bench_${o.runId}` : 'bench');
   const base: Body = { ...EMPTY };
-  if (o.only) {
-    if (!existsSync(out)) throw new Error(`--only ${o.only}: no existing ${out} to merge into; run the full bench first`);
-    const prev = JSON.parse(readFileSync(out, 'utf8'));
-    for (const k of Object.keys(EMPTY) as (keyof Body)[]) (base as any)[k] = prev[k] ?? EMPTY[k];
-  }
+  const arms = (o.only && o.only in ARMS ? [o.only as ArmId] : Object.keys(ARMS) as ArmId[]);
 
   const llm = createLlm({ dry: o.dry, maxUsd: o.maxUsd, reply: o.reply, models: o.models });
   const models = o.models?.length ? o.models : [llm.defaultModel];
@@ -87,7 +103,7 @@ export async function bench(o: BenchOpts): Promise<Results> {
   const run: Record<Section, () => Promise<Partial<Body>>> = {
     main: async () => {
       await resetSlowlog(db, n.world);
-      return runMain({ llm, arms: [armA(ctx), armB(ctx), armC(ctx), armD(ctx), armE(ctx)], eval: ev, events: dataset.contradiction_events, votes, models, costs, sink });
+      return runMain({ llm, arms: arms.map((a) => ARMS[a](ctx)), eval: ev, events: dataset.contradiction_events, votes, models, costs, sink });
     },
     staleness: () => runStaleness({ llm, arms: [armC(ctx), armD(ctx, { ingest: false, graph: n.stale }), armE(ctx)], dataset, eval: ev, votes, artifacts }),
     ablation: () => runAblation(ctx, ev),
@@ -98,7 +114,7 @@ export async function bench(o: BenchOpts): Promise<Results> {
   };
 
   try {
-    for (const s of o.only ? [o.only] : SECTIONS) {
+    for (const s of o.only ? [sectionOf(o.only)] : SECTIONS) {
       try {
         Object.assign(base, await run[s]());
         console.log(`bench: ${s} done ($${llm.spent().toFixed(4)} so far)`);
@@ -119,6 +135,19 @@ export async function bench(o: BenchOpts): Promise<Results> {
     await db.close();
   }
 
+  // pi_cost_usd is pi-ai's own catalog pricing, kept only as a cross-check of spent_usd (bench/prices.ts).
+  writeFileSync(join(artifacts, 'usage.json'), JSON.stringify({ spent_usd: llm.spent(), pi_cost_usd: llm.piCost(), models, by_caller: llm.byCaller, cache_tokens_by_caller: llm.cacheByCaller }, null, 2));
+  if (votes.length) writeFileSync(join(artifacts, 'votes.json'), JSON.stringify(votes, null, 2));
+  if (costs.length) writeFileSync(join(artifacts, 'costs.json'), JSON.stringify(costs, null, 2));
+  if (o.only) {
+    // A shard: only its section's fields, for merge.ts. Not validated on its own.
+    const part = { partial: true, only: o.only, run_id: o.runId, run_at: Date.now(), seed: dataset.seed, models, judge_model: llm.judgeModel, dry: o.dry,
+      spent_usd: llm.spent(), ...Object.fromEntries(FIELDS_OF(o.only).map((k) => [k, base[k]])) };
+    writeFileSync(out, JSON.stringify(part, null, 2) + '\n');
+    console.log(`bench: wrote partial ${out} ($${llm.spent().toFixed(4)} spent)`);
+    return part as unknown as Results;
+  }
+
   const m = catalogModel(models[0]);
   const head = {
     run_at: Date.now(), seed: dataset.seed,
@@ -128,10 +157,6 @@ export async function bench(o: BenchOpts): Promise<Results> {
   const results: Results = { ...head, ...base, ledger: buildLedger({ ...head, ...base }) };
   const v = validateResults(results);
   if (!v.ok) throw new Error(`results do not validate:\n${v.errors.join('\n')}`);
-  if (votes.length || !o.only) writeFileSync(join(artifacts, 'votes.json'), JSON.stringify(votes, null, 2));
-  if (costs.length) writeFileSync(join(artifacts, 'costs.json'), JSON.stringify(costs, null, 2));
-  // pi_cost_usd is pi-ai's own catalog pricing, kept only as a cross-check of spent_usd (bench/prices.ts).
-  writeFileSync(join(artifacts, 'usage.json'), JSON.stringify({ spent_usd: llm.spent(), pi_cost_usd: llm.piCost(), models, by_caller: llm.byCaller, cache_tokens_by_caller: llm.cacheByCaller }, null, 2));
   writeFileSync(`${out}.tmp`, JSON.stringify(v.value, null, 2) + '\n');
   renameSync(`${out}.tmp`, out);
   console.log(`bench: wrote ${out} ($${llm.spent().toFixed(4)} spent)`);
@@ -140,22 +165,27 @@ export async function bench(o: BenchOpts): Promise<Results> {
 
 if (import.meta.main) {
   const { values } = parseArgs({ options: {
-    only: { type: 'string' }, dry: { type: 'boolean' }, 'max-usd': { type: 'string' }, limit: { type: 'string' }, models: { type: 'string' }, data: { type: 'string' },
+    only: { type: 'string' }, 'run-id': { type: 'string' }, out: { type: 'string' }, dry: { type: 'boolean' }, 'max-usd': { type: 'string' }, limit: { type: 'string' }, models: { type: 'string' }, data: { type: 'string' },
   } });
   // From the repo root, `npm run bench -- --dry` reaches the inner `npm run -w bench` as npm's own
   // flags (--dry becomes --dry-run), so read them back from npm's environment.
   const npm = (k: string) => process.env[`npm_config_${k}`];
   values.dry ??= npm('dry_run') === 'true';
   values['max-usd'] ??= npm('max_usd') ?? '25';
-  const only = (values.only ?? npm('only')) as Section | undefined;
-  if (only && !SECTIONS.includes(only)) { console.error(`--only must be one of ${SECTIONS.join(', ')}`); process.exit(2); }
+  const only = (values.only ?? npm('only')) as BenchOpts['only'];
+  if (only && !(ONLY as readonly string[]).includes(only)) { console.error(`--only must be one of ${ONLY.join(', ')}`); process.exit(2); }
+  const runId = values['run-id'] ?? npm('run_id'), outArg = values.out ?? npm('out');
+  if (runId && !/^[a-z0-9]+$/i.test(runId)) { console.error('--run-id must be alphanumeric'); process.exit(2); }
   const maxUsd = Number(values['max-usd']);
   if (!(maxUsd >= 0)) { console.error('--max-usd must be a number >= 0'); process.exit(2); }
   const limit = values.limit ?? npm('limit');
   if (limit !== undefined && !(Number(limit) >= 1)) { console.error('--limit must be a number >= 1'); process.exit(2); }
   const models = (values.models ?? npm('models'))?.split(',').map((x) => x.trim()).filter(Boolean);
   const data = values.data ?? npm('data');
-  bench({ only, dry: values.dry!, maxUsd, limit: limit === undefined ? undefined : Number(limit), models, data: data && resolve(process.env.INIT_CWD ?? process.cwd(), data) }).then(() => process.exit(0), (e) => {
+  const cwd = process.env.INIT_CWD ?? process.cwd();
+  // Each shard keeps its own artifacts dir, so parallel shards never overwrite each other's usage/votes.
+  const shard = runId ? { runId, artifacts: join(HERE, 'artifacts/shards', runId) } : {};
+  bench({ only, ...shard, ...(outArg ? { out: resolve(cwd, outArg) } : {}), dry: values.dry!, maxUsd, limit: limit === undefined ? undefined : Number(limit), models, data: data && resolve(cwd, data) }).then(() => process.exit(0), (e) => {
     console.error(e instanceof CostCapError ? `bench aborted: ${e.message}; results unchanged, partial run in artifacts/results.aborted.json` : `bench failed: ${(e as Error).message}`);
     process.exit(1);
   });
