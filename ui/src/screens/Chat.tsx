@@ -1,8 +1,9 @@
 // Live chat: CopilotKit v2 headless against /api/copilotkit, our own transcript and composer (no CopilotKit styles,
 // so tokens own the look). Rich UI: ACTIVITY.card -> ToolCard, ACTIVITY.html -> SandboxFrame, and `mochi.story`
 // ({id, version, kind} from build_story/edit_story) -> a story card that opens the side panel. openGenerativeUI is
-// never enabled. Layout: transcript left, StoryPanel right (a sheet on narrow screens).
-import { useEffect, useMemo, useRef, useState } from 'react';
+// never enabled. Layout: conversations left, transcript centre, Outputs rail right; an open StoryPanel takes the rail's
+// column (a sheet on narrow screens). The rail is portalled in from Conversation, which owns the messages.
+import { createContext, memo, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { CopilotKitProvider, useAgent, useCopilotKit } from '@copilotkit/react-core/v2';
 import { ACTIVITY, parseStory, type SandboxHtml, type Story, type StoredQuery, type ToolCard as Card } from '@mochi/contracts';
 import type { ChatItem } from '../../fixtures/index.ts';
@@ -11,20 +12,30 @@ import { StoryView } from '../components/story.tsx';
 import { StoryMarkdown } from '../components/markdown.tsx';
 import { SandboxFrame } from '../components/sandbox.tsx';
 import { ReceiptProvider } from '../components/receipts.tsx';
-import { Mochi, Button, NeedsYou } from '../components/ds.tsx';
+import { Mochi, NeedsYou } from '../components/ds.tsx';
 import { StoryPanel } from '../components/story-panel.tsx';
+import { OpenArtifact, OutputsRail } from '../components/chat/outputs-rail.tsx';
+import { Threads, rememberThread, useThreadsOpen } from '../components/chat/threads.tsx';
+import { createPortal } from 'react-dom';
+import { FileText, LayoutDashboard, PanelLeftOpen, PanelRightOpen, TrendingUp, Users } from 'lucide-react';
 import { MessageList } from '../components/chat/MessageList.tsx';
 import { Message, MessageActions } from '../components/chat/Message.tsx';
 import { Composer, type Command } from '../components/chat/Composer.tsx';
 import { ToolProgress } from '../components/chat/ToolProgress.tsx';
-import { EmptyState } from '../components/chat/EmptyState.tsx';
+import { EmptyState, type Starter } from '../components/chat/EmptyState.tsx';
 import { Backdrop } from '../components/chat/Backdrop.tsx';
 
 const STORY_ACTIVITY = 'mochi.story'; // agent/stories.ts STORY_ACTIVITY
 type StoryRef = { id: string; version: number; kind?: 'story' | 'dashboard' };
 // The harness parses these prefixes; the composer only puts "/story " or "/dashboard " at the start of the message.
 const COMMANDS: Command[] = [{ name: '/story', hint: 'Write a story from this conversation' }, { name: '/dashboard', hint: 'Build a live dashboard' }];
-const PROMPTS = ['Who knows about TOTP failures?', 'Why did payouts get slower this week?', '/story What changed in support this week', '/dashboard SLA breaches by product area'];
+// Starters: plain words on the card; the message sent may carry the command.
+const PROMPTS: Starter[] = [
+  { icon: FileText, title: 'Write a story', sub: 'What changed in support this week', send: '/story What changed in support this week' },
+  { icon: LayoutDashboard, title: 'Build a dashboard', sub: 'SLA breaches by product area', send: '/dashboard SLA breaches by product area' },
+  { icon: Users, title: 'Find who knows', sub: 'TOTP failures', send: 'Who knows about TOTP failures?' },
+  { icon: TrendingUp, title: 'Explain a change', sub: 'Why payouts got slower this week', send: 'Why did payouts get slower this week?' },
+];
 
 /** A fixture transcript item (#/preview). */
 export function Answer({ m }: { m: Extract<ChatItem, { role: 'assistant' }> }) {
@@ -60,7 +71,8 @@ const reason = (e: unknown) => {
 };
 
 /** A saved story in the transcript; clicking it reopens the panel. */
-function StoryChip({ s, open, onOpen }: { s: StoryRef; open: boolean; onOpen: () => void }) {
+function StoryChip({ s, onOpen }: { s: StoryRef; onOpen: () => void }) {
+  const open = useContext(OpenId) === s.id;
   return (
     <button className="mb-story-chip" aria-pressed={open} onClick={onOpen}>
       <span className="mb-story-chip-kind">{s.kind === 'dashboard' ? 'Dashboard' : 'Story'}</span>
@@ -70,7 +82,9 @@ function StoryChip({ s, open, onOpen }: { s: StoryRef; open: boolean; onOpen: ()
   );
 }
 
-function Conversation({ threadId, openId, onOpen }: { threadId: string; openId: string | null; onOpen: (id: string) => void }) {
+// memo + the open id via context: opening or closing the panel re-renders only the story chips, never the transcript
+const OpenId = createContext<string | null>(null);
+const Conversation = memo(function Conversation({ threadId, onOpen, rail }: { threadId: string; onOpen: (id: string) => void; rail: HTMLElement | null }) {
   const { agent, isReady } = useAgent({ agentId: 'mochi' });
   const { copilotkit } = useCopilotKit();
   const [error, setError] = useState<string | null>(null);
@@ -84,6 +98,8 @@ function Conversation({ threadId, openId, onOpen }: { threadId: string; openId: 
   // every stored query a card brought into this thread, so <num> and tags in Mochi's text resolve to receipts
   const queries = useMemo(() => Object.assign({}, ...messages.filter((m) => m.activityType === ACTIVITY.card).map((m) => (m.content as Card).queries)) as Record<string, StoredQuery>, [messages.length]);
   const running = agent.isRunning;
+  const first = messages.find((m) => m.role === 'user')?.content;
+  useEffect(() => { if (typeof first === 'string') rememberThread(threadId, first); }, [first]);
   const send = async (q: string) => {
     if (running) return;
     setError(null);
@@ -111,6 +127,7 @@ function Conversation({ threadId, openId, onOpen }: { threadId: string; openId: 
   const streaming = tail?.role === 'assistant' && typeof tail.content === 'string' && tail.content.trim() !== '';
   return (
     <div className="mb-chat-shell">
+      {rail && createPortal(<OutputsRail messages={messages} running={running} />, rail)}
       <Backdrop mood={!messages.length && !running ? 'home' : running ? 'working' : 'calm'} />
       <MessageList pinKey={turns.length} busy={running}>
         {!messages.length && !running && <EmptyState prompts={PROMPTS} onPick={(p) => void send(p)} />}
@@ -128,7 +145,7 @@ function Conversation({ threadId, openId, onOpen }: { threadId: string; openId: 
                 // order: what Mochi is doing, then what it found (cards), then what it says
                 <Message role="assistant" mood={mood}>
                   <ToolProgress steps={steps} />
-                  {acts.map((m) => <Activity key={m.id} m={m} openId={openId} onOpen={onOpen} />)}
+                  {acts.map((m) => <Activity key={m.id} m={m} onOpen={onOpen} />)}
                   {texts.map((x, j) => <AiText key={j} text={x} queries={queries} />)}
                   {live && !steps.length && !texts.length && !acts.length && <div className="mb-skel" aria-label="Mochi is thinking">{[70, 50].map((w, k) => <i key={k} style={{ width: `${w}%` }} />)}</div>}
                   {!live && <MessageActions text={texts.join('\n\n') || undefined} onRetry={i === turns.length - 1 && user && !running ? () => void send(String(user.content)) : undefined} />}
@@ -140,36 +157,50 @@ function Conversation({ threadId, openId, onOpen }: { threadId: string; openId: 
         {error && <NeedsYou mood="sorry" title="I couldn’t answer" reason={error} />}
       </MessageList>
       <Composer onSend={(q) => void send(q)} onStop={stop} running={running} commands={COMMANDS}
-        placeholder="Ask, or start with /story or /dashboard"
+        placeholder="Ask about tickets or customers"
         disabledReason={!isReady ? 'I’m still connecting to the agent.' : undefined} />
     </div>
   );
-}
+});
 
 /** Rich UI paths: a tool card, guarded sandbox HTML, or a story chip that opens the panel. */
-function Activity({ m, openId, onOpen }: { m: Msg; openId: string | null; onOpen: (id: string) => void }) {
+function Activity({ m, onOpen }: { m: Msg; onOpen: (id: string) => void }) {
   if (m.activityType === ACTIVITY.card) return <ChatCard card={m.content as Card} />;
-  if (m.activityType === STORY_ACTIVITY) { const s = m.content as StoryRef; return <StoryChip s={s} open={openId === s.id} onOpen={() => onOpen(s.id)} />; }
+  if (m.activityType === STORY_ACTIVITY) { const s = m.content as StoryRef; return <StoryChip s={s} onOpen={() => onOpen(s.id)} />; }
   if (m.activityType !== ACTIVITY.html) return null;
   const h = m.content as SandboxHtml & { queries: Record<string, StoredQuery> };
   return <SandboxFrame value={{ html: h.html, css: h.css }} queries={h.queries} height={220} />;
 }
 
+const SHEET_KEY = 'mochi-threads-open';
 export function Chat() {
   const [threadId, setThreadId] = useState(loadThread);
   const [openId, setOpenId] = useState<string | null>(null);
+  const [rail, setRail] = useState<HTMLElement | null>(null);
+  const [side, setSide] = useThreadsOpen(SHEET_KEY);
+  const [outputs, setOutputs] = useState(false); // the rail as a sheet below 768px
+  const openArtifact = useMemo(() => (id: string) => { setOutputs(false); setOpenId(id); }, []);
+  const go = (id: string) => { setOpenId(null); try { localStorage.setItem(THREAD_KEY, id); } catch { /* storage blocked */ } setThreadId(id); };
   return (
     // The durable agent keeps the whole conversation server side, so each run sends only the newest message.
     <CopilotKitProvider runtimeUrl="/api/copilotkit" messageFilter={(m) => m.slice(-1)} showDevConsole={false} enableInspector={false}>
-      <div className="mb-split" data-panel={openId ? 'open' : undefined}>
-        <div className="mb-split-chat">
-          <div className="mb-page mb-page-narrow">
-            <div className="mb-prev-row"><Button variant="link" size="sm" onClick={() => { setOpenId(null); setThreadId(newThread()); }}>New conversation</Button></div>
-            <Conversation key={threadId} threadId={threadId} openId={openId} onOpen={setOpenId} />
+      <OpenArtifact.Provider value={openArtifact}>
+        <div className="mb-split" data-side={side ? 'open' : 'closed'} data-outputs={outputs || undefined}>
+          <Threads current={threadId} onPick={go} onNew={() => go(newThread())} onClose={() => setSide(false)} />
+          <button type="button" className="mb-scrim" aria-label="Close" tabIndex={-1} onClick={() => { setSide(false); setOutputs(false); }} />
+          <div className="mb-split-chat">
+            <div className="mb-page mb-page-narrow">
+              <div className="mb-chat-bar">
+                <button type="button" className="mb-icon-btn mb-side-toggle" aria-label="Show conversations" onClick={() => setSide(true)}><PanelLeftOpen size={16} strokeWidth={1.5} aria-hidden="true" /></button>
+                <button type="button" className="mb-icon-btn mb-outputs-toggle" aria-label="Show outputs" onClick={() => setOutputs(true)}><PanelRightOpen size={16} strokeWidth={1.5} aria-hidden="true" /></button>
+              </div>
+              <OpenId.Provider value={openId}><Conversation key={threadId} threadId={threadId} onOpen={setOpenId} rail={rail} /></OpenId.Provider>
+            </div>
           </div>
+          <div className="mb-split-rail" ref={setRail} />
+          <StoryPanel id={openId} onClose={() => setOpenId(null)} />
         </div>
-        {openId && <StoryPanel id={openId} onClose={() => setOpenId(null)} />}
-      </div>
+      </OpenArtifact.Provider>
     </CopilotKitProvider>
   );
 }

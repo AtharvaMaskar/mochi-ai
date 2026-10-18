@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { Mochi } from './ds.tsx';
 import { api, fmtClock, useData, useDream } from '../data/api.ts';
+import { useStories } from './chat/outputs-rail.tsx';
 
 export type Route =
   | { name: 'tickets' } | { name: 'overview' } | { name: 'chat' } | { name: 'preview' }
@@ -42,10 +43,10 @@ export const SCREENS = [
   { id: 'chat', label: 'Chat', href: '#/chat' },
 ];
 
-export function ScreenNav(p: { items: typeof SCREENS; current: string; fill?: boolean; label?: string }) {
+export function ScreenNav(p: { items: ((typeof SCREENS)[number] & { count?: number })[]; current: string; fill?: boolean; label?: string }) {
   return (
     <nav className="mb-nav" data-fill={p.fill || undefined} aria-label={p.label ?? 'Screens'}>
-      {p.items.map((i) => <a key={i.id} href={i.href} aria-current={i.id === p.current ? 'page' : undefined}>{i.label}</a>)}
+      {p.items.map((i) => <a key={i.id} href={i.href} aria-current={i.id === p.current ? 'page' : undefined}>{i.label}{i.count ? <span className="mb-nav-count mono" aria-label={`${i.count} saved`}>{i.count}</span> : null}</a>)}
     </nav>
   );
 }
@@ -79,17 +80,19 @@ function useIsland(): { working: boolean; line: string } {
 
 export function TopBar({ current }: { current: string; working?: boolean }) {
   const island = useIsland();
+  const n = useStories().data?.length; // stories + dashboards this visitor can see
+  const items = SCREENS.map((i) => (i.id === 'report' ? { ...i, count: n } : i));
   return (
     <>
       <header className="mb-bar">
         <div className="mb-bar-left">
           <a className="mb-brand" href="#/"><Mochi size="xs" still squishable={false} label="Mochi" />Mochi Brain</a>
-          <ScreenNav items={SCREENS} current={current} />
+          <ScreenNav items={items} current={current} />
         </div>
         <MochiIsland working={island.working} line={island.line} />
         <div />
       </header>
-      <div className="mb-navrow"><ScreenNav items={SCREENS} current={current} fill /></div>
+      <div className="mb-navrow"><ScreenNav items={items} current={current} fill /></div>
     </>
   );
 }
