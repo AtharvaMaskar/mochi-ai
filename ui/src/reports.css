@@ -1,0 +1,44 @@
+/* Reports library (#/reports): the list column reuses the Chats sidebar (.mb-threads, .mb-thread-row, .mb-col-head);
+   this file adds search, kind chips, groups, the two-line row, the main pane, and the overlay / sheet below 1180px. */
+.mb-lib { position: relative; flex: 1; min-height: 0; display: flex; overflow: hidden; }
+.mb-lib .mb-lib-side { flex-basis: 260px; }
+.mb-lib-main { position: relative; flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.mb-lib-head { padding: 0 var(--space-2) 0 var(--space-4); }
+.mb-lib-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
+.mb-lib-body .mb-page-live .mono { white-space: nowrap; }
+.mb-lib-body { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; }
+.mb-lib-toggle, .mb-lib-close { display: none !important; }
+
+.mb-lib-tools { flex-shrink: 0; display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3) var(--space-2) var(--space-1); }
+.mb-lib-search { display: flex; align-items: center; gap: var(--space-2); height: var(--control-sm); padding: 0 var(--space-2); border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--ink-muted); transition: border-color .16s; }
+.mb-lib-search:focus-within { border-color: var(--focus); }
+.mb-lib-search input { flex: 1; min-width: 0; height: 100%; padding: 0; border: 0; outline: 0; background: none; font: inherit; font-size: var(--fs-label); color: var(--ink); }
+.mb-lib-search input::placeholder { color: var(--ink-muted); }
+.mb-lib-chips { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.mb-lib-chip { height: 24px; padding: 0 var(--space-2); border: 1px solid var(--border); border-radius: var(--radius-pill); background: none; font: inherit; font-size: var(--fs-caption); color: var(--ink-secondary); cursor: pointer; transition: background .16s, border-color .16s, color .16s; }
+.mb-lib-chip:hover { border-color: var(--border-strong); color: var(--ink); }
+.mb-lib-chip[aria-pressed="true"] { border-color: var(--ink); background: var(--ink); color: var(--on-ink); }
+.mb-lib-chip:focus-visible, .mb-lib-row:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+
+.mb-lib-side > ul { flex: 1; min-height: 0; gap: var(--space-3); }
+.mb-lib-side ul ul { padding: 0; overflow: visible; }
+.mb-lib-group { padding: 0 var(--space-2) var(--space-1); font-size: var(--fs-caption); font-weight: var(--fw-label); color: var(--ink-muted); }
+.mb-lib-row { display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; gap: 2px var(--space-2); text-decoration: none; }
+.mb-lib-row svg { color: var(--ink-muted); }
+.mb-lib-sub { grid-column: 2 / 4; font-size: var(--fs-caption); color: var(--ink-muted); }
+
+@media (max-width: 1179px) {
+  .mb-lib-toggle, .mb-lib-close { display: inline-grid !important; }
+  .mb-lib .mb-lib-side { display: none; }
+  .mb-lib[data-side="open"] .mb-lib-side { display: flex; position: absolute; z-index: 25; top: 0; bottom: 0; left: 0; width: 280px; background: var(--bg-surface); box-shadow: var(--shadow-pop); }
+  .mb-lib[data-side="open"] .mb-lib-scrim { display: block; position: absolute; inset: 0; z-index: 24; }
+}
+@media (max-width: 767px) {
+  .mb-lib-head { padding: 0 var(--space-2); }
+  .mb-lib[data-side="open"] .mb-lib-side { position: fixed; z-index: 30; top: auto; left: 0; right: 0; bottom: 0; width: auto; max-height: 75dvh; border-right: 0; border-top: 1px solid var(--border-strong); border-radius: var(--radius-xl) var(--radius-xl) 0 0; animation: mb-sheet-in .32s cubic-bezier(0.05, 0.7, 0.1, 1) both; }
+  .mb-lib[data-side="open"] .mb-lib-scrim { position: fixed; z-index: 29; }
+  .mb-lib-head .mb-badge, .mb-lib-head .mb-panel-name > svg { display: none; } /* status and kind stay on the list row */
+  .mb-lib-title { font-size: var(--fs-body); }
+  .mb-lib-close { display: none !important; } /* the sheet closes on its scrim */
+}
+@media (prefers-reduced-motion: reduce) { .mb-lib-side { animation: none !important; } }

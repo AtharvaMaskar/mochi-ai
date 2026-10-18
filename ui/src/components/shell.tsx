@@ -6,13 +6,16 @@ import { useStories } from './chat/outputs-rail.tsx';
 
 export type Route =
   | { name: 'tickets' } | { name: 'overview' } | { name: 'chat' } | { name: 'preview' }
-  | { name: 'report'; id: string; version?: number; asOf?: number; kind?: 'story' | 'dashboard' }; // kind absent: #/r/ (redirects)
+  | { name: 'report'; id: string; version?: number; asOf?: number; kind?: 'story' | 'dashboard' } // kind absent: #/r/ (redirects)
+  | { name: 'reports'; id?: string; version?: number; asOf?: number }; // the library: #/reports[/:id[@n]]
 
 export function parseHash(hash: string): Route {
   const [path, query = ''] = hash.replace(/^#/, '').split('?');
   const asOfRaw = new URLSearchParams(query).get('asOf');
   const asOf = asOfRaw && /^\d+$/.test(asOfRaw) ? Number(asOfRaw) : undefined;
   const r = path.match(/^\/(r|story|dashboard)\/([A-Za-z0-9_-]+)(?:@(\d+))?$/);
+  const lib = path.match(/^\/reports(?:\/([A-Za-z0-9_-]+)(?:@(\d+))?)?\/?$/);
+  if (lib) return { name: 'reports', id: lib[1], version: lib[2] ? Number(lib[2]) : undefined, asOf };
   if (r) return { name: 'report', id: r[2], version: r[3] ? Number(r[3]) : undefined, asOf, kind: r[1] === 'r' ? undefined : r[1] as 'story' | 'dashboard' };
   if (path === '/overview' || path === '/today') return { name: 'overview' };
   if (path === '/chat') return { name: 'chat' };
@@ -39,7 +42,7 @@ export function useWidth(): number {
 export const SCREENS = [
   { id: 'tickets', label: 'Tickets', href: '#/' },
   { id: 'overview', label: 'Overview', href: '#/overview' },
-  { id: 'report', label: 'Reports', href: '#/r/latest' },
+  { id: 'report', label: 'Reports', href: '#/reports' },
   { id: 'chat', label: 'Chat', href: '#/chat' },
 ];
 

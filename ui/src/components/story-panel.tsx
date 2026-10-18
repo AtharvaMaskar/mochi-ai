@@ -34,9 +34,9 @@ export function StoryPanel({ id, onClose }: { id: string | null; onClose: () => 
   return <Panel id={s.shown} ready={s.ready} closing={s.closing} onClose={onClose} />;
 }
 
-type Item = { label: string; on: () => void };
+export type Item = { label: string; on: () => void };
 /** Icon-only "More" menu: closes on Escape (focus back to the trigger) and on an outside press. */
-function Overflow({ items }: { items: Item[] }) {
+export function Overflow({ items }: { items: Item[] }) {
   const [open, setOpen] = useState(false);
   const host = useRef<HTMLDivElement>(null), trigger = useRef<HTMLButtonElement>(null);
   useEffect(() => {
