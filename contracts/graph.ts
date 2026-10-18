@@ -39,6 +39,7 @@ export const E = {
   BASED_ON: e('Resolution', 'KBArticle'),
   INTRODUCED: e('Release', 'Issue'),
   FOLLOWS: e('Ticket', 'Ticket'),
+  MERGED_INTO: e('Ticket', 'Ticket'), // same request closed into its primary; not a follow-up
   CONTRADICTS: e('ObservedPattern', ['KBArticle', 'Policy']),
   UNDOCUMENTED: e('ObservedPattern', 'ProductArea'),
   SEEN_IN: e('ObservedPattern', 'Ticket'),
@@ -72,7 +73,10 @@ export const P = {
   validFrom: 'valid_from', validUntil: 'valid_until', embedding: 'embedding',
   promisedTat: 'promised_tat_hours', steps: 'steps', measuredTat: 'measured_tat_hours',
   supportCount: 'support_count', lastSeen: 'last_seen', summary: 'summary', delta: 'delta',
-  ingestedAt: 'ingested_at', text: 'text', evidenceTicketIds: 'evidence_ticket_ids', confidence: 'confidence', expiresAt: 'expires_at', status: 'status',
+  ingestedAt: 'ingested_at', text: 'text',
+  requesterEmail: 'requester_email', ccEmails: 'cc_emails', onBehalfOf: 'on_behalf_of', mergedInto: 'merged_into',
+  frDueBy: 'fr_due_by', dueBy: 'due_by', firstRespondedAt: 'first_responded_at', closedAt: 'closed_at',
+  frEscalated: 'fr_escalated', isEscalated: 'is_escalated', evidenceTicketIds: 'evidence_ticket_ids', confidence: 'confidence', expiresAt: 'expires_at', status: 'status',
 } as const;
 // Mismatch engine (SPEC §1): gen plants above these, dream checks against them.
 export const MISMATCH = { MIN_SUPPORT: 5, TAT_TOLERANCE: 0.25 } as const;

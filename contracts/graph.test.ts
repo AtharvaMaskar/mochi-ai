@@ -42,3 +42,7 @@ test('as-of fragments against FalkorDB', async () => {
   const planText = (await g.explain(plan.replaceAll("$as_of", String(Date.now())))).join('\n');
   assert.match(planText, /Index Scan/i, planText);
 });
+
+test('MERGED_INTO is a contract edge', () => {
+  assert.deepEqual(checkCypherNames('MATCH (a:Ticket)-[:MERGED_INTO]->(b:Ticket) RETURN a'), []);
+});
