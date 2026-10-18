@@ -335,3 +335,6 @@ main, .site-foot { position: relative; z-index: 1; }
   .sky-drift, .sky-aurora, .sky-dawn i, .sky-dawn b { animation: none; }
   .roll-strip, .row::before, .stage-frame { transition: none !important; }
 }
+
+/* Phones: decorative overflow (the tilted hero frame, long receipts) never widens the page; clip keeps the sticky nav working. */
+@media (max-width: 767px) { main, footer { overflow-x: clip; } }

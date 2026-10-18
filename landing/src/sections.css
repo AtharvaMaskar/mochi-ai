@@ -135,13 +135,15 @@ section .t-lead { color: var(--fg-2); }
 
 /* §6 receipts */
 .rc-grid { display: grid; grid-template-columns: 5fr 7fr; gap: 64px; margin-top: var(--space-8); }
+.rc-grid > *, .rc-statements > * { min-width: 0; overflow-wrap: anywhere; } /* one column on phones: long words wrap, never widen the page */
 .rc-statements { position: relative; padding-left: var(--space-6); }
 .beam { position: absolute; left: 0; top: 0; bottom: 0; width: 3px; border-radius: 2px; background: var(--border); }
 .beam i { display: block; width: 100%; height: 100%; border-radius: 2px; background: var(--ink); transform-origin: top; transform: scaleY(var(--beam, 0)); }
 .stmt { min-height: 72vh; display: grid; align-content: start; gap: var(--space-4); padding-top: 12vh; opacity: .45; transition: opacity .3s; }
 .stmt:first-of-type { padding-top: 0; }
 .stmt.on { opacity: 1; }
-.stmt-btn { border: 0; background: transparent; padding: 0; text-align: left; cursor: pointer; color: inherit; }
+.stmt-btn { border: 0; background: transparent; padding: 0; text-align: left; cursor: pointer; color: inherit; max-width: 100%; }
+.stmt > * { min-width: 0; max-width: 100%; }
 .stmt-h { transition: transform .26s var(--ease-spring); }
 .stmt-btn:active .stmt-h { transform: translateY(1px); }
 .stmt-frag { display: none; }
@@ -319,3 +321,8 @@ section .t-lead { color: var(--fg-2); }
 .rcf-redraw { align-self: flex-start; justify-self: start; display: inline-flex; align-items: center; gap: 6px; width: auto; margin-top: var(--space-2); padding: 4px 0; border: 0; background: none; font: inherit; color: var(--fg-2); cursor: pointer; }
 .rcf-redraw:hover { color: var(--fg); }
 .rcf-redraw:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; border-radius: 2px; }
+
+/* Phone fit: grid and flex children may shrink below their content; long paths and facts wrap inside their cards. */
+.rcf > *, .brief-body, .brief-body > *, .desk-stack > .brief { min-width: 0; }
+.rcf .path, .brief-body .facts, .brief-body .kpi { flex-wrap: wrap; overflow-wrap: anywhere; }
+.rcf .hop, .brief-body .hop { white-space: normal; flex-wrap: wrap; min-width: 0; }

@@ -34,8 +34,8 @@ function Nav() {
   return (
     <header className="nav" data-pill={pill || undefined} data-open={open || undefined}>
       <div className="nav-body">
-        <a className="brand" href="#top" aria-label="Mochi Brain, back to top">
-          <Mochi size="xs" still label="Mochi" /><span className="t-mochi-wordmark wm">mochi</span><span className="t-title">Brain</span>
+        <a className="brand" href="#top" aria-label="Mochi, back to top">
+          <Mochi size="xs" still label="Mochi" /><span className="t-mochi-wordmark wm">mochi</span>
         </a>
         <nav className="nav-links t-label" aria-label="Sections">{links}</nav>
         <div className="nav-end">

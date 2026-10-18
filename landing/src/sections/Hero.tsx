@@ -102,7 +102,7 @@ function Clock() {
 function Ghost() {
   return (
     <div className="ghost" aria-hidden="true" data-ui>
-      <div className="appbar"><span className="brand-s"><Mochi size="xs" still squishable={false} /><span className="t-label">Mochi Brain</span></span><span className="appnav t-label"><span>Tickets</span><b>Overview</b><span>Reports</span></span></div>
+      <div className="appbar"><span className="brand-s"><Mochi size="xs" still squishable={false} /><span className="t-label">Mochi</span></span><span className="appnav t-label"><span>Tickets</span><b>Overview</b><span>Reports</span></span></div>
       <div className="ghost-body">
         <div className="ghost-greet"><Mochi size="md" mood="done" tone="mood" still squishable={false} /><span className="t-title">Good morning. Here is what changed overnight.</span></div>
         <div className="ghost-rail">{['Ingest', 'Cluster', 'Retire', 'Mismatch', 'Report'].map((s) => <span key={s} className="t-label"><Check />{s}</span>)}</div>
@@ -137,9 +137,9 @@ function Desk({ live }: { live: boolean }) {
         <span className="t-label">{picked ? 'Click any number to see its query.' : 'Pick a ticket. I’ll brief you.'}</span>
       </p>
       <div className="desk-stack">
-        <div className="desk" data-ui aria-label="Mochi Brain desk: the ticket queue and the ticket">
+        <div className="desk" data-ui aria-label="Mochi desk: the ticket queue and the ticket">
           <div className="appbar">
-            <span className="brand-s"><Mochi size="xs" still squishable={false} label="Mochi" /><span className="t-label">Mochi Brain</span></span>
+            <span className="brand-s"><Mochi size="xs" still squishable={false} label="Mochi" /><span className="t-label">Mochi</span></span>
             <span className="appnav t-label"><b>Tickets</b><span>Overview</span><span>Reports</span></span>
             <span className="island t-caption"><Mochi size="xs" mood={reading ? 'thinking' : 'idle'} squishable={false} label="Mochi" />
               {reading ? <>Reading <span className="t-data">{sel}</span></> : <>Brief ready for <span className="t-data">{sel}</span></>}</span>

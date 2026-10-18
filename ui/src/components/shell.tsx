@@ -90,7 +90,7 @@ export function TopBar({ current }: { current: string; working?: boolean }) {
     <>
       <header className="mb-bar">
         <div className="mb-bar-left">
-          <a className="mb-brand" href="#/"><Mochi size="xs" still squishable={false} label="Mochi" />Mochi Brain</a>
+          <a className="mb-brand" href="#/"><Mochi size="xs" still squishable={false} label="Mochi" />Mochi</a>
           <ScreenNav items={items} current={current} />
         </div>
         <MochiIsland working={island.working} line={island.line} />

@@ -43,7 +43,7 @@ export function Demo() {
         <div className="demo-card">
           <div className="demo-screen">
             <video ref={video} src="/demo.mp4" preload="metadata" controls={state === 'ready'} playsInline
-              onLoadedMetadata={() => setState('ready')} onError={() => setState('missing')} aria-label="Mochi Brain demo video">
+              onLoadedMetadata={() => setState('ready')} onError={() => setState('missing')} aria-label="Mochi demo video">
               <track kind="chapters" src="/chapters.vtt" srcLang="en" label="Chapters" default />
             </video>
             {state !== 'ready' && <Poster missing={state === 'missing'} />}

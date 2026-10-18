@@ -43,7 +43,7 @@ function PrintHead({ story, meta, asOf }: { story: Story; meta: StoryMeta; asOf:
   return (
     <p className="mb-print-head t-caption">
       <span>{story.title}</span><span>{meta.kind === 'dashboard' ? 'Dashboard' : 'Story'}</span><span className="mono">@{story.version}</span>
-      <span>{meta.status === 'published' ? 'Published' : 'Draft'}</span><span>As of{" "}<span className="mono">{fmtTime(asOf)}</span></span><span>E Corp Securities · Mochi Brain</span>
+      <span>{meta.status === 'published' ? 'Published' : 'Draft'}</span><span>As of{" "}<span className="mono">{fmtTime(asOf)}</span></span><span>E Corp Securities · Mochi</span>
     </p>
   );
 }

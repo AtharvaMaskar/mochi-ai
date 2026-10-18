@@ -64,7 +64,7 @@ export function Share({ m, url, onPublish, onCopy }: { m: StoryMeta; url: string
             options={[{ id: 'me', label: 'Signed-in people' }, { id: 'link', label: 'Anyone with the link' }]} />
           <p className="mb-share-who">{pub
             ? <>Anyone with the link, signed in or not, sees <span className="mono">v{live}</span>, live, with every receipt.{behind && <> Your latest is <span className="mono">v{latest}</span>.</>}</>
-            : <>Only people signed in to Mochi Brain can see it. Anyone with the link makes a read-only page anyone can open, no sign-in.</>}</p>
+            : <>Only people signed in to Mochi can see it. Anyone with the link makes a read-only page anyone can open, no sign-in.</>}</p>
           {pub && (
             <div className="mb-share-link">
               <span className="mono" title={url}>{url.replace(/^https?:\/\//, '')}</span>
